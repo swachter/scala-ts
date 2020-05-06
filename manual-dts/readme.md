@@ -27,10 +27,12 @@ index.js.map -> ../target/scala-2.13/manual-dts-fastopt.js.map
 package.json -> ../src/main/module/package.json
 ```
 
-The module is installed by running:
+This folder represents a node module that contains the transpiled ScalaJS code and its meta data. In particular, the `package.json` file specifies that the module is an EcmaScript module named 'from-scala'. (The 'from-scala' module is installed as a local module by `npm i ./module`.)
+
+Before running the test application the necessary node modules have to be installed:
 
 ```
-> npm install ./module
+> npm ci
 ```
 
 Finally the TypeScript application `app.ts` can be compiled and run by:
@@ -38,3 +40,10 @@ Finally the TypeScript application `app.ts` can be compiled and run by:
 ```
 > npm run start
 ```
+
+
+
+```
+> npm install ./module
+```
+
