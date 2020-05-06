@@ -40,10 +40,3 @@ Finally the TypeScript application `app.ts` can be compiled and run by:
 ```
 > npm run start
 ```
-
-
-
-```
-> npm install ./module
-```
-
