@@ -3,6 +3,7 @@ import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExp
 import scala.util.{Failure, Random, Success}
 import js.JSConverters._
 import scala.concurrent.Promise
+import scala.scalajs.js.UndefOr
 
 object TutorialApp {
 
@@ -139,4 +140,18 @@ object Result {
     override def left: Nothing = ???
     override def tpe: String = "Right"
   }
+}
+
+@JSExportTopLevel("stdLibInterOp")
+@JSExportAll
+object StdLibInterop {
+
+  def toOption[T](t: UndefOr[T]): Option[T] = t.toOption
+
+  def fromOption[T](t: Option[T]): UndefOr[T] = t.orUndefined
+
+  def toSome[T](t: T): Some[T] = Some(t)
+
+  val none: None.type = None
+
 }

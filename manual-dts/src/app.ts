@@ -121,3 +121,12 @@ const right = new fs.Right(42);
 
 test(left);
 test(right);
+
+const strOption: fs.scala.Option<string> = fs.stdLibInterOp.toOption('abc')
+console.log(`strOption: ${strOption}`)
+console.log(`none: ${fs.stdLibInterOp.toOption(undefined)}`)
+const booleanOption: fs.scala.Option<boolean> = fs.stdLibInterOp.toOption(true)
+console.log(`booleanOption: ${booleanOption}`)
+const someNumber: fs.scala.Some<number> = fs.stdLibInterOp.toSome(333)
+const theNumber: number | undefined = fs.stdLibInterOp.fromOption(someNumber)
+console.log(`theNumber: ${theNumber}`)

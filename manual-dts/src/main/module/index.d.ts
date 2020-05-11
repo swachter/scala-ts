@@ -124,3 +124,25 @@ export class Right<R> {
 }
 
 export type Result<L, R> = Left<L> | Right<R>
+
+// all non-ScalaJS-exported types are opaque to TypeScript
+// -> such types can be referenced in the exported API
+// -> export nominal interfaces without any methods for these types
+export namespace scala {
+  interface Option<T> {
+    '@scala.Option': never
+  }
+  interface Some<T> extends Option<T> {
+    '@scala.Some': never
+  }
+  interface None extends Option<never> {
+    '@scala.None': never
+  }
+}
+
+export const stdLibInterOp: {
+  toOption<T>(t: T | undefined): scala.Option<T>
+  fromOption<T>(o: scala.Option<T>): T | undefined
+  toSome<T>(t: T): scala.Some<T>
+  readonly none: scala.None
+}
