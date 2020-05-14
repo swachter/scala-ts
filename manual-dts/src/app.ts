@@ -130,3 +130,26 @@ console.log(`booleanOption: ${booleanOption}`)
 const someNumber: fs.scala.Some<number> = fs.stdLibInterOp.toSome(333)
 const theNumber: number | undefined = fs.stdLibInterOp.fromOption(someNumber)
 console.log(`theNumber: ${theNumber}`)
+
+const dict1: { [key: string]: number } = { 'a': 1, 'b': 2 }
+const map = fs.stdLibInterOp.asMap(dict1)
+fs.stdLibInterOp.addToMap('c', 3, map)
+console.log(`map: ${map}`)
+console.log(`dict1: ${JSON.stringify(dict1)}`)
+const dict2 = fs.stdLibInterOp.toDictionary(map)
+console.log(`dict2: ${JSON.stringify(dict2)}`)
+dict2['u'] = 77
+console.log(`dict2: ${JSON.stringify(dict2)}`)
+// 'u' -> 77 is not contained in dict1
+console.log(`dict1: ${JSON.stringify(dict1)}`)
+
+const list = fs.stdLibInterOp.list(1, 2, 3)
+console.log(`list: ${list}`)
+
+const nonEmptyList = fs.stdLibInterOp.list(0, 1, 2, 3)
+console.log(`nonEmptyList: ${nonEmptyList}`)
+
+const immMap = fs.stdLibInterOp.immutableMap(['a', 97], ['b', 98], ['c', 99])
+console.log(`immMap: ${immMap}`)
+const immMapDict = fs.stdLibInterOp.toDictionary(immMap)
+console.log(`immMapDict: ${JSON.stringify(immMapDict)}`)

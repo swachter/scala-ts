@@ -2,8 +2,9 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel}
 import scala.util.{Failure, Random, Success}
 import js.JSConverters._
+import scala.collection.mutable
 import scala.concurrent.Promise
-import scala.scalajs.js.UndefOr
+import scala.scalajs.js.{Dictionary, UndefOr}
 
 object TutorialApp {
 
@@ -154,4 +155,12 @@ object StdLibInterop {
 
   val none: None.type = None
 
+  def asMap[V](d: Dictionary[V]): mutable.Map[String, V] = d
+  def addToMap[K, V](key: K, value: V, map: mutable.Map[K, V]): Unit = map(key) = value
+  def toDictionary[V](map: collection.Map[String, V]): Dictionary[V] = map.toJSDictionary
+
+  def list[V](vs: V*): List[V] = List(vs: _*)
+  def noneEmptyList[V](v: V, vs: V*): List[V] = v :: List(vs: _*)
+
+  def immutableMap[K,V](kvs: scala.scalajs.js.Tuple2[K, V]*): Map[K, V] = Map(kvs.map(kv => kv._1 -> kv._2): _*)
 }

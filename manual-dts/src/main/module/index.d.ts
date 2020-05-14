@@ -129,20 +129,72 @@ export type Result<L, R> = Left<L> | Right<R>
 // -> such types can be referenced in the exported API
 // -> export nominal interfaces without any methods for these types
 export namespace scala {
+
   interface Option<T> {
-    '@scala.Option': never
+    'scala.Option': never
   }
   interface Some<T> extends Option<T> {
-    '@scala.Some': never
+    'scala.Some': never
   }
   interface None extends Option<never> {
-    '@scala.None': never
+    'scala.None': never
+  }
+
+  namespace collection {
+
+    interface Iterable<V> {
+      'scala.collection.Iterable': never
+    }
+
+    interface Map<K,V> {
+      'scala.collection.Map': never
+    }
+
+    namespace mutable {
+
+      interface Map<K,V> extends scala.collection.Map<K, V> {
+        'scala.collection.mutable.Map': never
+      }
+
+    }
+
+    namespace immutable {
+
+      interface Iterable<V> extends scala.collection.Iterable<V> {
+        'scala.collection.immutable.Iterable': never
+      }
+
+      interface Seq<V> extends scala.collection.immutable.Iterable<V> {
+        'scala.collection.immutable.Seq': never
+      }
+
+      interface List<V> extends scala.collection.immutable.Seq<V> {
+        'scala.collection.immutable.List': never
+      }
+
+      interface Map<K,V> extends scala.collection.Map<K, V> {
+        'scala.collection.immutable.Map': never
+      }
+    }
   }
 }
 
 export const stdLibInterOp: {
+
   toOption<T>(t: T | undefined): scala.Option<T>
   fromOption<T>(o: scala.Option<T>): T | undefined
   toSome<T>(t: T): scala.Some<T>
   readonly none: scala.None
+
+  // the map wraps the dictionary
+  asMap<V>(dict: { [key: string]: V}): scala.collection.mutable.Map<string, V>
+  addToMap<K, V>(key: K, value: V, map: scala.collection.mutable.Map<K, V>): void
+  // the map is converted into a new dictionary
+  toDictionary<V>(map: scala.collection.Map<string, V>): { [key: string]: V }
+
+  list<V>(...v: V[]): scala.collection.immutable.List<V>
+  noneEmptyList<V>(one: V, ...v: V[]): scala.collection.immutable.List<V>
+
+  // construct an immutable map from a varargs tuples
+  immutableMap<K, V>(...kv: [K, V][]): scala.collection.immutable.Map<K, V>
 }
