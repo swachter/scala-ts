@@ -1,0 +1,6 @@
+# check if the type mapping file gets created
+> scalaTsPackage
+$ exists target/web/js/test.d.ts
+$ exists target/web/js/package.json
+$ exists target/web/js/test.js
+$ pause

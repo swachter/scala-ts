@@ -18,7 +18,7 @@ Scala sources are compiled into JavaScript by:
 > sbt fastOptJS
 ```
 
-The top-level module folder contains a couple of symbolic links:
+The top-level `module` folder contains a couple of symbolic links:
 
 ```
 index.d.ts -> ../src/main/module/index.d.ts
