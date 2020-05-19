@@ -20,10 +20,20 @@ object TopLevelDefsAndVals {
   @JSExportTopLevel("maxInt")
   val maxInt: Int = Int.MaxValue
 
+  @JSExportTopLevel("globalVar")
+  var globalVar = 7
+
   val twice: Int => Int = _ * 2
 
   @JSExportTopLevel("twice")
   val twiceJs: js.Function1[Int, Int] = twice
+
+  @JSExportTopLevel("multiParamLists1")
+  def multiParamLists1(a: Int)(b: Int, c: Int): Int = a + b + c
+
+  @JSExportTopLevel("multiParamLists2")
+  def multiParamLists2(a: Int)(b: Int, c: Int)(d: Int): Int = a + b + c + d
+
 }
 
 @JSExportTopLevel("CaseClass")
@@ -79,6 +89,15 @@ class StdClass2() {
 
 @JSExportTopLevel("JsClass")
 class JsClass(var int: Int) extends js.Object {}
+
+object JsClass {
+  @JSExportStatic
+  val staticVal = 5
+  @JSExportStatic
+  var staticVar = 6
+  @JSExportStatic
+  def staticDef(n: Int) = n * n
+}
 
 @JSExportTopLevel("PromiseInterop")
 object PromiseInterop {

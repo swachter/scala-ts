@@ -4,11 +4,16 @@ fs.greet('Bob');
 
 console.log('random: ' + fs.random());
 
+console.log(`multiParamLists1: ${fs.multiParamLists1(1, 2, 3)}`)
+console.log(`multiParamLists2: ${fs.multiParamLists2(1, 2, 3, 4)}`)
+
 console.log('maxInt: ' + fs.maxInt);
 console.log('typeof maxInt: ' + typeof(fs.maxInt))
 
 console.log('maxLong: ' + fs.maxLong);
 console.log('typeof maxLong: ' + typeof(fs.maxLong))
+
+console.log(`globalVar: ${fs.globalVar}`)
 
 const cc = new fs.CaseClass('abc');
 console.log('cc: ' + cc);
@@ -56,6 +61,11 @@ const jc = new fs.JsClass(5);
 console.log('jc.int: ' + jc.int);
 jc.int = 55;
 console.log('jc.int: ' + jc.int);
+console.log(`staticVal: ${fs.JsClass.staticVal}`)
+console.log(`staticVar: ${fs.JsClass.staticVar}`)
+fs.JsClass.staticVar += 1
+console.log(`staticVar: ${fs.JsClass.staticVar}`)
+console.log(`staticDef: ${fs.JsClass.staticDef(2)}`)
 
 console.log('twice(2): ' + fs.twice(2));
 

@@ -1,8 +1,13 @@
 export function greet(str: string): void;
 export function random(): number;
 
+export function multiParamLists1(a: number, b: number, c: number): number
+export function multiParamLists2(a: number, b: number, c: number, d: number): number
+
 export const maxInt: number;
 export const maxLong: object;
+
+export let globalVar: number
 
 export class CaseClass {
 
@@ -60,6 +65,10 @@ export class JsClass {
     set int(value: number);
 
     get int(): number;
+
+    static readonly staticVal: number
+    static staticVar: number
+    static staticDef(n: number): number
 }
 
 export const twice: (n: number) => number;
