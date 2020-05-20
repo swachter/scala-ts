@@ -37,29 +37,66 @@ object Generator {
       s"${si.displayName}: $tpe"
     }
 
-    def exportDef(e: Export.Def): String = {
-      val args = e.methodSignature.parameterLists.flatMap(_.symlinks.map(arg(_, e))).mkString(", ")
-      val returnType = tsType(e.methodSignature.returnType)
-      s"export function ${e.name}($args): $returnType\n"
-    }
-
-    def exportVal(e: Export.Val): String = {
-      val returnType = tsType(e.methodSignature.returnType)
-      s"export const ${e.name}: $returnType\n"
-    }
-
-    def exportVar(e: Export.Var): String = {
-      val returnType = tsType(e.methodSignature.returnType)
-      s"export let ${e.name}: $returnType\n"
-    }
-
     val sb = new StringBuilder
 
+    def exportDef(e: Export.Def): Unit = {
+      val args = e.methodSignature.parameterLists.flatMap(_.symlinks.map(arg(_, e))).mkString(", ")
+      val returnType = tsType(e.methodSignature.returnType)
+      sb.append(s"export function ${e.name}($args): $returnType\n")
+    }
+
+    def exportVal(e: Export.Val): Unit = {
+      val returnType = tsType(e.methodSignature.returnType)
+      sb.append(s"export const ${e.name}: $returnType\n")
+    }
+
+    def exportVar(e: Export.Var): Unit = {
+      val returnType = tsType(e.methodSignature.returnType)
+      sb.append(s"export let ${e.name}: $returnType\n")
+    }
+
+    def memberDef(e: Export.Def): Unit = {
+      val args = e.methodSignature.parameterLists.flatMap(_.symlinks.map(arg(_, e))).mkString(", ")
+      val returnType = tsType(e.methodSignature.returnType)
+      sb.append(s"  ${e.name}($args): $returnType\n")
+    }
+
+    def memberVal(e: Export.Val): Unit = {
+      val returnType = tsType(e.methodSignature.returnType)
+      sb.append(s"  readonly ${e.name}: $returnType\n")
+    }
+
+    def memberVar(e: Export.Var): Unit = {
+      val returnType = tsType(e.methodSignature.returnType)
+      sb.append(s"  ${e.name}: $returnType\n")
+    }
+
+    def exportObj(e: Export.Obj): Unit = {
+      sb.append(s"export const ${e.name}: {\n")
+      e.member.foreach {
+        case e: Export.Def => memberDef(e)
+        case e: Export.Val => memberVal(e)
+        case e: Export.Var => memberVar(e)
+      }
+      sb.append("}\n")
+    }
+
+    def exportCls(e: Export.Cls): Unit = {
+      sb.append(s"export class ${e.name} {\n")
+      e.member.foreach {
+        case e: Export.Def => memberDef(e)
+        case e: Export.Val => memberVal(e)
+        case e: Export.Var => memberVar(e)
+      }
+      sb.append("}\n")
+    }
+
     exports.foreach {
-      case e: Export.Def => sb.append(exportDef(e))
-      case e: Export.Val => sb.append(exportVal(e))
-      case e: Export.Var => sb.append(exportVar(e))
-      case _             =>
+      case e: Export.Def => exportDef(e)
+      case e: Export.Val => exportVal(e)
+      case e: Export.Var => exportVar(e)
+      case e: Export.Obj => exportObj(e)
+      case e: Export.Cls => exportCls(e)
     }
 
     def referencedTypes(e: Export): List[isb.Type] = e match {
