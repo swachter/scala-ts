@@ -2,8 +2,16 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 object TopLevelDefsAndVals {
 
-  @scala.scalajs.js.annotation.JSExportTopLevel("twice")
+  type JSE = JSExportTopLevel
+
+  @JSExportTopLevel("some")
   def some(n: Int): Option[Int] = Some(n)
+
+  @scala.scalajs.js.annotation.JSExportTopLevel("immutable")
+  val immutable = "abc"
+
+  @JSE("mutable")
+  var mutable = true
 
 }
 

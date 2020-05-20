@@ -17,8 +17,8 @@ lazy val generator = project.in(file("generator"))
     scalacOptions += "-P:semanticdb:text:on",
     libraryDependencies += "org.scalameta" %% "semanticdb" % semanticDbVersion,
     libraryDependencies += "org.scalameta" %% "scalameta" % scalaMetaVersion,
+    libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
-    libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "test",
   )
 
 lazy val root = project
