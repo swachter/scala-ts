@@ -57,7 +57,7 @@ object ScalaTsPlugin extends AutoPlugin {
 
       val exports = semSrcs.flatMap(Analyzer.analyze)
 
-      val output = Generator.generate(exports)
+      val output = Generator.generate(exports, symTab)
 
       println(s"###### writing output: $output")
       IO.write(outputFile, output, scala.io.Codec.UTF8.charSet)

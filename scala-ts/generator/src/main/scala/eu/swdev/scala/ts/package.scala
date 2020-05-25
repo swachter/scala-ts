@@ -1,7 +1,9 @@
 package eu.swdev.scala
 
 import scala.meta.inputs.Position
-import scala.meta.internal.semanticdb.{Range => SRange}
+import scala.meta.internal.semanticdb.SymbolInformation.Kind
+import scala.meta.internal.semanticdb.{SymbolInformation, Range => SRange}
+import scala.meta.internal.symtab.SymbolTable
 
 package object ts {
 
@@ -11,6 +13,11 @@ package object ts {
       val e = pos.endLine > range.endLine || pos.endLine == range.endLine && pos.endColumn >= range.endCharacter
       s && e
     }
+  }
+
+  implicit class SymbolTableOps(val symbolTable: SymbolTable) extends AnyVal {
+
+    def typeParameter(symbol: String): Option[SymbolInformation] = symbolTable.info(symbol).filter(_.kind == Kind.TYPE_PARAMETER)
   }
 
 }

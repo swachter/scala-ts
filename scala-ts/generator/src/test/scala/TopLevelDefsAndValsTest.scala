@@ -110,7 +110,7 @@ class TopLevelDefsAndValsTest extends AnyFunSuite {
 
     val exports = eb.result()
 
-    val result = Generator.generate(exports)
+    val result = Generator.generate(exports, symTab)
 
     println(s"result: $result")
   }

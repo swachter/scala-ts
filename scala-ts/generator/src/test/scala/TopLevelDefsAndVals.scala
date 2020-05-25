@@ -23,10 +23,15 @@ object TopLevelDefsAndVals {
 
   @JSExportTopLevel("Cls")
   @JSExportAll
-  case class Cls(i: Int, b: Boolean, s: String) {
+  case class Cls(i: Int, b: Boolean, var s: String) {
     def doIt() = ()
   }
 
+  @JSExportTopLevel("some")
+  def some[T](t: T): Some[T] = Some(t)
+
+  @JSExportTopLevel("option")
+  def option[T](t: T): Option[T] = Some(t)
 
 }
 

@@ -7,6 +7,10 @@ case class SimpleName(str: String) extends AnyVal {
   override def toString: String = str
 }
 
+case class FullName(str: String) extends AnyVal {
+  override def toString: String = str
+}
+
 sealed trait Export {
   def si: SymbolInformation
 }

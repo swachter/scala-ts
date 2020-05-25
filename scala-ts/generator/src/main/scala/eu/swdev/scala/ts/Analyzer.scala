@@ -3,13 +3,16 @@ package eu.swdev.scala.ts
 import eu.swdev.scala.ts.Export.DefValVar
 
 import scala.collection.mutable
-import scala.meta.internal.semanticdb.SymbolInformation
+import scala.meta.Ctor.Primary
+import scala.meta.Term.Param
+import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature}
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
 import scala.meta.internal.semanticdb.SymbolOccurrence.Role
 import scala.meta.transversers.Traverser
 import scala.meta.{Defn, Init, Lit, Mod, Tree}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
+import scala.meta.internal.{semanticdb => isb}
 
 object Analyzer {
 
@@ -50,6 +53,8 @@ object Analyzer {
       }
     }
 
+    def hasCaseClassMod(mods: List[Mod]): Boolean = mods.exists(_.isInstanceOf[Mod.Case])
+
     val traverser = new Traverser {
 
       val builder = List.newBuilder[Export]
@@ -69,21 +74,37 @@ object Analyzer {
           }
         }
 
-        def processContainer[D <: Defn](defn: D,
-                                        mods: List[Mod],
-                                        kind: Kind,
-                                        ctor: (SemSource, D, SimpleName, SymbolInformation, List[Export.DefValVar]) => Export,
-                                        visitChildrenIfNotExported: Boolean,
-                                        visitChildren: => Unit): Unit = {
+        def processCls(defn: Defn.Class, mods: List[Mod], visitChildren: => Unit): Unit = {
           for {
-            en <- topLevelExportName(mods).orElse { if (visitChildrenIfNotExported) visitChildren; None }
-            si <- semSrc.symbolInfo(defn.pos, kind)
+            en <- topLevelExportName(mods)
+            si <- semSrc.symbolInfo(defn.pos, Kind.CLASS)
+          } {
+            val memberBuilder = List.newBuilder[Export.DefValVar]
+            val Primary(ctorMods, name, paramss) = defn.ctor
+            paramss.flatten.foreach { param =>
+                val Param(paramMods, paramName, paramType, paramTerm) = param
+            }
+            if (hasCaseClassMod(mods)) {
+
+            }
+            state = InContainerState(memberBuilder, exportAll(mods))
+            visitChildren
+            state = InitialState
+            builder += Export.Cls(semSrc, defn, en, si, memberBuilder.result())
+          }
+
+        }
+
+        def processObj(defn: Defn.Object, mods: List[Mod], visitChildren: => Unit): Unit = {
+          for {
+            en <- topLevelExportName(mods).orElse { visitChildren; None }
+            si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
             val memberBuilder = List.newBuilder[Export.DefValVar]
             state = InContainerState(memberBuilder, exportAll(mods))
             visitChildren
             state = InitialState
-            builder += ctor(semSrc, defn, en, si, memberBuilder.result())
+            builder += Export.Obj(semSrc, defn, en, si, memberBuilder.result())
           }
 
         }
@@ -92,15 +113,17 @@ object Analyzer {
           case t @ Defn.Def(mods, _, _, _, _, _) => processDefValVar(t, mods, Export.Def)
           case t @ Defn.Val(mods, _, _, _)       => processDefValVar(t, mods, Export.Val)
           case t @ Defn.Var(mods, _, _, _)       => processDefValVar(t, mods, Export.Var)
-          case t @ Defn.Class(mods, _, _, _, _)  => processContainer(t, mods, Kind.CLASS, Export.Cls, false, visitChildren)
-          case t @ Defn.Object(mods, _, _)       => processContainer(t, mods, Kind.OBJECT, Export.Obj, true, visitChildren)
+          case t @ Defn.Class(mods, _, _, _, _)  => processCls(t, mods, visitChildren)
+          case t @ Defn.Object(mods, _, _)       => processObj(t, mods, visitChildren)
           case _                                 => visitChildren
         }
       }
 
       case class InContainerState(builder: mutable.Builder[Export.DefValVar, List[DefValVar]], exportAll: Boolean) extends State {
 
-        def processDefValVar[D <: Defn](defn: D, mods: List[Mod], ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.DefValVar): Unit = {
+        def processDefValVar[D <: Defn](defn: D,
+                                        mods: List[Mod],
+                                        ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.DefValVar): Unit = {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
             en <- exportName(mods, si.displayName).orElse(Some(SimpleName(si.displayName)).filter(_ => exportAll))
@@ -130,7 +153,26 @@ object Analyzer {
 
     traverser.apply(semSrc.source)
 
-    traverser.builder.result()
+    val exports = traverser.builder.result()
+    exports
+  }
+
+  // determine all types that are referenced in the given export item
+  def referencedTypes(e: Export): List[isb.Type] = e match {
+    case e: Export.Def => e.methodSignature.returnType :: parameterTypes(e)
+    case e: Export.Val => List(e.methodSignature.returnType)
+    case e: Export.Var => List(e.methodSignature.returnType)
+    case e: Export.Cls => e.member.flatMap(referencedTypes)
+    case e: Export.Obj => e.member.flatMap(referencedTypes)
+  }
+
+  def parameterTypes(e: Export.Def): List[isb.Type] = {
+    def argType(symbol: String): isb.Type = {
+      val si = e.semSrc.symbolInfo(symbol)
+      val vs = si.signature.asInstanceOf[ValueSignature]
+      vs.tpe
+    }
+    e.methodSignature.parameterLists.flatMap(_.symlinks).map(argType).toList
   }
 
 }
