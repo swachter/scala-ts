@@ -9,4 +9,7 @@ object Test {
 
   @JSExportTopLevel("simple")
   def simple(v: Simple): Simple = v
+
+  @JSExportTopLevel("option")
+  def option[T](t: T): Option[T] = Some(t)
 }

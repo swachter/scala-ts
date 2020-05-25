@@ -1,16 +1,13 @@
 package eu.swdev.scala.ts
 
-import java.nio.file.Paths
-
-import sbt._
-import sbt.Keys._
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
+import sbt.Keys._
+import sbt._
 
-import scala.meta.cli.Reporter
+import scala.meta.dialects
 import scala.meta.internal.symtab.GlobalSymbolTable
 import scala.meta.io.{AbsolutePath, Classpath}
-import scala.meta.{dialects, metacp}
 
 object ScalaTsPlugin extends AutoPlugin {
 
@@ -26,7 +23,6 @@ object ScalaTsPlugin extends AutoPlugin {
     val scalaTsGenerateDeclarationFile = taskKey[File]("Generate typescript file")
     val scalaTsGeneratePackageFile     = taskKey[File]("Generate package.json file")
     val scalaTsPackage                 = taskKey[Unit]("Package all")
-//    val scalaTsMetaCp                  = taskKey[Set[File]]("Generate semantic db information for dependencies")
   }
 
   import autoImport._
@@ -34,6 +30,9 @@ object ScalaTsPlugin extends AutoPlugin {
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     scalaTsOutputDir := (baseDirectory in Compile).value / "target" / "web" / "js",
     scalaTsFilenamePrefix := name.value,
+    addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
+    scalacOptions += "-Yrangepos",
+    scalacOptions += "-P:semanticdb:text:on",
     artifactPath in fastOptJS in Compile := scalaTsOutputDir.value / (scalaTsFilenamePrefix.value + ".js"),
     artifactPath in fullOptJS in Compile := scalaTsOutputDir.value / (scalaTsFilenamePrefix.value + ".js"),
     (crossTarget in fullOptJS) := scalaTsOutputDir.value,
@@ -45,12 +44,12 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaTsPackageFile := scalaTsOutputDir.value / "package.json",
     scalaTsGenerateDeclarationFile := {
       val outputFile = scalaTsDeclarationFile.value
-//      val metacp     = scalaTsMetaCp.value
       // define dependency on compile
+      // -> ensures that compilation is up to date
       val compileVal = (compile in Compile).value
-      val classDir      = (classDirectory in Compile).value
+      val classDir   = (classDirectory in Compile).value
 
-      val cp = (dependencyClasspath in Compile).value.files.map(AbsolutePath(_)).toList
+      val cp     = (fullClasspath in Compile).value.files.map(AbsolutePath(_)).toList
       val symTab = GlobalSymbolTable(Classpath(cp), true)
 
       val semSrcs = SemSource.from(classDir, dialects.Scala212)
@@ -59,7 +58,17 @@ object ScalaTsPlugin extends AutoPlugin {
 
       val output = Generator.generate(exports, symTab)
 
-      println(s"###### writing output: $output")
+      val log = streams.value.log
+
+      val exportInfo = exports.groupBy(_.getClass.getSimpleName).toList.sortBy(_._1).map {
+        case (cn, lst) => f"  # $cn%-5s: ${lst.length}"
+      }.mkString("\n")
+
+      log.info(s"type declaration file: $outputFile")
+      log.info(s"$exportInfo")
+
+      log.debug(output)
+
       IO.write(outputFile, output, scala.io.Codec.UTF8.charSet)
 
       outputFile
@@ -85,31 +94,6 @@ object ScalaTsPlugin extends AutoPlugin {
         scalaTsGeneratePackageFile,
       )
       .value,
-//    scalaTsMetaCp := {
-//      val cp = (dependencyClasspath in Compile).value.files.map(AbsolutePath(_)).toList
-//
-//      // TODO use sbt logging
-//      println(s"cp: $cp")
-//
-//      val settings = metacp
-//        .Settings()
-//        .withClasspath(meta.io.Classpath(cp))
-//        .withVerbose(true)
-//        .withIncludeJdk(true)
-//
-//      println(s"out: ${settings.out}")
-//
-//      // TODO: use sbt streams
-//      val main = new meta.internal.metacp.Main(settings, Reporter())
-//
-//      val result = main.process()
-//
-//      result.classpath match {
-//        case Some(cp) => cp.entries.map(_.toNIO.toFile).toSet
-//        case None     => sys.error("semanticdb creation failed")
-//      }
-//
-//    }
   )
 
 }
