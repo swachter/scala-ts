@@ -7,7 +7,7 @@ import scala.meta.internal.{semanticdb => isb}
 
 object Generator {
 
-  def generate(exports: List[Export], symTab: SymbolTable): String = {
+  def generate(exports: List[Export.TopLevel], symTab: SymbolTable): String = {
 
     val exportedClasses = exports.collect {
       case e: Export.Cls => e.si.symbol -> e
@@ -93,6 +93,16 @@ object Generator {
       sb.append(s"  ${e.name}: $returnType\n")
     }
 
+    def memberCVal(e: Export.CVal): Unit = {
+      val returnType = tsType(e.valueSignature.tpe)
+      sb.append(s"  readonly ${e.name}: $returnType\n")
+    }
+
+    def memberCVar(e: Export.CVar): Unit = {
+      val returnType = tsType(e.valueSignature.tpe)
+      sb.append(s"  ${e.name}: $returnType\n")
+    }
+
     def exportObj(e: Export.Obj): Unit = {
       sb.append(s"export const ${e.name}: {\n")
       e.member.foreach {
@@ -105,6 +115,17 @@ object Generator {
 
     def exportCls(e: Export.Cls): Unit = {
       sb.append(s"export class ${e.name} {\n")
+      val cParams = e.ctorParams
+        .map { p =>
+          val returnType = tsType(p.valueSignature.tpe)
+          s"${p.name}: $returnType"
+        }
+        .mkString(", ")
+      sb.append(s"  constructor($cParams)\n")
+      e.ctorParams.foreach {
+        case e: Export.CVal => memberCVal(e)
+        case e: Export.CVar => memberCVar(e)
+      }
       e.member.foreach {
         case e: Export.Def => memberDef(e)
         case e: Export.Val => memberVal(e)
@@ -153,12 +174,13 @@ object Generator {
   }
 
   def builtInTypeName(symbol: String): Option[String] = symbol match {
-    case "java/lang/String#" => Some("string")
-    case "scala/Unit#"       => Some("void")
-    case "scala/Int#"        => Some("number")
-    case "scala/Double#"     => Some("number")
-    case "scala/Boolean#"    => Some("boolean")
-    case _                   => None
+    case "java/lang/String#"    => Some("string")
+    case "scala/Predef.String#" => Some("string")
+    case "scala/Unit#"          => Some("void")
+    case "scala/Int#"           => Some("number")
+    case "scala/Double#"        => Some("number")
+    case "scala/Boolean#"       => Some("boolean")
+    case _                      => None
   }
 
   def nonExportedTypeName(symbol: String): String = builtInTypeName(symbol).getOrElse(opaqueTypeName(symbol))

@@ -98,7 +98,7 @@ class TopLevelDefsAndValsTest extends AnyFunSuite {
     val cp    = Classpath(paths)
     val symTab = GlobalSymbolTable(cp, true)
 
-    val eb = List.newBuilder[Export]
+    val eb = List.newBuilder[Export.TopLevel]
 
     Locator(path) { (path, textDocuments) =>
       textDocuments.documents.foreach { td =>
@@ -112,7 +112,7 @@ class TopLevelDefsAndValsTest extends AnyFunSuite {
 
     val result = Generator.generate(exports, symTab)
 
-    println(s"result: $result")
+    println(result)
   }
 
 }

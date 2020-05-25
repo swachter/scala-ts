@@ -1,18 +1,14 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts.Export.DefValVar
-
 import scala.collection.mutable
-import scala.meta.Ctor.Primary
-import scala.meta.Term.Param
-import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature}
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
 import scala.meta.internal.semanticdb.SymbolOccurrence.Role
+import scala.meta.internal.semanticdb.{MethodSignature, SymbolInformation, ValueSignature}
+import scala.meta.internal.{semanticdb => isb}
 import scala.meta.transversers.Traverser
-import scala.meta.{Defn, Init, Lit, Mod, Tree}
+import scala.meta.{Defn, Init, Lit, Mod, Term, Tree}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
-import scala.meta.internal.{semanticdb => isb}
 
 object Analyzer {
 
@@ -22,7 +18,7 @@ object Analyzer {
   val jsExportSymbol         = classSymbol[JSExport]
   val jsExportAllSymbol      = classSymbol[JSExportAll]
 
-  def analyze(semSrc: SemSource): List[Export] = {
+  def analyze(semSrc: SemSource): List[Export.TopLevel] = {
 
     def existsSymbolReference(tree: Tree, symbol: String): Boolean =
       semSrc
@@ -54,10 +50,12 @@ object Analyzer {
     }
 
     def hasCaseClassMod(mods: List[Mod]): Boolean = mods.exists(_.isInstanceOf[Mod.Case])
+    def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
+    def hasVarMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.VarParam])
 
     val traverser = new Traverser {
 
-      val builder = List.newBuilder[Export]
+      val builder = List.newBuilder[Export.TopLevel]
 
       trait State {
         def process(tree: Tree, goOn: => Unit): Unit
@@ -65,7 +63,7 @@ object Analyzer {
 
       object InitialState extends State {
 
-        def processDefValVar[D <: Defn](defn: D, mods: List[Mod], ctor: (SemSource, D, SimpleName, SymbolInformation) => Export): Unit = {
+        def processDefValVar[D <: Defn](defn: D, mods: List[Mod], ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.TopLevel): Unit = {
           for {
             en <- topLevelExportName(mods)
             si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
@@ -79,18 +77,35 @@ object Analyzer {
             en <- topLevelExportName(mods)
             si <- semSrc.symbolInfo(defn.pos, Kind.CLASS)
           } {
-            val memberBuilder = List.newBuilder[Export.DefValVar]
-            val Primary(ctorMods, name, paramss) = defn.ctor
-            paramss.flatten.foreach { param =>
-                val Param(paramMods, paramName, paramType, paramTerm) = param
-            }
-            if (hasCaseClassMod(mods)) {
+            val memberBuilder = List.newBuilder[Export.Member]
 
+            val ctorParamTerms = defn.ctor.paramss.flatten
+
+            val isCaseClass = hasCaseClassMod(mods)
+
+            val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
+              case Some(ctorSi) =>
+                val ctorSig = ctorSi.signature.asInstanceOf[MethodSignature]
+                val ctorParamSymbolInfos = ctorSig.parameterLists
+                  .flatMap(_.symlinks.map(semSrc.symbolInfo(_)))
+
+                ctorParamSymbolInfos.flatMap { ctorParamSymbolInfo =>
+                  ctorParamTerms.collect {
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm)
+                        if termName.value == ctorParamSymbolInfo.displayName && hasVarMod(termMods) =>
+                      Export.CVar(semSrc, tp, SimpleName(ctorParamSymbolInfo.displayName), ctorParamSymbolInfo)
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm)
+                        if termName.value == ctorParamSymbolInfo.displayName && (isCaseClass || hasValMod(termMods)) =>
+                      Export.CVal(semSrc, tp, SimpleName(ctorParamSymbolInfo.displayName), ctorParamSymbolInfo)
+                  }
+                }.toList
+              case None => Nil
             }
+
             state = InContainerState(memberBuilder, exportAll(mods))
             visitChildren
             state = InitialState
-            builder += Export.Cls(semSrc, defn, en, si, memberBuilder.result())
+            builder += Export.Cls(semSrc, defn, en, si, memberBuilder.result(), ctorParams)
           }
 
         }
@@ -100,7 +115,7 @@ object Analyzer {
             en <- topLevelExportName(mods).orElse { visitChildren; None }
             si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
-            val memberBuilder = List.newBuilder[Export.DefValVar]
+            val memberBuilder = List.newBuilder[Export.Member]
             state = InContainerState(memberBuilder, exportAll(mods))
             visitChildren
             state = InitialState
@@ -119,11 +134,11 @@ object Analyzer {
         }
       }
 
-      case class InContainerState(builder: mutable.Builder[Export.DefValVar, List[DefValVar]], exportAll: Boolean) extends State {
+      case class InContainerState(builder: mutable.Builder[Export.Member, List[Export.Member]], exportAll: Boolean) extends State {
 
         def processDefValVar[D <: Defn](defn: D,
                                         mods: List[Mod],
-                                        ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.DefValVar): Unit = {
+                                        ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.Member): Unit = {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
             en <- exportName(mods, si.displayName).orElse(Some(SimpleName(si.displayName)).filter(_ => exportAll))
@@ -159,11 +174,13 @@ object Analyzer {
 
   // determine all types that are referenced in the given export item
   def referencedTypes(e: Export): List[isb.Type] = e match {
-    case e: Export.Def => e.methodSignature.returnType :: parameterTypes(e)
-    case e: Export.Val => List(e.methodSignature.returnType)
-    case e: Export.Var => List(e.methodSignature.returnType)
-    case e: Export.Cls => e.member.flatMap(referencedTypes)
-    case e: Export.Obj => e.member.flatMap(referencedTypes)
+    case e: Export.Def  => e.methodSignature.returnType :: parameterTypes(e)
+    case e: Export.Val  => List(e.methodSignature.returnType)
+    case e: Export.Var  => List(e.methodSignature.returnType)
+    case e: Export.Cls  => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
+    case e: Export.Obj  => e.member.flatMap(referencedTypes)
+    case e: Export.CVal => List(e.valueSignature.tpe)
+    case e: Export.CVar => List(e.valueSignature.tpe)
   }
 
   def parameterTypes(e: Export.Def): List[isb.Type] = {
