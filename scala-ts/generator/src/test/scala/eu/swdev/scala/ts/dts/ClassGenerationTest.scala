@@ -11,7 +11,6 @@ class ClassGenerationTest extends DtsFunSuite {
       |  constructor(s: string, i: number, b: boolean)
       |  readonly s: string
       |  i: number
-      |  readonly b: boolean
       |  doIt(): void
       |}
       |""".check()
@@ -24,5 +23,9 @@ class ClassGenerationTest extends DtsFunSuite {
 case class SomeClass(s: String, var i: Int, private val b: Boolean) {
 
   def doIt() = ()
+
+  private def privateDef() = ()
+  private val privateVal = 1
+  private var privateVar = 2
 
 }

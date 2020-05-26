@@ -52,6 +52,7 @@ object Analyzer {
     def hasCaseClassMod(mods: List[Mod]): Boolean = mods.exists(_.isInstanceOf[Mod.Case])
     def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
     def hasVarMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.VarParam])
+    def hasPrivateMod(mods: List[Mod]): Boolean   = mods.exists(_.isInstanceOf[Mod.Private])
 
     val traverser = new Traverser {
 
@@ -94,14 +95,15 @@ object Analyzer {
                 ctorParamSymbolInfos.flatMap { ctorParamSymbolInfo =>
                   ctorParamTerms.collect {
                     case tp @ Term.Param(termMods, termName, termType, defaultTerm)
-                        if termName.value == ctorParamSymbolInfo.displayName && hasVarMod(termMods) =>
+                        if termName.value == ctorParamSymbolInfo.displayName && !hasPrivateMod(termMods) && hasVarMod(termMods) =>
                       Export.CtorParam(semSrc,
                                        tp,
                                        SimpleName(ctorParamSymbolInfo.displayName),
                                        ctorParamSymbolInfo,
                                        Export.CtorParamMod.Var)
                     case tp @ Term.Param(termMods, termName, termType, defaultTerm)
-                        if termName.value == ctorParamSymbolInfo.displayName && (isCaseClass || hasValMod(termMods)) =>
+                        if termName.value == ctorParamSymbolInfo.displayName && !hasPrivateMod(termMods) && (isCaseClass || hasValMod(
+                          termMods)) =>
                       Export.CtorParam(semSrc,
                                        tp,
                                        SimpleName(ctorParamSymbolInfo.displayName),
@@ -155,11 +157,13 @@ object Analyzer {
         def processDefValVar[D <: Defn](defn: D,
                                         mods: List[Mod],
                                         ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.Member): Unit = {
-          for {
-            si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
-            en <- exportName(mods, si.displayName).orElse(Some(SimpleName(si.displayName)).filter(_ => exportAll))
-          } {
-            builder += ctor(semSrc, defn, en, si)
+          if (!hasPrivateMod(mods)) {
+            for {
+              si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
+              en <- exportName(mods, si.displayName).orElse(Some(SimpleName(si.displayName)).filter(_ => exportAll))
+            } {
+              builder += ctor(semSrc, defn, en, si)
+            }
           }
         }
 
