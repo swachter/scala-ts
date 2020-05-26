@@ -30,7 +30,7 @@ object Generator {
 
     def tsTypes(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
 
-    def isBuiltInType(symbol: String) = builtInTypeName(symbol).isDefined
+    def isBuiltInType(symbol: String) = builtInTypeNames.contains(symbol)
 
     def isTypeParameter(symbol: String) = symTab.info(symbol).fold(false)(_.kind == Kind.TYPE_PARAMETER)
 
@@ -173,17 +173,17 @@ object Generator {
     sb.toString
   }
 
-  def builtInTypeName(symbol: String): Option[String] = symbol match {
-    case "java/lang/String#"    => Some("string")
-    case "scala/Predef.String#" => Some("string")
-    case "scala/Unit#"          => Some("void")
-    case "scala/Int#"           => Some("number")
-    case "scala/Double#"        => Some("number")
-    case "scala/Boolean#"       => Some("boolean")
-    case _                      => None
-  }
+  val builtInTypeNames = Map(
+    "java/lang/String#"    -> "string",
+    "scala/Boolean#"       -> "boolean",
+    "scala/Double#"        -> "number",
+    "scala/Int#"           -> "number",
+    "scala/Nothing#"        -> "never",
+    "scala/Predef.String#" -> "string",
+    "scala/Unit#"          -> "void",
+  )
 
-  def nonExportedTypeName(symbol: String): String = builtInTypeName(symbol).getOrElse(opaqueTypeName(symbol))
+  def nonExportedTypeName(symbol: String): String = builtInTypeNames.getOrElse(symbol, opaqueTypeName(symbol))
 
   def opaqueTypeName(symbol: String) = symbol.substring(0, symbol.length - 1).replace('/', '.')
 

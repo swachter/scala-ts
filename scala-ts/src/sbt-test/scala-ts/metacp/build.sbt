@@ -1,5 +1,7 @@
 import eu.swdev.scala.ts.ScalaTsPlugin
 
+scalaTsGenerateDeclarationFile / logLevel := Level.Debug
+
 lazy val root = (project in file("."))
   .enablePlugins(ScalaTsPlugin)
   .settings(
