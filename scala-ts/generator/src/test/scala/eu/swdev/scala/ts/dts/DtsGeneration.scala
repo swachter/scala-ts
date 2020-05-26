@@ -54,7 +54,6 @@ trait DtsGeneration {
     val semSourcesBuilder = List.newBuilder[SemSource]
 
     Locator(metaInfPath) { (path, textDocuments) =>
-      println(s"path: $path")
       textDocuments.documents.foreach { td =>
         if (td.symbols.exists(si => classSymbols.contains(si.symbol))) {
           val semSrc = SemSource(td, dialect)
