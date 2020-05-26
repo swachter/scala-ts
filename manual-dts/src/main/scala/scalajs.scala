@@ -185,3 +185,10 @@ object StdLibInterop {
   def immutableMap[K, V](kvs: scala.scalajs.js.Tuple2[K, V]*): Map[K, V] =
     Map(kvs.map(kv => kv._1 -> kv._2): _*)
 }
+
+@JSExportTopLevel("A")
+@JSExportAll
+class A(val n: Int)
+@JSExportTopLevel("B")
+@JSExportAll
+class B(n: Int, val s: String) extends A(n)

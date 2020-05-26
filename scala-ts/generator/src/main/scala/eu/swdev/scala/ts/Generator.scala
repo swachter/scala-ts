@@ -1,7 +1,7 @@
 package eu.swdev.scala.ts
 
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
-import scala.meta.internal.semanticdb.{TypeRef, ValueSignature}
+import scala.meta.internal.semanticdb.{ClassSignature, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -55,6 +55,23 @@ object Generator {
       s"${si.displayName}"
     }
 
+    // breadth first search for a parent class that has been exported
+    def findENearestExportedParent(types: Seq[isb.Type]): Option[SimpleName] = {
+      if (types.isEmpty) {
+        None
+      } else {
+        val typeSymbols = types.collect {
+          case TypeRef(isb.Type.Empty, symbol, tArgs) => symbol
+        }
+        typeSymbols.find(exportedClasses.contains).map(exportedClasses(_).name).orElse {
+          val seq = typeSymbols.map(symTab.info).collect {
+            case Some(s) if s.signature.isInstanceOf[ClassSignature] => s.signature.asInstanceOf[ClassSignature].parents
+          }.flatten
+          findENearestExportedParent(seq)
+        }
+      }
+    }
+
     val sb = new StringBuilder
 
     def exportDef(e: Export.Def): Unit = {
@@ -93,14 +110,13 @@ object Generator {
       sb.append(s"  ${e.name}: $returnType\n")
     }
 
-    def memberCVal(e: Export.CVal): Unit = {
+    def memberCtorParam(e: Export.CtorParam): Unit = {
       val returnType = tsType(e.valueSignature.tpe)
-      sb.append(s"  readonly ${e.name}: $returnType\n")
-    }
-
-    def memberCVar(e: Export.CVar): Unit = {
-      val returnType = tsType(e.valueSignature.tpe)
-      sb.append(s"  ${e.name}: $returnType\n")
+      e.mod match {
+        case Export.CtorParamMod.Val => sb.append(s"  readonly ${e.name}: $returnType\n")
+        case Export.CtorParamMod.Var => sb.append(s"  ${e.name}: $returnType\n")
+        case Export.CtorParamMod.Loc =>
+      }
     }
 
     def exportObj(e: Export.Obj): Unit = {
@@ -118,7 +134,10 @@ object Generator {
         case Some(scope) => tsTypes(scope.symlinks.map(tParam(_, e)))
         case None        => ""
       }
-      sb.append(s"export class ${e.name}$tParams {\n")
+
+      val ext = findENearestExportedParent(e.classSignature.parents).fold("")(p => s" extends $p")
+
+      sb.append(s"export class ${e.name}$tParams$ext {\n")
       val cParams = e.ctorParams
         .map { p =>
           val returnType = tsType(p.valueSignature.tpe)
@@ -127,8 +146,7 @@ object Generator {
         .mkString(", ")
       sb.append(s"  constructor($cParams)\n")
       e.ctorParams.foreach {
-        case e: Export.CVal => memberCVal(e)
-        case e: Export.CVar => memberCVar(e)
+        case e: Export.CtorParam => memberCtorParam(e)
       }
       e.member.foreach {
         case e: Export.Def => memberDef(e)

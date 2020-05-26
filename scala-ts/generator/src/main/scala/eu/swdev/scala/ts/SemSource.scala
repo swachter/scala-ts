@@ -16,7 +16,7 @@ case class SemSource(td: TextDocument, source: Source) {
 
   def symbolInfos(pos: Position, kind: Kind): Seq[SymbolInformation] = {
     td.occurrences
-      .filter(so => so.range.map(pos.includes(_)).getOrElse(false))
+      .filter(so => so.role == Role.DEFINITION && so.range.map(pos.includes(_)).getOrElse(false))
       .map { so =>
         td.symbols.find(si => si.kind == kind && si.symbol == so.symbol)
       }

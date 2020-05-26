@@ -58,12 +58,14 @@ object Analyzer {
       val builder = List.newBuilder[Export.TopLevel]
 
       trait State {
-        def process(tree: Tree, goOn: => Unit): Unit
+        def process(tree: Tree, visitChildren: => Unit): Unit
       }
 
       object InitialState extends State {
 
-        def processDefValVar[D <: Defn](defn: D, mods: List[Mod], ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.TopLevel): Unit = {
+        def processDefValVar[D <: Defn](defn: D,
+                                        mods: List[Mod],
+                                        ctor: (SemSource, D, SimpleName, SymbolInformation) => Export.TopLevel): Unit = {
           for {
             en <- topLevelExportName(mods)
             si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
@@ -93,10 +95,24 @@ object Analyzer {
                   ctorParamTerms.collect {
                     case tp @ Term.Param(termMods, termName, termType, defaultTerm)
                         if termName.value == ctorParamSymbolInfo.displayName && hasVarMod(termMods) =>
-                      Export.CVar(semSrc, tp, SimpleName(ctorParamSymbolInfo.displayName), ctorParamSymbolInfo)
+                      Export.CtorParam(semSrc,
+                                       tp,
+                                       SimpleName(ctorParamSymbolInfo.displayName),
+                                       ctorParamSymbolInfo,
+                                       Export.CtorParamMod.Var)
                     case tp @ Term.Param(termMods, termName, termType, defaultTerm)
                         if termName.value == ctorParamSymbolInfo.displayName && (isCaseClass || hasValMod(termMods)) =>
-                      Export.CVal(semSrc, tp, SimpleName(ctorParamSymbolInfo.displayName), ctorParamSymbolInfo)
+                      Export.CtorParam(semSrc,
+                                       tp,
+                                       SimpleName(ctorParamSymbolInfo.displayName),
+                                       ctorParamSymbolInfo,
+                                       Export.CtorParamMod.Val)
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSymbolInfo.displayName =>
+                      Export.CtorParam(semSrc,
+                                       tp,
+                                       SimpleName(ctorParamSymbolInfo.displayName),
+                                       ctorParamSymbolInfo,
+                                       Export.CtorParamMod.Loc)
                   }
                 }.toList
               case None => Nil
@@ -147,13 +163,13 @@ object Analyzer {
           }
         }
 
-        override def process(tree: Tree, goOn: => Unit): Unit = tree match {
+        override def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
           case t @ Defn.Def(mods, _, _, _, _, _) => processDefValVar(t, mods, Export.Def)
           case t @ Defn.Val(mods, _, _, _)       => processDefValVar(t, mods, Export.Val)
           case t @ Defn.Var(mods, _, _, _)       => processDefValVar(t, mods, Export.Var)
           case t @ Defn.Class(_, _, _, _, _)     => ()
           case t @ Defn.Object(_, _, _)          => ()
-          case _                                 => goOn
+          case _                                 => visitChildren
         }
 
       }
@@ -174,13 +190,12 @@ object Analyzer {
 
   // determine all types that are referenced in the given export item
   def referencedTypes(e: Export): List[isb.Type] = e match {
-    case e: Export.Def  => e.methodSignature.returnType :: parameterTypes(e)
-    case e: Export.Val  => List(e.methodSignature.returnType)
-    case e: Export.Var  => List(e.methodSignature.returnType)
-    case e: Export.Cls  => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
-    case e: Export.Obj  => e.member.flatMap(referencedTypes)
-    case e: Export.CVal => List(e.valueSignature.tpe)
-    case e: Export.CVar => List(e.valueSignature.tpe)
+    case e: Export.Def       => e.methodSignature.returnType :: parameterTypes(e)
+    case e: Export.Val       => List(e.methodSignature.returnType)
+    case e: Export.Var       => List(e.methodSignature.returnType)
+    case e: Export.Cls       => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
+    case e: Export.Obj       => e.member.flatMap(referencedTypes)
+    case e: Export.CtorParam => List(e.valueSignature.tpe)
   }
 
   def parameterTypes(e: Export.Def): List[isb.Type] = {

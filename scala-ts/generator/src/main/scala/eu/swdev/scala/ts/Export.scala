@@ -30,10 +30,6 @@ object Export {
 
   sealed trait Member extends Export
 
-  sealed trait CtorParam extends HasValueSignature {
-    def name: SimpleName
-  }
-
   case class Def(semSrc: SemSource, tree: Defn.Def, name: SimpleName, si: SymbolInformation) extends HasMethodSignature with TopLevel with Member
   case class Val(semSrc: SemSource, tree: Defn.Val, name: SimpleName, si: SymbolInformation) extends HasMethodSignature with TopLevel with Member
   case class Var(semSrc: SemSource, tree: Defn.Var, name: SimpleName, si: SymbolInformation) extends HasMethodSignature with TopLevel with Member
@@ -43,7 +39,13 @@ object Export {
     def classSignature = si.signature.asInstanceOf[ClassSignature]
   }
 
-  case class CVal(semSrc: SemSource, tree: Term.Param, name: SimpleName, si: SymbolInformation) extends CtorParam
-  case class CVar(semSrc: SemSource, tree: Term.Param, name: SimpleName, si: SymbolInformation) extends CtorParam
+  case class CtorParam(semSrc: SemSource, tree: Term.Param, name: SimpleName, si: SymbolInformation, mod: CtorParamMod) extends HasValueSignature
 
+  sealed trait CtorParamMod
+
+  object CtorParamMod {
+    object Val extends CtorParamMod
+    object Var extends CtorParamMod
+    object Loc extends CtorParamMod
+  }
 }

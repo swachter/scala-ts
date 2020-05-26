@@ -207,3 +207,13 @@ export const stdLibInterOp: {
   // construct an immutable map from a varargs tuples
   immutableMap<K, V>(...kv: [K, V][]): scala.collection.immutable.Map<K, V>
 }
+
+export class A {
+  constructor(n: number)
+  readonly n: number
+}
+
+export class B extends A {
+  constructor(n: number, s: string)
+  readonly s: string
+}
