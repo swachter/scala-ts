@@ -50,7 +50,7 @@ object Generator {
       s"${si.displayName}: $tpe"
     }
 
-    def tParam(symbol: String, e: Export.Def): String = {
+    def tParam(symbol: String, e: Export): String = {
       val si = e.semSrc.symbolInfo(symbol)
       s"${si.displayName}"
     }
@@ -114,7 +114,11 @@ object Generator {
     }
 
     def exportCls(e: Export.Cls): Unit = {
-      sb.append(s"export class ${e.name} {\n")
+      val tParams = e.classSignature.typeParameters match {
+        case Some(scope) => tsTypes(scope.symlinks.map(tParam(_, e)))
+        case None        => ""
+      }
+      sb.append(s"export class ${e.name}$tParams {\n")
       val cParams = e.ctorParams
         .map { p =>
           val returnType = tsType(p.valueSignature.tpe)
