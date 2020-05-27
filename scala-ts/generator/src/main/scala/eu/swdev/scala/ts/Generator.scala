@@ -49,7 +49,7 @@ object Generator {
     def formatNameAndType(name: SimpleName, tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
         s"$name?: ${formatType(targs(0))}"
-      case _ => s"$name:  ${formatType(tpe)}"
+      case _ => s"$name: ${formatType(tpe)}"
     }
 
     def formatMethodParam(symbol: String, e: Export.Def): String = {

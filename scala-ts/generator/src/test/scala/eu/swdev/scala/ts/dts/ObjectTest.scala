@@ -8,8 +8,8 @@ class ObjectTest extends DtsFunSuite {
     """
       |export const SomeObject: {
       |  doIt(): void
-      |  readonly x:  number
-      |  y:  number
+      |  readonly x: number
+      |  y: number
       |}
       |""".check()
   }
