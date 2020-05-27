@@ -3,7 +3,7 @@ package eu.swdev.scala.ts.dts
 
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
-class ClassGenerationTest extends DtsFunSuite {
+class ClassTest extends DtsFunSuite {
 
   test("dts") {
     """
