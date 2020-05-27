@@ -19,8 +19,8 @@ Talks:
 Projects:
 
 1. [scala-ts/scala-ts](https://github.com/scala-ts/scala-ts);  based on `scala.reflect`; uses IR (`ScalaModel`, `TypeScriptModel`); methods are not considered; last release 2017;
-1. [code-star/scala-tsi](https://github.com/code-star/scala-tsi)
-1. [waveinch/sbt-scalajs-ts-export](https://github.com/waveinch/sbt-scalajs-ts-export)
+1. [code-star/scala-tsi](https://github.com/code-star/scala-tsi); based on macros and implicit machinery; generates a Scala class first, that in turn generates the TypeScript declaration file; 
+1. [waveinch/sbt-scalajs-ts-export](https://github.com/waveinch/sbt-scalajs-ts-export); based on Scala Meta trees; direct, but basic mapping;
 1. [davegurnell/bridges](https://github.com/davegurnell/bridges); based on `shapeless`; main focus: ADTs; methods are not considered; uses IR;
 
  

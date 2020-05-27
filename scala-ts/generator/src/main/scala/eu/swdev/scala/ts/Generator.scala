@@ -13,9 +13,11 @@ object Generator {
       case e: Export.Cls => e.si.symbol -> e
     }.toMap
 
-    def tsType(tpe: isb.Type): String = tpe match {
+    def formatType(tpe: isb.Type): String = tpe match {
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
+        s"${formatType(targs(0))} | undefined"
       case TypeRef(isb.Type.Empty, symbol, tArgs) =>
-        def tas = tsTypes(tArgs.map(tsType))
+        def tas = formatTypes(tArgs.map(formatType))
         symTab.typeParameter(symbol) match {
           case Some(si) => si.displayName
           case None =>
@@ -28,14 +30,15 @@ object Generator {
       case _ => "any"
     }
 
-    def tsTypes(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
+    def formatTypes(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
 
     def isBuiltInType(symbol: String) = builtInTypeNames.contains(symbol)
 
     def isTypeParameter(symbol: String) = symTab.info(symbol).fold(false)(_.kind == Kind.TYPE_PARAMETER)
 
     def isOpaqueType(tpe: isb.Type): Boolean = tpe match {
-      case TypeRef(isb.Type.Empty, symbol, args) =>
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", _) => false
+      case TypeRef(isb.Type.Empty, symbol, _) =>
         exportedClasses.get(symbol) match {
           case Some(_) => false
           case None    => !isBuiltInType(symbol) && !isTypeParameter(symbol)
@@ -43,11 +46,16 @@ object Generator {
       case _ => false
     }
 
-    def param(symbol: String, e: Export.Def): String = {
+    def formatNameAndType(name: SimpleName, tpe: isb.Type): String = tpe match {
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
+        s"$name?: ${formatType(targs(0))}"
+      case _ => s"$name:  ${formatType(tpe)}"
+    }
+
+    def formatMethodParam(symbol: String, e: Export.Def): String = {
       val si  = e.semSrc.symbolInfo(symbol)
       val vs  = si.signature.asInstanceOf[ValueSignature]
-      val tpe = tsType(vs.tpe)
-      s"${si.displayName}: $tpe"
+      formatNameAndType(SimpleName(si.displayName), vs.tpe)
     }
 
     def tParam(symbol: String, e: Export): String = {
@@ -76,45 +84,43 @@ object Generator {
 
     def exportDef(e: Export.Def): Unit = {
       val tParams = e.methodSignature.typeParameters match {
-        case Some(scope) => tsTypes(scope.symlinks.map(tParam(_, e)))
+        case Some(scope) => formatTypes(scope.symlinks.map(tParam(_, e)))
         case None        => ""
       }
-      val params     = e.methodSignature.parameterLists.flatMap(_.symlinks.map(param(_, e))).mkString(", ")
-      val returnType = tsType(e.methodSignature.returnType)
+      val params     = e.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, e))).mkString(", ")
+      val returnType = formatType(e.methodSignature.returnType)
       sb.append(s"export function ${e.name}$tParams($params): $returnType\n")
     }
 
     def exportVal(e: Export.Val): Unit = {
-      val returnType = tsType(e.methodSignature.returnType)
+      val returnType = formatType(e.methodSignature.returnType)
       sb.append(s"export const ${e.name}: $returnType\n")
     }
 
     def exportVar(e: Export.Var): Unit = {
-      val returnType = tsType(e.methodSignature.returnType)
+      val returnType = formatType(e.methodSignature.returnType)
       sb.append(s"export let ${e.name}: $returnType\n")
     }
 
     def memberDef(e: Export.Def): Unit = {
-      val params     = e.methodSignature.parameterLists.flatMap(_.symlinks.map(param(_, e))).mkString(", ")
-      val returnType = tsType(e.methodSignature.returnType)
+      val params     = e.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, e))).mkString(", ")
+      val returnType = formatType(e.methodSignature.returnType)
       sb.append(s"  ${e.name}($params): $returnType\n")
     }
 
     def memberVal(e: Export.Val): Unit = {
-      val returnType = tsType(e.methodSignature.returnType)
-      sb.append(s"  readonly ${e.name}: $returnType\n")
+      sb.append(s"  readonly ${formatNameAndType(e.name, e.methodSignature.returnType)}\n")
     }
 
     def memberVar(e: Export.Var): Unit = {
-      val returnType = tsType(e.methodSignature.returnType)
-      sb.append(s"  ${e.name}: $returnType\n")
+      sb.append(s"  ${formatNameAndType(e.name, e.methodSignature.returnType)}\n")
     }
 
     def memberCtorParam(e: Export.CtorParam): Unit = {
-      val returnType = tsType(e.valueSignature.tpe)
+      def member = formatNameAndType(e.name, e.valueSignature.tpe)
       e.mod match {
-        case Export.CtorParamMod.Val => sb.append(s"  readonly ${e.name}: $returnType\n")
-        case Export.CtorParamMod.Var => sb.append(s"  ${e.name}: $returnType\n")
+        case Export.CtorParamMod.Val => sb.append(s"  readonly $member\n")
+        case Export.CtorParamMod.Var => sb.append(s"  $member\n")
         case Export.CtorParamMod.Loc =>
       }
     }
@@ -131,7 +137,7 @@ object Generator {
 
     def exportCls(e: Export.Cls): Unit = {
       val tParams = e.classSignature.typeParameters match {
-        case Some(scope) => tsTypes(scope.symlinks.map(tParam(_, e)))
+        case Some(scope) => formatTypes(scope.symlinks.map(tParam(_, e)))
         case None        => ""
       }
 
@@ -139,10 +145,7 @@ object Generator {
 
       sb.append(s"export class ${e.name}$tParams$ext {\n")
       val cParams = e.ctorParams
-        .map { p =>
-          val returnType = tsType(p.valueSignature.tpe)
-          s"${p.name}: $returnType"
-        }
+        .map(p => formatNameAndType(p.name, p.valueSignature.tpe))
         .mkString(", ")
       sb.append(s"  constructor($cParams)\n")
       e.ctorParams.foreach {
@@ -158,12 +161,12 @@ object Generator {
 
     def exportItf(itf: Namespace.Interface, indent: Int): Unit = {
       val ext =
-        if (itf.parents.isEmpty) "" else itf.parents.map(p => s"${p.name}${tsTypes(p.typeArgs)}").mkString(" extends ", ", ", "")
+        if (itf.parents.isEmpty) "" else itf.parents.map(p => s"${p.name}${formatTypes(p.typeArgs)}").mkString(" extends ", ", ", "")
 
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
 
-      sb.append(s"$space${exp}interface ${itf.name}${tsTypes(itf.typeParams)}$ext {\n")
+      sb.append(s"$space${exp}interface ${itf.name}${formatTypes(itf.typeParams)}$ext {\n")
       sb.append(s"$space  '${itf.fullName}': never\n")
       sb.append(s"$space}\n")
     }
@@ -207,6 +210,6 @@ object Generator {
 
   def nonExportedTypeName(symbol: String): String = builtInTypeNames.getOrElse(symbol, opaqueTypeName(symbol))
 
-  def opaqueTypeName(symbol: String) = symbol.substring(0, symbol.length - 1).replace('/', '.')
+  def opaqueTypeName(symbol: String) = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
 
 }

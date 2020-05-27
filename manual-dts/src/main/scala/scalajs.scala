@@ -152,14 +152,14 @@ object Result {
     override def isLeft: Boolean  = true
     override def isRight: Boolean = false
     override def right: Nothing   = ???
-    override def tpe: String      = "Left"
+    override def tpe: "Left"      = "Left"
   }
   @JSExportTopLevel("Right")
   class Right[R](val right: R) extends Result[Nothing, R] {
     override def isLeft: Boolean  = false
     override def isRight: Boolean = true
     override def left: Nothing    = ???
-    override def tpe: String      = "Right"
+    override def tpe: "Right"     = "Right"
   }
 }
 
