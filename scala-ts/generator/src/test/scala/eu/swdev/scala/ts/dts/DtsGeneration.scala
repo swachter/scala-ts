@@ -1,5 +1,6 @@
 package eu.swdev.scala.ts.dts
 
+import java.net.URLClassLoader
 import java.nio.file.{Path, Paths}
 
 import eu.swdev.scala.ts.{Analyzer, Generator, SemSource}
@@ -64,8 +65,13 @@ trait DtsGeneration {
 
     val semSources = semSourcesBuilder.result()
 
-    val classLoader = getClass.getClassLoader
-    val urls        = classLoader.asInstanceOf[java.net.URLClassLoader].getURLs
+    def classLoaders(cl: ClassLoader): List[ClassLoader] =
+        Option(cl).fold[List[ClassLoader]](Nil)(cl => cl :: classLoaders(cl.getParent))
+
+    val urls = classLoaders(getClass.getClassLoader).collect {
+      case ucl: URLClassLoader => ucl.getURLs
+    }.flatten
+
     val paths       = urls.map(url => Paths.get(url.toURI).toAbsolutePath.toFile).map(AbsolutePath(_)).toList
     val cp          = Classpath(paths)
     val symTab      = GlobalSymbolTable(cp, true)
