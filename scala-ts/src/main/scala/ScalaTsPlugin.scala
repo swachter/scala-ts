@@ -16,7 +16,9 @@ object ScalaTsPlugin extends AutoPlugin {
 
   object autoImport {
     val scalaTsOutputDir               = settingKey[File]("Directory where to put the TypeScript declaration file")
-    val scalaTsFilenamePrefix          = settingKey[String]("Filename prefix of generated JavaScript and TypeScript declaration file")
+    val scalaTsModuleName              = settingKey[String]("Name of the generated node module (default: project name)")
+    val scalaTsModuleVersion           = settingKey[String]("Version of the generated node module (default: project version)")
+    val scalaTsFilenamePrefix          = settingKey[String]("Filename prefix of generated JavaScript and TypeScript declaration file (default: project name)")
     val scalaTsDeclarationFilename     = settingKey[String]("Filename of the TypeScript declaration file")
     val scalaTsDeclarationFile         = settingKey[File]("Generated TypeScript declaration file")
     val scalaTsPackageFile             = settingKey[File]("Generated package.json file")
@@ -28,7 +30,9 @@ object ScalaTsPlugin extends AutoPlugin {
   import autoImport._
 
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
-    scalaTsOutputDir := (baseDirectory in Compile).value / "target" / "web" / "js",
+    scalaTsOutputDir := (baseDirectory in Compile).value / "target" / "node_module",
+    scalaTsModuleName := name.value,
+    scalaTsModuleVersion := version.value,
     scalaTsFilenamePrefix := name.value,
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
@@ -78,9 +82,9 @@ object ScalaTsPlugin extends AutoPlugin {
       val content =
         s"""
            |{
-           |  "name": "${name.value}",
+           |  "name": "${scalaTsModuleName.value}",
            |  "main": "${scalaTsFilenamePrefix.value}.js",
-           |  "version": "${version.value}",
+           |  "version": "${scalaTsModuleVersion.value}",
            |  "type": "module"
            |}
         """.stripMargin

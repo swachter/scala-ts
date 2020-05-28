@@ -32,7 +32,7 @@ This folder represents a node module that contains the transpiled ScalaJS code a
 Before running the test application the necessary node modules have to be installed:
 
 ```
-> npm ci
+> npm i
 ```
 
 Finally the TypeScript application `app.ts` can be compiled and run by:
