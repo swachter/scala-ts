@@ -1,7 +1,7 @@
 Playground for evaluating and improving ScalaJS <-> TypeScript interoperability
 ===
 
-Calling JavaScript code within ScalaJS code is a well covered topic. Here, I mainly want to explore the other direction, i.e. calling ScalaJS code from TypeScript. (You do not want to code in JavaScript, do you?)
+Calling JavaScript code within ScalaJS code is a well covered topic. Here, I mainly want to explore the other direction, i.e. calling ScalaJS code from TypeScript.
 
 There are two main issues to explore:
 
@@ -22,5 +22,4 @@ Projects:
 1. [code-star/scala-tsi](https://github.com/code-star/scala-tsi); based on macros and implicit machinery; generates a Scala class first, that in turn generates the TypeScript declaration file; 
 1. [waveinch/sbt-scalajs-ts-export](https://github.com/waveinch/sbt-scalajs-ts-export); based on Scala Meta trees; direct, but basic mapping;
 1. [davegurnell/bridges](https://github.com/davegurnell/bridges); based on `shapeless`; main focus: ADTs; methods are not considered; uses IR;
-
- 
+1. [sherpal/scala-ts](https://github.com/sherpal/scala-ts); based on `semanticdb`; experimental state
