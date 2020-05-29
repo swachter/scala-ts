@@ -32,7 +32,8 @@ sc.int = 55;
 console.log('sc.int: ' + sc.int);
 
 console.log('sc.upperProperty: ' + sc.upperProperty);
-console.log('sc.upperMethod: ' + sc.upperMethod());
+console.log('sc.upperGetter  : ' + sc.upperGetter);
+console.log('sc.upperMethod  : ' + sc.upperMethod());
 
 const sc2 = new fs.StdClass2();
 console.log('sc2.value: ' + sc2.value);

@@ -44,9 +44,10 @@ case class CaseClass(strVal: String)
 @JSExportAll
 class StdClass(var strVar: String) {
   // accessors (get / set) are exported
-  var int                   = 5
-  def upperProperty: String = strVar.toUpperCase
-  def upperMethod(): String = strVar.toUpperCase
+  var int           = 5
+  def upperProperty = strVar.toUpperCase
+  def upperMethod() = strVar.toUpperCase
+  def upperGetter   = strVar.toUpperCase()
 }
 
 @JSExportTopLevel("StdClass2")

@@ -1,16 +1,14 @@
-Playground for evaluating and improving ScalaJS <-> TypeScript interoperability
-===
+## ScalaTsPlugin
 
-Calling JavaScript code within ScalaJS code is a well covered topic. Here, I mainly want to explore the other direction, i.e. calling ScalaJS code from TypeScript.
+The `ScalaTsPlugin` processes `ScalaJS` sources and generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html).
 
-There are two main issues to explore:
+### Contents
+ 
+The `scala-ts` folder contains the SBT project for building the plugin ([`readme`](scala-ts/readme.md)).
 
-1. Generate  [TypeScript Declaration Files](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html) for exported ScalaJS definitions (classes, objects, methods, values).
-1. Automatic conversion of types, i.e. `Option` <-> `UndefOr`, ...
+The `test` folder contains a project that uses the plugin and includes a number of unit tests ([`readme`](test/readme.md)).
 
-
-Previous work on creating TypeScript Declaration Files
----
+### Previous work on creating TypeScript Declaration Files
 
 Talks:
 

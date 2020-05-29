@@ -28,6 +28,8 @@ export class StdClass {
     // a method defined without parentheses
     readonly upperProperty: string;
 
+    get upperGetter(): string
+
     // a method defined with parentheses
     upperMethod(): string;
 

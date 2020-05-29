@@ -1,3 +1,4 @@
+import scala.sys.process.Process
 
 val scalaMetaVersion = "4.3.10"
 val semanticDbVersion = "4.1.6"
@@ -33,7 +34,11 @@ lazy val explore = project
   .settings(
     name := "explore",
     scalaVersion := "2.13.1",
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    test := {
+      (Compile / fastOptJS).value
+      Process("npm" :: "t" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) !
+    }
   ).enablePlugins(ScalaJSPlugin)
 
 lazy val root = project
