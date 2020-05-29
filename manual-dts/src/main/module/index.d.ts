@@ -58,6 +58,20 @@ export class StdClass2 {
 
 }
 
+export class ArrayAccess {
+
+    constructor(v: number[], m: number[][])
+
+    set vector(value: number[])
+
+    get vector(): number[]
+
+    set matrix(value: number[][])
+
+    get matrix(): number[][]
+
+}
+
 export class JsClass {
 
     constructor(int: number);

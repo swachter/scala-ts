@@ -4,7 +4,7 @@ val semanticDbVersion = "4.1.6"
 
 lazy val commonSettings = Seq(
   organization := "eu.swdev",
-  version := "0.1",
+  version := "0.2-SNAPSHOT",
   scalaVersion := "2.12.11",
   bintrayPackageLabels := Seq("sbt","plugin"),
   bintrayVcsUrl := Some("""https://github.com/swachter/scala-ts-playground.git"""),

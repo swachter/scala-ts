@@ -16,6 +16,8 @@ object Generator {
     def formatType(tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
         s"${formatType(targs(0))} | undefined"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
+        s"${formatType(targs(0))}[]"
       case TypeRef(isb.Type.Empty, symbol, tArgs) =>
         def tas = formatTypes(tArgs.map(formatType))
         symTab.typeParameter(symbol) match {
@@ -38,6 +40,7 @@ object Generator {
 
     def isOpaqueType(tpe: isb.Type): Boolean = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", _) => false
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", _) => false
       case TypeRef(isb.Type.Empty, symbol, _) =>
         exportedClasses.get(symbol) match {
           case Some(_) => false

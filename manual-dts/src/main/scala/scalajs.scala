@@ -56,6 +56,7 @@ class StdClass2() {
   var _numbers = Array.fill(5)(0.0)
   var _option  = Option(5.0)
   var _tuple   = ("abc", 1.0)
+  var _matrix  = Array.fill(0)(Array.fill(0)(0))
 
   // export setter and getter for that value explicitly
   @JSExport
@@ -84,6 +85,29 @@ class StdClass2() {
   @JSExport
   def tuple: js.Array[js.Any] =
     Array(_tuple._1.asInstanceOf[js.Any], _tuple._2.asInstanceOf[js.Any]).toJSArray
+
+  @JSExport
+  def matrix_=(v: js.Array[js.Array[Int]]): Unit = _matrix = v.toArray.map(_.toArray)
+
+  @JSExport
+  def matrix: js.Array[js.Array[Int]] = _matrix.toJSArray.map(_.toJSArray)
+
+}
+
+@JSExportTopLevel("ArrayAccess")
+@JSExportAll
+class ArrayAccess(v: js.Array[Int], m: js.Array[js.Array[Int]]) {
+
+  private var _vector = v.toArray
+  private var _matrix = m.toArray.map(_.toArray)
+
+  def vector_=(v: js.Array[Int]): Unit = _vector = v.toArray
+
+  def vector: js.Array[Int] = _vector.toJSArray
+
+  def matrix_=(v: js.Array[js.Array[Int]]): Unit = _matrix = v.toArray.map(_.toArray)
+
+  def matrix: js.Array[js.Array[Int]] = _matrix.toJSArray.map(_.toJSArray)
 
 }
 
