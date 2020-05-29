@@ -40,7 +40,7 @@ object Generator {
 
     def isOpaqueType(tpe: isb.Type): Boolean = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", _) => false
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", _) => false
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", _)           => false
       case TypeRef(isb.Type.Empty, symbol, _) =>
         exportedClasses.get(symbol) match {
           case Some(_) => false
@@ -56,8 +56,8 @@ object Generator {
     }
 
     def formatMethodParam(symbol: String, e: Export.Def): String = {
-      val si  = e.semSrc.symbolInfo(symbol)
-      val vs  = si.signature.asInstanceOf[ValueSignature]
+      val si = e.semSrc.symbolInfo(symbol)
+      val vs = si.signature.asInstanceOf[ValueSignature]
       formatNameAndType(SimpleName(si.displayName), vs.tpe)
     }
 
@@ -75,9 +75,12 @@ object Generator {
           case TypeRef(isb.Type.Empty, symbol, tArgs) => symbol
         }
         typeSymbols.find(exportedClasses.contains).map(exportedClasses(_).name).orElse {
-          val seq = typeSymbols.map(symTab.info).collect {
-            case Some(s) if s.signature.isInstanceOf[ClassSignature] => s.signature.asInstanceOf[ClassSignature].parents
-          }.flatten
+          val seq = typeSymbols
+            .map(symTab.info)
+            .collect {
+              case Some(s) if s.signature.isInstanceOf[ClassSignature] => s.signature.asInstanceOf[ClassSignature].parents
+            }
+            .flatten
           findENearestExportedParent(seq)
         }
       }
@@ -106,9 +109,20 @@ object Generator {
     }
 
     def memberDef(e: Export.Def): Unit = {
-      val params     = e.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, e))).mkString(", ")
       val returnType = formatType(e.methodSignature.returnType)
-      sb.append(s"  ${e.name}($params): $returnType\n")
+      if (e.methodSignature.parameterLists.isEmpty) {
+        // no parameter lists -> it's a getter
+        sb.append(s"  get ${e.name}(): $returnType\n")
+      } else {
+        val strings = e.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, e)))
+        val params  = strings.mkString(", ")
+        if (e.name.str.endsWith("_=")) {
+          // name ends with _= -> it's a setter
+          sb.append(s"  set ${e.name.str.dropRight(2)}($params)\n")
+        } else {
+          sb.append(s"  ${e.name}($params): $returnType\n")
+        }
+      }
     }
 
     def memberVal(e: Export.Val): Unit = {
@@ -206,7 +220,7 @@ object Generator {
     "scala/Boolean#"       -> "boolean",
     "scala/Double#"        -> "number",
     "scala/Int#"           -> "number",
-    "scala/Nothing#"        -> "never",
+    "scala/Nothing#"       -> "never",
     "scala/Predef.String#" -> "string",
     "scala/Unit#"          -> "void",
   )
