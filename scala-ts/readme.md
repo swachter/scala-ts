@@ -2,6 +2,21 @@
 
 The implementation is based on [Scalameta](https://scalameta.org/). Information about the ScalaJS sources is collected by traversing source trees and retrieving symbol information from `SemanticDB`. Accordingly, ScalaJS sources must be compiled with the `SemanticDB` compiler plugin being added and the parameter `-Yrangepos` being set. The `ScalaTsPlugin` cares for this configuration.
 
+The output of the plugin is a Node module of kind `ESModule`.
+
+### Configuration
+
+| Key | Description |
+| --- | --- |
+| `scalaTsOutputDir` | Directory where to put the TypeScript declaration file (default: target/node_module) |
+| `scalaTsModuleName` | Name of the generated node module (default: project name) |
+| `scalaTsModuleVersion` | Version of the generated node module (default: project version) |
+| `scalaTsFilenamePrefix` | Filename prefix of generated JavaScript and TypeScript declaration file (default: project name) |
+| `scalaTsGenerateDeclarationFile` | Generate TypeScript declaration file |
+| `scalaTsGeneratePackageFile` | Generate package.json file |
+| `scalaTsPackage` | Package all - generate the node module |
+
+
 ### Type mapping
 
 Primitive types
@@ -34,7 +49,7 @@ General rules:
 - Multiple argument lists are flattened into a single argument list.
 - Generics are supported; variance annotations are ignored.
 
-Translation rules for top-level definitions (the names given in `@JSExportTopLevel` annotations are considered):
+Translation rules for top-level definitions (names given in `@JSExportTopLevel` and `@JSExport` annotations are respected):
 
 | Scala Definition | TypeScript Definition |
 | --- | --- |

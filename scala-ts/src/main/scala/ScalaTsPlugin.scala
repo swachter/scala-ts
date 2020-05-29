@@ -15,16 +15,13 @@ object ScalaTsPlugin extends AutoPlugin {
   override def requires = ScalaJSPlugin
 
   object autoImport {
-    val scalaTsOutputDir               = settingKey[File]("Directory where to put the TypeScript declaration file")
+    val scalaTsOutputDir               = settingKey[File]("Directory where to put the TypeScript declaration file (default: target/node_module)")
     val scalaTsModuleName              = settingKey[String]("Name of the generated node module (default: project name)")
     val scalaTsModuleVersion           = settingKey[String]("Version of the generated node module (default: project version)")
     val scalaTsFilenamePrefix          = settingKey[String]("Filename prefix of generated JavaScript and TypeScript declaration file (default: project name)")
-    val scalaTsDeclarationFilename     = settingKey[String]("Filename of the TypeScript declaration file")
-    val scalaTsDeclarationFile         = settingKey[File]("Generated TypeScript declaration file")
-    val scalaTsPackageFile             = settingKey[File]("Generated package.json file")
-    val scalaTsGenerateDeclarationFile = taskKey[File]("Generate typescript file")
+    val scalaTsGenerateDeclarationFile = taskKey[File]("Generate TypeScript declaration file")
     val scalaTsGeneratePackageFile     = taskKey[File]("Generate package.json file")
-    val scalaTsPackage                 = taskKey[Unit]("Package all")
+    val scalaTsPackage                 = taskKey[Unit]("Package all - generate the node module")
   }
 
   import autoImport._
@@ -43,11 +40,8 @@ object ScalaTsPlugin extends AutoPlugin {
     (crossTarget in fastOptJS) := scalaTsOutputDir.value,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalaJSUseMainModuleInitializer := false,
-    scalaTsDeclarationFilename := scalaTsFilenamePrefix.value + ".d.ts",
-    scalaTsDeclarationFile := scalaTsOutputDir.value / scalaTsDeclarationFilename.value,
-    scalaTsPackageFile := scalaTsOutputDir.value / "package.json",
     scalaTsGenerateDeclarationFile := {
-      val outputFile = scalaTsDeclarationFile.value
+      val outputFile = scalaTsOutputDir.value / (scalaTsFilenamePrefix.value + ".d.ts")
       // define dependency on compile
       // -> ensures that compilation is up to date
       val compileVal = (compile in Compile).value
@@ -78,7 +72,7 @@ object ScalaTsPlugin extends AutoPlugin {
       outputFile
     },
     scalaTsGeneratePackageFile := {
-      val outputFile = scalaTsPackageFile.value
+      val outputFile = scalaTsOutputDir.value / "package.json"
       val content =
         s"""
            |{

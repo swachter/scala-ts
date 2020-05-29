@@ -1,10 +1,10 @@
 ## ScalaTsPlugin
 
-The `ScalaTsPlugin` processes `ScalaJS` sources and generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html).
+The `ScalaTsPlugin` processes [ScalaJS](https://www.scala-js.org/) sources and generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html).
 
 ### Contents
  
-The `scala-ts` folder contains the SBT project for building the plugin ([`readme`](scala-ts/readme.md)).
+The `scala-ts` folder contains an SBT project for building the plugin ([`readme`](scala-ts/readme.md)).
 
 The `test` folder contains a project that uses the plugin and includes a number of unit tests ([`readme`](test/readme.md)).
 
