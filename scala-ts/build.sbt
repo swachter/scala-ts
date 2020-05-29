@@ -28,6 +28,14 @@ lazy val generator = project.in(file("generator"))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
   )
 
+lazy val explore = project
+  .in(file("explore"))
+  .settings(
+    name := "explore",
+    scalaVersion := "2.13.1",
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
+  ).enablePlugins(ScalaJSPlugin)
+
 lazy val root = project
   .in(file("."))
   .enablePlugins(ScriptedPlugin)
