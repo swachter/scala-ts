@@ -150,6 +150,30 @@ export class Right<R> {
 
 export type Result<L, R> = Left<L> | Right<R>
 
+export type ADT = Case1 | Case2
+
+export class Case1 {
+
+    constructor(str: string);
+
+    readonly literalTypedInt: 1;
+    readonly literalTypedString: 'a';
+    readonly literalTypedBoolean: false;
+    readonly caseId: number;
+
+}
+
+export class Case2 {
+
+    constructor(str: string);
+
+    readonly literalTypedInt: 2;
+    readonly literalTypedString: 'b';
+    readonly literalTypedBoolean: true;
+    readonly caseId: number;
+
+}
+
 // all non-ScalaJS-exported types are opaque to TypeScript
 // -> such types can be referenced in the exported API
 // -> export nominal interfaces without any methods for these types

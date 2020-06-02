@@ -188,6 +188,32 @@ object Result {
   }
 }
 
+sealed trait Adt
+
+@JSExportTopLevel("Case1")
+@JSExportAll
+case class Case1(str: String) extends Adt {
+
+  // discriminator
+  val literalTypedInt: 1 = 1
+  val literalTypedString: "a" = "a"
+  val literalTypedBoolean: false = false
+
+  val caseId = 1
+}
+
+@JSExportTopLevel("Case2")
+@JSExportAll
+case class Case2(str: String) extends Adt {
+
+  // discriminator
+  val literalTypedInt: 2 = 2
+  val literalTypedString: "b" = "b"
+  val literalTypedBoolean: true = true
+
+  val caseId = 2
+}
+
 @JSExportTopLevel("stdLibInterOp")
 @JSExportAll
 object StdLibInterop {

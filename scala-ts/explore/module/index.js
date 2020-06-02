@@ -1,1 +1,1 @@
-../target/scala-2.13/manual-dts-fastopt.js
+../target/scala-2.13/explore-fastopt.js

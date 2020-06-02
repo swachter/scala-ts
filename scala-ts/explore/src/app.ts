@@ -98,7 +98,7 @@ console.log(`ClassWithStatics.constant: ${fs.ClassWithStatics.constant}`);
 fs.ClassWithStatics.method();
 
 function assertNever(n: never): never {
-    return n;
+    throw new Error('never case reached')
 }
 
 function test<L, R>(res: fs.Result<L, R>) {
