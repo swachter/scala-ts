@@ -12,7 +12,7 @@ import scala.meta.{Dialect, dialects}
 
 trait DtsGeneration {
 
-  def dialect: Dialect = dialects.Scala212
+  def dialect: Dialect = dialects.Scala213
 
   def metaInfPath: Path = {
 

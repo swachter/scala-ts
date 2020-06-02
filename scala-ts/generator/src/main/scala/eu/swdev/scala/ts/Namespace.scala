@@ -58,7 +58,7 @@ object Namespace {
 class Namespace(val name: SimpleName) {
   import eu.swdev.scala.ts.Namespace.Interface
 
-  val nested = mutable.Map.empty[String, Namespace]
-  val itfs   = mutable.Map.empty[String, Interface]
+  val nested = mutable.SortedMap.empty[String, Namespace]
+  val itfs   = mutable.SortedMap.empty[String, Interface]
 
 }

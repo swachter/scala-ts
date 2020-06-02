@@ -1,12 +1,15 @@
 import scala.sys.process.Process
 
 val scalaMetaVersion = "4.3.10"
-val semanticDbVersion = "4.1.6"
+//val semanticDbVersion = "4.1.6"
+
+lazy val scala212 = "2.12.11"
+lazy val scala213 = "2.13.2"
+lazy val supportedScalaVersions = List(scala212, scala213)
 
 lazy val commonSettings = Seq(
   organization := "eu.swdev",
   version := "0.2-SNAPSHOT",
-  scalaVersion := "2.12.11",
   bintrayPackageLabels := Seq("sbt","plugin"),
   bintrayVcsUrl := Some("""https://github.com/swachter/scala-ts-playground.git"""),
   bintrayOrganization := None, // TODO: what is the organization for
@@ -18,12 +21,14 @@ lazy val generator = project.in(file("generator"))
   .settings(
     name := "scala-ts-generator",
     description := "library for generating TypeScript declaration files for ScalaJS sources",
+    crossScalaVersions := supportedScalaVersions,
+//    scalaVersion := scala212,
     publishMavenStyle := true,
     bintrayRepository := "maven",
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
     scalacOptions += "-P:semanticdb:text:on",
-    libraryDependencies += "org.scalameta" %% "semanticdb" % semanticDbVersion,
+//    libraryDependencies += "org.scalameta" %% "semanticdb" % semanticDbVersion,
     libraryDependencies += "org.scalameta" %% "scalameta" % scalaMetaVersion,
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
@@ -33,7 +38,7 @@ lazy val explore = project
   .in(file("explore"))
   .settings(
     name := "explore",
-    scalaVersion := "2.13.1",
+    scalaVersion := scala213,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     test := {
       (Compile / fastOptJS).value
@@ -50,6 +55,7 @@ lazy val root = project
   .settings(
     name := s"sbt-scala-ts",
     description := "SBT plugin for generating TypeScript declaration files for ScalaJS sources",
+    scalaVersion := scala212,
     sbtPlugin := true,
     publishMavenStyle := false,
     bintrayRepository := "sbt-plugins",

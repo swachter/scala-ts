@@ -1,7 +1,7 @@
 package eu.swdev.scala.ts
 
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
-import scala.meta.internal.semanticdb.{ClassSignature, TypeRef, ValueSignature}
+import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ClassSignature, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, ShortConstant, StringConstant, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -28,6 +28,18 @@ object Generator {
               case None    => s"${nonExportedTypeName(symbol)}$tas"
             }
         }
+      case ConstantType(constant) => constant match {
+        case BooleanConstant(value) => String.valueOf(value)
+        case ByteConstant(value) => String.valueOf(value)
+        case CharConstant(value) => "object" // ScalaJS represents char as object
+        case DoubleConstant(value) => String.valueOf(value)
+        case FloatConstant(value) => String.valueOf(value)
+        case IntConstant(value) => String.valueOf(value)
+        case LongConstant(value) => "object" // ScalaJS represents long as object
+        case ShortConstant(value) => String.valueOf(value)
+        case StringConstant(value) => s"'${escapeString(value)}'"
+        case _ => "any"
+      }
 
       case _ => "any"
     }
@@ -229,4 +241,19 @@ object Generator {
 
   def opaqueTypeName(symbol: String) = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
 
+  def escapeString(str: String): String = {
+    str.flatMap {
+      case '\b' => "\\b"
+      case '\f' => "\\f"
+      case '\n' => "\\n"
+      case '\r' => "\\r"
+      case '\t' => "\\t"
+      case '\u000b' => "\\v"
+      case '\'' => "\\'"
+      case '\"' => "\\\""
+      case '\\' => "\\"
+      case c if c >= ' ' && c <= 127 => c.toString
+      case c => f"\\u$c%04x"
+    }
+  }
 }

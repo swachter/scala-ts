@@ -5,7 +5,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
 import sbt._
 
-import scala.meta.dialects
+import scala.meta.{Dialect, dialects}
 import scala.meta.internal.symtab.GlobalSymbolTable
 import scala.meta.io.{AbsolutePath, Classpath}
 
@@ -15,10 +15,12 @@ object ScalaTsPlugin extends AutoPlugin {
   override def requires = ScalaJSPlugin
 
   object autoImport {
-    val scalaTsOutputDir               = settingKey[File]("Directory where to put the TypeScript declaration file (default: target/node_module)")
-    val scalaTsModuleName              = settingKey[String]("Name of the generated node module (default: project name)")
-    val scalaTsModuleVersion           = settingKey[String]("Version of the generated node module (default: project version)")
-    val scalaTsFilenamePrefix          = settingKey[String]("Filename prefix of generated JavaScript and TypeScript declaration file (default: project name)")
+    val scalaTsOutputDir     = settingKey[File]("Directory where to put the TypeScript declaration file (default: target/node_module)")
+    val scalaTsModuleName    = settingKey[String]("Name of the generated node module (default: project name)")
+    val scalaTsModuleVersion = settingKey[String]("Version of the generated node module (default: project version)")
+    val scalaTsFilenamePrefix =
+      settingKey[String]("Filename prefix of generated JavaScript and TypeScript declaration file (default: project name)")
+    val scalaTsDialect                 = settingKey[Dialect]("Dialect of the ScalaJS sources; default: scala.meta.dialects.Scala213")
     val scalaTsGenerateDeclarationFile = taskKey[File]("Generate TypeScript declaration file")
     val scalaTsGeneratePackageFile     = taskKey[File]("Generate package.json file")
     val scalaTsPackage                 = taskKey[Unit]("Package all - generate the node module")
@@ -31,6 +33,7 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaTsModuleName := name.value,
     scalaTsModuleVersion := version.value,
     scalaTsFilenamePrefix := name.value,
+    scalaTsDialect := dialects.Scala213,
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
     scalacOptions += "-P:semanticdb:text:on",
@@ -50,7 +53,7 @@ object ScalaTsPlugin extends AutoPlugin {
       val cp     = (fullClasspath in Compile).value.files.map(AbsolutePath(_)).toList
       val symTab = GlobalSymbolTable(Classpath(cp), true)
 
-      val semSrcs = SemSource.from(classDir, dialects.Scala212)
+      val semSrcs = SemSource.from(classDir, scalaTsDialect.value)
 
       val exports = semSrcs.flatMap(Analyzer.analyze)
 
@@ -58,9 +61,14 @@ object ScalaTsPlugin extends AutoPlugin {
 
       val log = streams.value.log
 
-      val exportInfo = exports.groupBy(_.getClass.getSimpleName).toList.sortBy(_._1).map {
-        case (cn, lst) => f"  # $cn%-5s: ${lst.length}"
-      }.mkString("\n")
+      val exportInfo = exports
+        .groupBy(_.getClass.getSimpleName)
+        .toList
+        .sortBy(_._1)
+        .map {
+          case (cn, lst) => f"  # $cn%-5s: ${lst.length}"
+        }
+        .mkString("\n")
 
       log.info(s"type declaration file: $outputFile")
       log.info(s"$exportInfo")

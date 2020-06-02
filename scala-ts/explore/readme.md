@@ -22,8 +22,8 @@ The top-level `module` folder contains a couple of symbolic links:
 
 ```
 index.d.ts -> ../src/main/module/index.d.ts
-index.js -> ../target/scala-2.13/manual-dts-fastopt.js
-index.js.map -> ../target/scala-2.13/manual-dts-fastopt.js.map
+index.js -> ../target/scala-2.13/explore-dts-fastopt.js
+index.js.map -> ../target/scala-2.13/explore-dts-fastopt.js.map
 package.json -> ../src/main/module/package.json
 ```
 
