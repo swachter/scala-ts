@@ -170,3 +170,7 @@ console.log(`a.n: ${a.n}`)
 const b = new fs.B(8, 'abc')
 console.log(`b.n: ${b.n}`)
 console.log(`b.s: ${b.s}`)
+
+const derived = new fs.Derived()
+derived.doIt()
+console.log(`derived.someNumber(): ${derived.someNumber()}`)

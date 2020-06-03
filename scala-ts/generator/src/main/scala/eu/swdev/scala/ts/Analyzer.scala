@@ -4,6 +4,7 @@ import scala.collection.mutable
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
 import scala.meta.internal.semanticdb.SymbolOccurrence.Role
 import scala.meta.internal.semanticdb.{MethodSignature, SymbolInformation, ValueSignature}
+import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 import scala.meta.transversers.Traverser
 import scala.meta.{Defn, Init, Lit, Mod, Term, Tree}
@@ -53,6 +54,7 @@ object Analyzer {
     def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
     def hasVarMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.VarParam])
     def hasPrivateMod(mods: List[Mod]): Boolean   = mods.exists(_.isInstanceOf[Mod.Private])
+    def hasSealedMod(mods: List[Mod]): Boolean    = mods.exists(_.isInstanceOf[Mod.Sealed])
 
     val traverser = new Traverser {
 
@@ -142,12 +144,29 @@ object Analyzer {
 
         }
 
+        def processTrait(defn: Defn.Trait, visitChildren: => Unit): Unit = {
+          for {
+            si <- semSrc.symbolInfo(defn.pos, Kind.TRAIT)
+          } {
+            val memberBuilder = List.newBuilder[Export.Member]
+            state = InContainerState(memberBuilder, exportAll(defn.mods))
+            visitChildren
+            state = InitialState
+            val members = memberBuilder.result()
+            if (members.nonEmpty) {
+              // only include traits with exported members
+              builder += Export.Trt(semSrc, defn, si, members)
+            }
+          }
+        }
+
         override def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
           case t @ Defn.Def(mods, _, _, _, _, _) => processDefValVar(t, mods, Export.Def)
           case t @ Defn.Val(mods, _, _, _)       => processDefValVar(t, mods, Export.Val)
           case t @ Defn.Var(mods, _, _, _)       => processDefValVar(t, mods, Export.Var)
           case t @ Defn.Class(mods, _, _, _, _)  => processCls(t, mods, visitChildren)
           case t @ Defn.Object(mods, _, _)       => processObj(t, mods, visitChildren)
+          case t @ Defn.Trait(mods, _, _, _, _)  => processTrait(t, visitChildren)
           case _                                 => visitChildren
         }
       }
@@ -173,6 +192,7 @@ object Analyzer {
           case t @ Defn.Var(mods, _, _, _)       => processDefValVar(t, mods, Export.Var)
           case t @ Defn.Class(_, _, _, _, _)     => ()
           case t @ Defn.Object(_, _, _)          => ()
+          case t @ Defn.Trait(_, _, _, _, _)     => ()
           case _                                 => visitChildren
         }
 
@@ -188,21 +208,24 @@ object Analyzer {
 
     traverser.apply(semSrc.source)
 
-    val exports = traverser.builder.result()
-    exports
+    traverser.builder.result()
   }
 
   // determine all types that are referenced in the given export item
-  def referencedTypes(e: Export): List[isb.Type] = e match {
+  // -> type parameters are not considered
+  def referencedTypes(e: Export, symTab: SymbolTable): List[isb.Type] = referencedTypes(e).filter(!_.isTypeParameter(symTab))
+
+  private def referencedTypes(e: Export): List[isb.Type] = e match {
     case e: Export.Def       => e.methodSignature.returnType :: parameterTypes(e)
     case e: Export.Val       => List(e.methodSignature.returnType)
     case e: Export.Var       => List(e.methodSignature.returnType)
     case e: Export.Cls       => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
     case e: Export.Obj       => e.member.flatMap(referencedTypes)
+    case e: Export.Trt       => e.member.flatMap(referencedTypes)
     case e: Export.CtorParam => List(e.valueSignature.tpe)
   }
 
-  def parameterTypes(e: Export.Def): List[isb.Type] = {
+  private def parameterTypes(e: Export.Def): List[isb.Type] = {
     def argType(symbol: String): isb.Type = {
       val si = e.semSrc.symbolInfo(symbol)
       val vs = si.signature.asInstanceOf[ValueSignature]

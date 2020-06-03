@@ -243,3 +243,13 @@ class A(val n: Int)
 @JSExportTopLevel("B")
 @JSExportAll
 class B(n: Int, val s: String) extends A(n)
+
+trait Base {
+  @JSExport
+  def doIt(): Unit = ()
+//  @JSExport
+//  def someNumber(): Int = 555
+}
+
+@JSExportTopLevel("Derived")
+class Derived extends Base

@@ -257,3 +257,14 @@ export class B extends A {
   constructor(n: number, s: string)
   readonly s: string
 }
+
+export interface Base {
+  doIt(): void
+  someNumber(): number
+}
+
+export interface Derived extends Base {}
+
+export class Derived {
+  constructor()
+}

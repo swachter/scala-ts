@@ -8,7 +8,11 @@ class GenericFunctionTest extends DtsFunSuite {
     """
       |export function some<T>(t: T): scala.Some<T>
       |export function option<T>(t: T): scala.Option<T>
+      |export const none: scala.None
       |export namespace scala {
+      |    interface None extends scala.Option<never> {
+      |      'scala.None': never
+      |    }
       |    interface Option<A> {
       |      'scala.Option': never
       |    }
@@ -28,5 +32,8 @@ object GenericFunctionTest {
 
   @JSExportTopLevel("option")
   def option[T](t: T): Option[T] = Some(t)
+
+  @JSExportTopLevel("none")
+  val none = None
 
 }
