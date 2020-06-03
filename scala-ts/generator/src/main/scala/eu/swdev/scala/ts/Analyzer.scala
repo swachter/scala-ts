@@ -153,10 +153,8 @@ object Analyzer {
             visitChildren
             state = InitialState
             val members = memberBuilder.result()
-            if (members.nonEmpty) {
-              // only include traits with exported members
-              builder += Export.Trt(semSrc, defn, si, members)
-            }
+            // only include traits with exported members
+            builder += Export.Trt(semSrc, defn, si, members)
           }
         }
 

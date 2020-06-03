@@ -268,3 +268,22 @@ export interface Derived extends Base {}
 export class Derived {
   constructor()
 }
+
+export interface Formatter<X> {
+  format(x: X): string
+}
+
+export interface BooleanFormatter extends Formatter<boolean> {}
+export interface IntFormatter extends Formatter<number> {}
+
+export class BooleanFormatter {
+  constructor()
+  readonly tpe: 'b'
+}
+
+export class IntFormatter {
+  constructor()
+  readonly tpe: 'i'
+}
+
+export type FormatterUnion = BooleanFormatter | IntFormatter

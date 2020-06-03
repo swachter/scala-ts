@@ -6,10 +6,10 @@ class Adt2Test extends DtsFunSuite {
 
   test("simple") {
     """
-      |export class Adt1Case1<Y> {
+      |export class Adt2Case1<Y> {
       |  constructor()
       |}
-      |export class Adt1Case2 {
+      |export class Adt2Case2 {
       |  constructor()
       |}
       |export namespace eu {
@@ -18,7 +18,7 @@ class Adt2Test extends DtsFunSuite {
       |            namespace ts {
       |                namespace dts {
       |                    namespace Adt2Test {
-      |                        type Base<X> = Adt2Case1<X> | Adt2Case2
+      |                        type Base$<X> = Adt2Case1<X> | Adt2Case2
       |                    }
       |                }
       |            }

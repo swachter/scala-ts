@@ -24,10 +24,11 @@ package object ts {
   }
 
   implicit class ClassSignatureOps(val classSignature: ClassSignature) {
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = classSignature.typeParameters match {
-      case Some(s) => s.symlinks.map(symTab.info(_).get.displayName)
+    def typeParamSymbols: Seq[String] = classSignature.typeParameters match {
+      case Some(s) => s.symlinks
       case None    => Seq()
     }
+    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = typeParamSymbols.map(symTab.info(_).get.displayName)
   }
 
   implicit class TypeOps(val tpe: isb.Type) {

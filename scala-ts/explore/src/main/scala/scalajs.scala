@@ -247,9 +247,28 @@ class B(n: Int, val s: String) extends A(n)
 trait Base {
   @JSExport
   def doIt(): Unit = ()
-//  @JSExport
-//  def someNumber(): Int = 555
+  @JSExport
+  def someNumber(): Int = 555
 }
 
 @JSExportTopLevel("Derived")
 class Derived extends Base
+
+sealed trait Formatter[X] {
+  @JSExport
+  def format(x: X): String
+}
+
+@JSExportTopLevel("BooleanFormatter")
+@JSExportAll
+class BooleanFormatter extends Formatter[Boolean] {
+  override def format(x: Boolean): String = String.valueOf(x)
+  val tpe: "b" = "b"
+}
+
+@JSExportTopLevel("IntFormatter")
+@JSExportAll
+class IntFormatter extends Formatter[Int] {
+  override def format(x: Int): String = String.valueOf(x)
+  val tpe: "i" = "i"
+}

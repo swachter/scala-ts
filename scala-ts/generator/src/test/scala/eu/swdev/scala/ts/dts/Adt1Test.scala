@@ -18,7 +18,7 @@ class Adt1Test extends DtsFunSuite {
       |            namespace ts {
       |                namespace dts {
       |                    namespace Adt1Test {
-      |                        type Base = Adt1Case1 | Adt1Case2
+      |                        type Base$ = Adt1Case1 | Adt1Case2
       |                    }
       |                }
       |            }

@@ -1,6 +1,24 @@
 package eu.swdev.scala.ts
 
-import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ClassSignature, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, ShortConstant, SingleType, StringConstant, TypeRef, ValueSignature}
+import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
+import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg.{Parent, Private}
+
+import scala.meta.internal.semanticdb.{
+  BooleanConstant,
+  ByteConstant,
+  CharConstant,
+  ClassSignature,
+  ConstantType,
+  DoubleConstant,
+  FloatConstant,
+  IntConstant,
+  LongConstant,
+  ShortConstant,
+  SingleType,
+  StringConstant,
+  TypeRef,
+  ValueSignature
+}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -239,19 +257,34 @@ object Generator {
       sb.append(s"$space}\n")
     }
 
-//    def exportUnion(union: Union, indent: Int): Unit = {
-//
-//      val tParams = union.sealedTrait.classSignature.typeParameters match {
-//        case Some(scope) => formatTypes(scope.symlinks.map(tParam(_, union.sealedTrait)))
-//        case None        => ""
-//      }
-//
-//      val exp      = if (indent == 0) "export " else ""
-//      val space    = "  " * indent
-//      val subtypes = union.members.map(m => s"${m.name.str}${formatTypes(m.typeArgs)}").mkString(" | ")
-//
-//      sb.append(s"$space${exp}type ${union.name}$tParams = $subtypes\n")
-//    }
+    def exportUnion(union: Union, indent: Int): Unit = {
+      val allTypeArgs = union.members.flatMap(_.typeArgs)
+      val (parentArgs, privateArgs) = SubtypeArg.split(allTypeArgs)
+
+      val parentArgNames = union.typeParamDisplayNames(symTab).zipWithIndex.map(_.swap).toMap
+
+      val (tParams, _) = (parentArgs ++ privateArgs).foldLeft((List.empty[String], 0))((accu, subtypeArg) =>
+        subtypeArg match {
+          case SubtypeArg.Parent(idx) => (parentArgNames(idx) :: accu._1, accu._2)
+          case SubtypeArg.Private     => (s"T${accu._2}$$" :: accu._1, accu._2 + 1)
+      })
+
+      val exp   = if (indent == 0) "export " else ""
+      val space = "  " * indent
+
+      val (subtypes, _) = union.members
+        .foldLeft((List.empty[String], 0))((accu, member) => {
+          val (tArgs, count) = member.typeArgs.foldLeft((List.empty[String], accu._2))((accu, subtypeArg) =>
+            subtypeArg match {
+              case SubtypeArg.Parent(idx) => (parentArgNames(idx) :: accu._1, accu._2)
+              case SubtypeArg.Private     => (s"T${accu._2}$$" :: accu._1, accu._2 + 1)
+          })
+          (s"${member.name}${formatTypes(tArgs)}" :: accu._1, count)
+        })
+
+      val members = subtypes.sorted.mkString(" | ")
+      sb.append(s"$space${exp}type ${union.fullName.last}${formatTypes(tParams)} = $members\n")
+    }
 
     def exportNs(ns: Namespace, indent: Int): Unit = {
       val exp   = if (indent == 0) "export " else ""
@@ -260,7 +293,7 @@ object Generator {
         sb.append(s"$space${exp}namespace ${ns.name} {\n")
       }
       ns.itfs.values.foreach(exportItf(_, indent + 2))
-      //      ns.unions.values.foreach(exportUnion(_, indent + 2))
+      ns.unions.values.foreach(exportUnion(_, indent + 2))
       ns.nested.values.foreach(exportNs(_, indent + 2))
       if (indent >= 0) {
         sb.append(s"$space}\n")
@@ -273,13 +306,14 @@ object Generator {
       case e: Export.Var => exportVar(e)
       case e: Export.Obj => exportObj(e)
       case e: Export.Cls => exportCls(e)
-      case e: Export.Trt => ns += Interface(e, symTab)
+      case e: Export.Trt => if (e.member.nonEmpty) ns += Interface(e, symTab)
     }
 
-    val interfacesForOpaqueTypes = Interface.interfaces(opaqueTypes, symTab)
-    interfacesForOpaqueTypes.foreach(ns += _)
+    val interfaces = Interface.interfaces(opaqueTypes, symTab)
+    interfaces.foreach(ns += _)
 
-    Union.unions(exports).foreach(ns += _)
+    val unions = Union.unions(exports)
+    unions.foreach(ns += _)
 
     exportNs(ns, -2)
 

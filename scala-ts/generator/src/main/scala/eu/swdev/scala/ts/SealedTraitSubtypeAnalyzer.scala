@@ -1,6 +1,7 @@
 package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.Export.Trt
+import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg.{Parent, Private}
 
 import scala.collection.mutable
 import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeRef}
@@ -8,31 +9,34 @@ import scala.meta.internal.{semanticdb => isb}
 
 object SealedTraitSubtypeAnalyzer {
 
+  /**
+    * Calculates a map from symbols of sealed traits to their list of subtypes
+    */
   def subtypes(
-                sts: List[Trt],
-                exportedClasses: Map[Symbol, Export.Cls],
+      sealedTraits: List[Trt],
+      exportedClasses: Map[Symbol, Export.Cls],
   ): Map[Symbol, List[Subtype]] = {
 
     val result = mutable.Map.empty[Symbol, List[Subtype]]
 
     def go(): Map[Symbol, List[Subtype]] = {
       // search for sealed traits that have not yet a result
-      val next = sts.filter(st => !result.contains(st.si.symbol)).map { st =>
+      val next = sealedTraits.filter(st => !result.contains(st.si.symbol)).map { parent =>
         // -> for each such trait search for symbol information that is a direct subtype of the trait
         //    (this can be done by collecting the symbol definitions from the text document the sealed trait belongs to)
-        val subtypeSymbols = st.semSrc.td.symbols.collect {
-          case si if isSubtype(st, si) => si
+        val subtypeSymbolInformations = parent.semSrc.td.symbols.collect {
+          case si if isSubtype(parent, si) => si
         }
         // -> for each such symbol map it into a Subtype instance
         //    (this step can use subtype lists for sealed traits from the result that were already determined)
-        val subtypeList = subtypeSymbols.map { si =>
-          (exportedClasses.get(si.symbol), result.get(si.symbol)) match {
-            case (Some(e), _) => Some(Subtype.ExportedSubclass(e))
-            case (_, Some(l)) => Some(Subtype.Subtrait(st, l))
+        val subtypeList = subtypeSymbolInformations.map { subtypeSymbolInformation =>
+          (exportedClasses.get(subtypeSymbolInformation.symbol), result.get(subtypeSymbolInformation.symbol)) match {
+            case (Some(e), _) => Some(Subtype.ExportedSubclass(parent, e))
+            case (_, Some(l)) => Some(Subtype.Subtrait(parent, subtypeSymbolInformation, l))
             case (_, _) =>
-              si.signature match {
+              subtypeSymbolInformation.signature match {
                 case ClassSignature(typeParameters, parents, self, declarations) =>
-                  Some(Subtype.OpaqueSubclass(si))
+                  Some(Subtype.OpaqueSubclass(parent, subtypeSymbolInformation))
                 case _ => None
               }
           }
@@ -42,7 +46,7 @@ object SealedTraitSubtypeAnalyzer {
           val l = subtypeList.collect {
             case Some(s) => s
           }.toList
-          Some(st.si.symbol -> l)
+          Some(parent.si.symbol -> l)
         } else {
           None
         }
@@ -75,12 +79,80 @@ object SealedTraitSubtypeAnalyzer {
     case _ => false
   }
 
-  sealed trait Subtype extends Product with Serializable
+  sealed trait Subtype extends Product with Serializable {
+    def parent: Export.Trt
+    def parentSymbol: Symbol = parent.si.symbol
+    def classSignature: ClassSignature
+    def unionMemberName: FullName
+
+    def localSubtypeArgs: Seq[SubtypeArg] = {
+
+      // determine which symbols are used at which position when extending the parent type
+      val typeArgumentsForParent = classSignature.parents
+        .collect {
+          case TypeRef(isb.Type.Empty, symbol, tArgs) if symbol == parentSymbol =>
+            tArgs.zipWithIndex.flatMap {
+              case (tpe, idx) => tpe.typeSymbol.map(_ -> idx)
+
+            }
+        }
+        .flatten
+        .toMap
+
+      classSignature.typeParamSymbols.map { typeParamSymbol =>
+        typeArgumentsForParent.get(typeParamSymbol) match {
+          case Some(idx) => SubtypeArg.Parent(idx)
+          case None      => SubtypeArg.Private
+        }
+      }
+
+    }
+
+    def completeSubtypeArgs: Seq[SubtypeArg]
+  }
 
   object Subtype {
-    case class ExportedSubclass(export: Export.Cls)                            extends Subtype
-    case class OpaqueSubclass(si: SymbolInformation)                           extends Subtype
-    case class Subtrait(subtrait: Export.Trt, subtypes: List[Subtype]) extends Subtype
+    case class ExportedSubclass(parent: Export.Trt, exportedSubclass: Export.Cls) extends Subtype {
+      override def unionMemberName     = FullName(exportedSubclass.name.str)
+      override def classSignature      = exportedSubclass.classSignature
+      override def completeSubtypeArgs = localSubtypeArgs
+    }
+    case class OpaqueSubclass(parent: Export.Trt, subtypeSymbolInformation: SymbolInformation) extends Subtype {
+      override def unionMemberName     = fullName(subtypeSymbolInformation.symbol)
+      override def classSignature      = subtypeSymbolInformation.signature.asInstanceOf[ClassSignature]
+      override def completeSubtypeArgs = localSubtypeArgs
+    }
+    case class Subtrait(parent: Export.Trt, subtypeSymbolInformation: SymbolInformation, subtypes: List[Subtype]) extends Subtype {
+      override def unionMemberName = fullName(subtypeSymbolInformation.symbol)
+      override def classSignature  = subtypeSymbolInformation.signature.asInstanceOf[ClassSignature]
+      override def completeSubtypeArgs = {
+        val allTypeArgs = subtypes.flatMap(_.completeSubtypeArgs)
+        val (parentArgs, privateArgs) = SubtypeArg.split(allTypeArgs)
+        parentArgs ++ privateArgs
+      }
+    }
+  }
+
+  sealed trait SubtypeArg
+
+  object SubtypeArg {
+    case class Parent(idx: Int) extends SubtypeArg
+    case object Private         extends SubtypeArg
+
+    def split(allTypeArgs: Seq[SubtypeArg]): (Seq[Parent], Seq[Private.type]) = {
+      val parentArgsSet = allTypeArgs
+        .collect {
+          case p @ Parent(_) => p
+        }
+        .toSet
+
+      val parentArgs = parentArgsSet.toList.sortBy(_.idx)
+
+      val privateArgs = allTypeArgs.collect {
+        case Private => Private
+      }
+      (parentArgs, privateArgs)
+    }
   }
 
 }

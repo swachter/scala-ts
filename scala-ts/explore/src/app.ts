@@ -174,3 +174,22 @@ console.log(`b.s: ${b.s}`)
 const derived = new fs.Derived()
 derived.doIt()
 console.log(`derived.someNumber(): ${derived.someNumber()}`)
+
+const booleanFormatter = new fs.BooleanFormatter()
+const intFormatter = new fs.IntFormatter()
+
+console.log(`booleanFormatter: ${booleanFormatter.format(true)}`)
+console.log(`intFormatter: ${intFormatter.format(777)}`)
+
+function genFormat(formatter: fs.FormatterUnion) {
+    if (formatter.tpe === 'b') {
+        console.log(`bf: ${formatter.format(true)}`)
+    } else if (formatter.tpe === 'i') {
+        console.log(`bf: ${formatter.format(666)}`)
+    } else {
+        assertNever(formatter)
+    }
+}
+
+genFormat(booleanFormatter)
+genFormat(intFormatter)
