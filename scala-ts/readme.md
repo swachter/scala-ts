@@ -12,6 +12,7 @@ The output of the plugin is a Node module of kind `ESModule`.
 | `scalaTsModuleName` | Name of the generated node module (default: project name) |
 | `scalaTsModuleVersion` | Version of the generated node module (default: project version) |
 | `scalaTsFilenamePrefix` | Filename prefix of generated JavaScript and TypeScript declaration file (default: project name) |
+| `scalaTsDialect` | Dialect of the ScalaJS sources (default: Scala213) |
 | `scalaTsGenerateDeclarationFile` | Generate TypeScript declaration file |
 | `scalaTsGeneratePackageFile` | Generate package.json file |
 | `scalaTsPackage` | Package all - generate the node module |
@@ -26,6 +27,7 @@ Primitive types
 | `String` | `string` |
 | `Boolean` | `boolean` |
 | `Int`, `Double` | `number` |
+| `literal type` | `literal type` |
 
 Supported ScalaJS Interoperability Types
 
@@ -34,13 +36,12 @@ Supported ScalaJS Interoperability Types
 | `js.UndefOr[X]` | `p?: X` or `X `<code>&#124;</code>` undefined` depending on position |
 | `js.Array[X]` | `X[]` |
 
-Scala types that are referenced in exported definitions (e.g. methods) but are not exported themselves are called _opaque_ types. In order to keep type safety, for each opaque type a corresponding marker interface is exported. Each marker interface contains a property with a name that is equal to the fully qualified type name and the value `never`. This simulates some kind of _nominal_ typing for these types instead of _structural_ typing. In order to avoid name clashes, interfaces of opaque types are included in namespaces that match their package structure. Example:
+Scala types that are referenced in exported definitions (i.e. vals, vars, or methods) but are not exported themselves are called _opaque_ types. In order to keep type safety, for each opaque type a corresponding marker interface is exported. Each marker interface contains a property with a name that is equal to the fully qualified type name and the value `never`. This simulates some kind of _nominal_ typing for these types instead of _structural_ typing. In order to avoid name clashes, interfaces of opaque types are included in namespaces that match their package structure. Example:
 
 | Referenced Type | TypeScript Declaration |
 | --- | --- |
 | `scala.Option[X]` | `namespace scala { interface Option<X> { 'scala.Option': never } }`
  
-
 
 ### Translation rules
 
@@ -55,7 +56,7 @@ Translation rules for top-level definitions (names given in `@JSExportTopLevel` 
 | --- | --- |
 | `val x: tpe` | `const x: tpe` | 
 | `var x: tpe` | `let x: tpe` |
-| `def x(...): tpe` | `x(...): tpe` |
+| `def x(...): tpe` | `function x(...): tpe` |
 | `class X { ...member... }` | `class X { ...member... }` |
 | `object X { ...member... }` | `const X { ...member... }` | 
 
@@ -69,3 +70,45 @@ Translation rules for class and object members (constructor `val`/`var` paramete
 | `def x: tpe` | `get x(): tpe` |
 | `def x_=(v: tpe)` | `set x(v: tpe)` |
 | `def x(...): tpe` | `x(...): tpe` |
+
+For each sealed trait a union type is created that contains all direct subtypes (classes or traits) as alternatives. The name of the union type is equal to the name of the sealed trait with a $ sign appended.
+
+| Scala Definition | TypeScript Definition |
+| --- | --- |
+| `sealed trait T` | `type T$ = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...`
+
+If the sealed trait belongs to package then the union type is defined in the corresponding namespace. Sealed trait hierarchies and generics are supported.
+
+### Discriminated Union Types
+
+If all union cases have a common `dicrimantor` property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks.
+
+Example Scala code (without `JSExport` annotations):
+
+```
+sealed trait T
+case class Case1(i: Int) { val tpe: "i" = "i" }
+case class Case2(s: String) { val tpe: "s" = "s" }
+```
+
+TypeScript code:
+
+```
+function assertNever(n: never): never {
+    throw new Error('never case reached')
+}
+
+function match(t: T$): number | string {
+  if (t.tpe === 'i') {
+    return t.i // TypeScript knows that t has type Case1 -> access of t.i possible
+  } else if (t.tpe === 's') {
+    return t.s // TypeScript knows that t has type Case2 -> access of t.s possible
+  } else {
+    return assertNever(t) // TypeScript nows that t has type never
+  }
+}
+```
+
+### Generated Interface Hierarchy
+
+In addition to the interfaces that were generated for _opaque_ types, interfaces are generated for all traits that are base types of exported classes or objects. Finally, interfaces are generated for all types 'between' these interfaces and all exported classes and objects. The generated interfaces form an inheritance hierarchy, thereby supporting polymorphism.

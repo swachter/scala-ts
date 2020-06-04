@@ -20,7 +20,7 @@ object ScalaTsPlugin extends AutoPlugin {
     val scalaTsModuleVersion = settingKey[String]("Version of the generated node module (default: project version)")
     val scalaTsFilenamePrefix =
       settingKey[String]("Filename prefix of generated JavaScript and TypeScript declaration file (default: project name)")
-    val scalaTsDialect                 = settingKey[Dialect]("Dialect of the ScalaJS sources; default: scala.meta.dialects.Scala213")
+    val scalaTsDialect                 = settingKey[Dialect]("Dialect of the ScalaJS sources (default: Scala213)")
     val scalaTsGenerateDeclarationFile = taskKey[File]("Generate TypeScript declaration file")
     val scalaTsGeneratePackageFile     = taskKey[File]("Generate package.json file")
     val scalaTsPackage                 = taskKey[Unit]("Package all - generate the node module")
