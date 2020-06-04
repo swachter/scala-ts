@@ -1,7 +1,7 @@
 package eu.swdev.scala.ts.sample.p1
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
 import js.JSConverters._
 
 @JSExportTopLevel("Simple")
@@ -39,5 +39,22 @@ class TypeConversions {
 
   @JSExport
   def matrix: js.Array[js.Array[Int]] = _matrix.toJSArray.map(_.toJSArray)
+
+}
+
+object SimpleAdt {
+
+  sealed trait Adt
+
+  @JSExportTopLevel("SimpleAdtCase1")
+  @JSExportAll
+  case class Case1(int: Int) extends Adt {
+    val tpe: "i" = "i"
+  }
+  @JSExportTopLevel("SimpleAdtCase2")
+  @JSExportAll
+  case class Case2(str: String) extends Adt {
+    val tpe: "s" = "s"
+  }
 
 }
