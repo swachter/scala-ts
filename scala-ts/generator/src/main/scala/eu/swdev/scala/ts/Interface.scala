@@ -1,5 +1,7 @@
 package eu.swdev.scala.ts
 
+import eu.swdev.scala.ts
+
 import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeRef}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
@@ -10,20 +12,18 @@ object Interface {
 
   def apply(si: SymbolInformation, symTab: SymbolTable): Interface = apply(si, Nil, symTab)
 
-  def apply(si: SymbolInformation, member: List[Export.Member], symTab: SymbolTable): Interface = {
+  def apply(si: SymbolInformation, member: List[Export.Member], symTab: SymbolTable): Interface = apply(si, simpleName(si.symbol), member, symTab)
+
+  def apply(si: SymbolInformation, simpleName: SimpleName, member: List[Export.Member], symTab: SymbolTable): Interface = {
     val cs = si.signature.asInstanceOf[ClassSignature]
     Interface(
-      fullName(si.symbol),
+      si.symbol,
+      simpleName,
       cs.typeParamDisplayNames(symTab),
-      cs.parents.collect {
-        case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
-          Parent(fullName(symbol), typeArguments)
-      },
+      ParentType.parentTypes(cs),
       member
     )
   }
-
-  case class Parent(fullName: FullName, typeArgs: Seq[isb.Type])
 
   // derive Interface instances for all opaque type
   def interfaces(opaqueTypes: List[isb.Type], symTab: SymbolTable): List[Interface] = {
@@ -32,7 +32,20 @@ object Interface {
 
 }
 
-case class Interface(fullName: FullName, typeParams: Seq[String], parents: Seq[Interface.Parent], members: List[Export.Member]) {
-  def simpleName: SimpleName = fullName.last
+case class Interface(symbol: Symbol, simpleName: SimpleName, typeParams: Seq[String], parents: Seq[ParentType], members: List[Export.Member]) {
+  val fullName = ts.fullName(symbol)
+}
+
+case class ParentType(fullName: FullName, typeArgs: Seq[isb.Type])
+
+object ParentType {
+
+  def parentTypes(cs: ClassSignature): Seq[ParentType] = {
+    cs.parents.collect {
+      case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
+        ParentType(fullName(symbol), typeArguments)
+    }
+  }
+
 }
 

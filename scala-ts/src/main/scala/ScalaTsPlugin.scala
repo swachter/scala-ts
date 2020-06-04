@@ -55,7 +55,7 @@ object ScalaTsPlugin extends AutoPlugin {
 
       val semSrcs = SemSource.from(classDir, scalaTsDialect.value)
 
-      val exports = semSrcs.flatMap(Analyzer.analyze)
+      val exports = semSrcs.sortBy(_.td.uri).flatMap(Analyzer.analyze)
 
       val output = Generator.generate(exports, symTab)
 

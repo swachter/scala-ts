@@ -1,13 +1,10 @@
 package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts
-import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.{Subtype, SubtypeArg}
-import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.Subtype.{ExportedSubclass, OpaqueSubclass, Subtrait}
+import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
 
 import scala.meta.Mod
-import scala.meta.internal.semanticdb.TypeRef
 import scala.meta.internal.symtab.SymbolTable
-import scala.meta.internal.{semanticdb => isb}
 
 object Union {
 
@@ -31,11 +28,13 @@ object Union {
 
   }
 
+  def apply(sealedTrait: Export.Trt, members: Seq[UnionMember]): Union = new Union(sealedTrait, members.sortBy(_.name.str))
+
 }
 
 import eu.swdev.scala.ts.Union._
 
-case class Union(sealedTrait: Export.Trt, members: Seq[UnionMember]) {
+case class Union private (sealedTrait: Export.Trt, members: Seq[UnionMember]) {
   def fullName: FullName = FullName(s"${ts.fullName(sealedTrait.si.symbol).str}$$")
   def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = sealedTrait.classSignature.typeParamDisplayNames(symTab)
 }

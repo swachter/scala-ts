@@ -23,7 +23,7 @@ package object ts {
     def isTypeParameter(symbol: String): Boolean = typeParameter(symbol).isDefined
   }
 
-  implicit class ClassSignatureOps(val classSignature: ClassSignature) {
+  implicit class ClassSignatureOps(val classSignature: ClassSignature) extends AnyVal {
     def typeParamSymbols: Seq[String] = classSignature.typeParameters match {
       case Some(s) => s.symlinks
       case None    => Seq()
@@ -31,7 +31,7 @@ package object ts {
     def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = typeParamSymbols.map(symTab.info(_).get.displayName)
   }
 
-  implicit class TypeOps(val tpe: isb.Type) {
+  implicit class TypeOps(val tpe: isb.Type) extends AnyVal {
 
     def isTypeParameter(symTab: SymbolTable): Boolean = typeSymbol.map(symTab.isTypeParameter(_)).getOrElse(false)
 
@@ -42,8 +42,20 @@ package object ts {
     }
   }
 
+  implicit class SymbolInformationOps(val si: SymbolInformation) extends AnyVal {
+    def parents: Seq[isb.Type] = if (si.signature.isInstanceOf[ClassSignature]) {
+      si.signature.asInstanceOf[ClassSignature].parents
+    } else {
+      Seq()
+    }
+  }
+
   type Symbol = String
 
-  def fullName(symbol: Symbol): FullName = FullName(symbol.substring(0, symbol.length - 1).replace('/', '.'))
+  def fullName(symbol: Symbol): FullName = FullName(normalizeSymbol(symbol))
+
+  def simpleName(symbol: Symbol): SimpleName = SimpleName(normalizeSymbol(symbol).split('.').last)
+
+  private def normalizeSymbol(sym: Symbol): String = sym.substring(0, sym.length - 1).replace('/', '.')
 
 }

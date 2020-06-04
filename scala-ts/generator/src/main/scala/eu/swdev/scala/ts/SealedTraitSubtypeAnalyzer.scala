@@ -1,7 +1,6 @@
 package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.Export.Trt
-import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg.{Parent, Private}
 
 import scala.collection.mutable
 import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeRef}

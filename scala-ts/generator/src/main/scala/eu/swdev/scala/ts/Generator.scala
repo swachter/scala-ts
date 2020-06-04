@@ -3,28 +3,15 @@ package eu.swdev.scala.ts
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg.{Parent, Private}
 
-import scala.meta.internal.semanticdb.{
-  BooleanConstant,
-  ByteConstant,
-  CharConstant,
-  ClassSignature,
-  ConstantType,
-  DoubleConstant,
-  FloatConstant,
-  IntConstant,
-  LongConstant,
-  ShortConstant,
-  SingleType,
-  StringConstant,
-  TypeRef,
-  ValueSignature
-}
+import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ClassSignature, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, ShortConstant, SingleType, StringConstant, SymbolInformation, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
 object Generator {
 
   def generate(exports: List[Export.TopLevel], symTab: SymbolTable): String = {
+
+    val rootNamespace = Namespace.deriveInterfaces(exports, symTab)
 
     val exportedClasses = exports.collect {
       case e: Export.Cls => e.si.symbol -> e
@@ -44,29 +31,6 @@ object Generator {
         .map(_.name.str)
         .orElse(exportedObjects.get(symbol).map(_.name.str))
         .orElse(exportedTraits.get(symbol).map(_ => fullName(symbol).str))
-
-    def isBuiltInType(symbol: String) = builtInTypeNames.contains(symbol)
-
-    def isOpaqueType(tpe: isb.Type): Boolean = tpe match {
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", _) => false
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", _)           => false
-      case TypeRef(isb.Type.Empty, symbol, _) =>
-        exportedTypeName(symbol) match {
-          case Some(_) => false
-          case None    => !isBuiltInType(symbol)
-        }
-      case SingleType(isb.Type.Empty, symbol) =>
-        exportedTypeName(symbol) match {
-          case Some(_) => false
-          case None    => true
-        }
-      case _ => false
-    }
-
-    val referencedTypes = exports.flatMap(Analyzer.referencedTypes(_, symTab))
-    val opaqueTypes     = referencedTypes.filter(isOpaqueType)
-
-    val ns = new Namespace(SimpleName(""))
 
     def formatType(tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
@@ -137,7 +101,7 @@ object Generator {
           val seq = typeSymbols
             .map(symTab.info)
             .collect {
-              case Some(s) if s.signature.isInstanceOf[ClassSignature] => s.signature.asInstanceOf[ClassSignature].parents
+              case Some(s) => s.parents
             }
             .flatten
           findNearestExportedParentClass(seq)
@@ -201,7 +165,19 @@ object Generator {
       }
     }
 
+    // export interfaces for exported classes / objects if the interface would extends some parent interfaces
+    // (the declaration of the exported interfaces are "merged" with the declaration of classes / objects with the
+    //  same name; cf. TypeScript declaration merging).
+    def exportMergedItf(si: SymbolInformation, name: SimpleName): Unit = {
+      val itf = Interface(si, name, Nil, symTab)
+      if (itf.parents.exists(p => rootNamespace.containsItf(p.fullName))) {
+        exportItf(itf, 0)
+      }
+    }
+
     def exportObj(e: Export.Obj): Unit = {
+      exportMergedItf(e.si, e.name)
+
       sb.append(s"export const ${e.name}: {\n")
       e.member.foreach {
         case e: Export.Def => sb.append(memberDef(e))
@@ -212,6 +188,8 @@ object Generator {
     }
 
     def exportCls(e: Export.Cls): Unit = {
+      exportMergedItf(e.si, e.name)
+
       val tParams = formatTypes(e.classSignature.typeParamDisplayNames(symTab))
 
       val ext = findNearestExportedParentClass(e.classSignature.parents).fold("")(p => s" extends $p")
@@ -234,7 +212,7 @@ object Generator {
 
     def exportItf(itf: Interface, indent: Int): Unit = {
 
-      val parents = itf.parents.filter(p => ns.containsItf(p.fullName))
+      val parents = itf.parents.filter(p => rootNamespace.containsItf(p.fullName))
 
       val ext =
         if (parents.isEmpty) ""
@@ -282,7 +260,7 @@ object Generator {
           (s"${member.name}${formatTypes(tArgs)}" :: accu._1, count)
         })
 
-      val members = subtypes.sorted.mkString(" | ")
+      val members = subtypes.reverse.mkString(" | ")
       sb.append(s"$space${exp}type ${union.fullName.last}${formatTypes(tParams)} = $members\n")
     }
 
@@ -306,31 +284,18 @@ object Generator {
       case e: Export.Var => exportVar(e)
       case e: Export.Obj => exportObj(e)
       case e: Export.Cls => exportCls(e)
-      case e: Export.Trt => if (e.member.nonEmpty) ns += Interface(e, symTab)
+      case e: Export.Trt => ()
     }
 
-    val interfaces = Interface.interfaces(opaqueTypes, symTab)
-    interfaces.foreach(ns += _)
-
     val unions = Union.unions(exports)
-    unions.foreach(ns += _)
+    unions.foreach(rootNamespace += _)
 
-    exportNs(ns, -2)
+    exportNs(rootNamespace, -2)
 
     sb.toString
   }
 
-  val builtInTypeNames = Map(
-    "java/lang/String#"    -> "string",
-    "scala/Boolean#"       -> "boolean",
-    "scala/Double#"        -> "number",
-    "scala/Int#"           -> "number",
-    "scala/Nothing#"       -> "never",
-    "scala/Predef.String#" -> "string",
-    "scala/Unit#"          -> "void",
-  )
-
-  def nonExportedTypeName(symbol: String): String = builtInTypeNames.getOrElse(symbol, opaqueTypeName(symbol))
+  def nonExportedTypeName(symbol: String): String = BuiltIn.builtInTypeNames.getOrElse(symbol, opaqueTypeName(symbol))
 
   def opaqueTypeName(symbol: String) = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
 

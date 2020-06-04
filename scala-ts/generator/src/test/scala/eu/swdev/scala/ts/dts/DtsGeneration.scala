@@ -76,7 +76,7 @@ trait DtsGeneration {
     val cp          = Classpath(paths)
     val symTab      = GlobalSymbolTable(cp, true)
 
-    val exports = semSources.flatMap(Analyzer.analyze)
+    val exports = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze)
 
     Generator.generate(exports, symTab).trim
   }
