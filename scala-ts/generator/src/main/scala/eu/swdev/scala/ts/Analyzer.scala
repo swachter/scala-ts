@@ -19,7 +19,7 @@ object Analyzer {
   val jsExportSymbol         = classSymbol[JSExport]
   val jsExportAllSymbol      = classSymbol[JSExportAll]
 
-  def analyze(semSrc: SemSource): List[Export.TopLevel] = {
+  def analyze(semSrc: SemSource, symTab: SymbolTable): List[Export.TopLevel] = {
 
     def existsSymbolReference(tree: Tree, symbol: String): Boolean =
       semSrc
@@ -54,7 +54,12 @@ object Analyzer {
     def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
     def hasVarMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.VarParam])
     def hasPrivateMod(mods: List[Mod]): Boolean   = mods.exists(_.isInstanceOf[Mod.Private])
-    def hasSealedMod(mods: List[Mod]): Boolean    = mods.exists(_.isInstanceOf[Mod.Sealed])
+
+    def isSubtypeOfJsAny(si: SymbolInformation): Boolean = {
+      si.parents
+        .flatMap(_.typeSymbol)
+        .exists(sym => sym == "scala/scalajs/js/Any#" || symTab.info(sym).map(isSubtypeOfJsAny(_)).getOrElse(false))
+    }
 
     val traverser = new Traverser {
 
@@ -122,7 +127,7 @@ object Analyzer {
               case None => Nil
             }
 
-            state = InContainerState(memberBuilder, exportAll(mods))
+            state = InContainerState(memberBuilder, exportAll(mods) || isSubtypeOfJsAny(si))
             visitChildren
             state = InitialState
             builder += Export.Cls(semSrc, defn, en, si, memberBuilder.result(), ctorParams)
@@ -136,7 +141,7 @@ object Analyzer {
             si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
             val memberBuilder = List.newBuilder[Export.Member]
-            state = InContainerState(memberBuilder, exportAll(mods))
+            state = InContainerState(memberBuilder, exportAll(mods) || isSubtypeOfJsAny(si))
             visitChildren
             state = InitialState
             builder += Export.Obj(semSrc, defn, en, si, memberBuilder.result())
