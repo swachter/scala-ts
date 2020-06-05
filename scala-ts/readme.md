@@ -57,8 +57,8 @@ Translation rules for top-level definitions (names given in `@JSExportTopLevel` 
 | `val x: tpe` | `const x: tpe` | 
 | `var x: tpe` | `let x: tpe` |
 | `def x(...): tpe` | `function x(...): tpe` |
-| `class X { ...member... }` | `class X { ...member... }` |
-| `object X { ...member... }` | `const X { ...member... }` | 
+| `class X { ...member... }` | `class X { ...member... }`<br>`interface X extends ... {}` if the class extends interfaces |
+| `object X { ...member... }` | `interface X { ...member... }`<br>`const X: X` | 
 
 
 Translation rules for class and object members (constructor `val`/`var` parameters are also considered):
@@ -111,4 +111,4 @@ function match(t: T$): number | string {
 
 ### Generated Interface Hierarchy
 
-In addition to the interfaces that were generated for _opaque_ types, interfaces are generated for all traits that are base types of exported classes or objects. Finally, interfaces are generated for all types 'between' these interfaces and all exported classes and objects. The generated interfaces form an inheritance hierarchy, thereby supporting polymorphism.
+In addition to the interfaces that were generated for _opaque_ types, interfaces are generated for all traits in the processed sources that are base types of exported classes or objects. Finally, interfaces are generated for all types 'between' these interfaces and all exported classes and objects. The generated interfaces form an inheritance hierarchy, thereby supporting polymorphism.

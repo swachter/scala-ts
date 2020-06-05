@@ -58,3 +58,22 @@ object SimpleAdt {
   }
 
 }
+
+object ObjectAdt {
+
+  sealed trait Adt
+
+  @JSExportTopLevel("ObjectAdtCase1")
+  @JSExportAll
+  object Case1 extends Adt {
+    val tpe: 1 = 1
+    val str = "abc"
+  }
+  @JSExportTopLevel("ObjectAdtCase2")
+  @JSExportAll
+  object Case2 extends Adt {
+    val tpe: 2 = 2
+    val num = 555
+  }
+
+}

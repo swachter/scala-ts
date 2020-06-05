@@ -52,10 +52,10 @@ package object ts {
 
   type Symbol = String
 
-  def fullName(symbol: Symbol): FullName = FullName(normalizeSymbol(symbol))
+  def fullName(symbol: Symbol): FullName = FullName(symbol2Classname(symbol))
 
-  def simpleName(symbol: Symbol): SimpleName = SimpleName(normalizeSymbol(symbol).split('.').last)
+  def simpleName(symbol: Symbol): SimpleName = SimpleName(symbol2Classname(symbol).split('.').last)
 
-  private def normalizeSymbol(sym: Symbol): String = sym.substring(0, sym.length - 1).replace('/', '.')
+  def symbol2Classname(symbol: Symbol): String = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
 
 }

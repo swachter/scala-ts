@@ -14,6 +14,7 @@ object SealedTraitSubtypeAnalyzer {
   def subtypes(
       sealedTraits: List[Trt],
       exportedClasses: Map[Symbol, Export.Cls],
+      exportedObjects: Map[Symbol, Export.Obj],
   ): Map[Symbol, List[Subtype]] = {
 
     val result = mutable.Map.empty[Symbol, List[Subtype]]
@@ -29,10 +30,11 @@ object SealedTraitSubtypeAnalyzer {
         // -> for each such symbol map it into a Subtype instance
         //    (this step can use subtype lists for sealed traits from the result that were already determined)
         val subtypeList = subtypeSymbolInformations.map { subtypeSymbolInformation =>
-          (exportedClasses.get(subtypeSymbolInformation.symbol), result.get(subtypeSymbolInformation.symbol)) match {
-            case (Some(e), _) => Some(Subtype.ExportedSubclass(parent, e))
-            case (_, Some(l)) => Some(Subtype.Subtrait(parent, subtypeSymbolInformation, l))
-            case (_, _) =>
+          (exportedClasses.get(subtypeSymbolInformation.symbol), exportedObjects.get(subtypeSymbolInformation.symbol), result.get(subtypeSymbolInformation.symbol)) match {
+            case (Some(e), _, _) => Some(Subtype.ExportedSubclass(parent, e))
+            case (_, Some(e), _) => Some(Subtype.ExportedSubobject(parent, e))
+            case (_, _, Some(l)) => Some(Subtype.Subtrait(parent, subtypeSymbolInformation, l))
+            case (_, _, _) =>
               subtypeSymbolInformation.signature match {
                 case ClassSignature(typeParameters, parents, self, declarations) =>
                   Some(Subtype.OpaqueSubclass(parent, subtypeSymbolInformation))
@@ -114,6 +116,11 @@ object SealedTraitSubtypeAnalyzer {
     case class ExportedSubclass(parent: Export.Trt, exportedSubclass: Export.Cls) extends Subtype {
       override def unionMemberName     = FullName(exportedSubclass.name.str)
       override def classSignature      = exportedSubclass.classSignature
+      override def completeSubtypeArgs = localSubtypeArgs
+    }
+    case class ExportedSubobject(parent: Export.Trt, e: Export.Obj) extends Subtype {
+      override def unionMemberName     = FullName(e.name.str)
+      override def classSignature      = e.si.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class OpaqueSubclass(parent: Export.Trt, subtypeSymbolInformation: SymbolInformation) extends Subtype {

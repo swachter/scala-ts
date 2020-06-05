@@ -6,10 +6,12 @@ class AccessorTest extends DtsFunSuite {
 
   test("dts") {
     """
-      |export const AccessorTest: {
+      |export interface AccessorTest {
       |  get property(): number
       |  set property(v: number)
+      |  'eu.swdev.scala.ts.dts.AccessorTest': never
       |}
+      |export const AccessorTest: AccessorTest
       |""".check()
   }
 

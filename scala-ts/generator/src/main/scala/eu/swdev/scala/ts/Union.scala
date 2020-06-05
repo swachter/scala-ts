@@ -16,11 +16,15 @@ object Union {
       case e: Export.Cls => e.si.symbol -> e
     }.toMap
 
+    val exportedObjects = exports.collect {
+      case e: Export.Obj => e.si.symbol -> e
+    }.toMap
+
     val sealedTraitExports = exports.collect {
       case e: Export.Trt if e.tree.mods.exists(_.isInstanceOf[Mod.Sealed]) => e
     }
 
-    val subtypes = SealedTraitSubtypeAnalyzer.subtypes(sealedTraitExports, exportedClasses)
+    val subtypes = SealedTraitSubtypeAnalyzer.subtypes(sealedTraitExports, exportedClasses, exportedObjects)
 
     sealedTraitExports.map(e => e -> subtypes.get(e.si.symbol)).collect {
       case (st, Some(l)) => Union(st, l.map(subtype => UnionMember(subtype.unionMemberName, subtype.completeSubtypeArgs)))

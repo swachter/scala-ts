@@ -1,9 +1,8 @@
 package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
-import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg.{Parent, Private}
 
-import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ClassSignature, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, ShortConstant, SingleType, StringConstant, SymbolInformation, TypeRef, ValueSignature}
+import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, ShortConstant, SingleType, StringConstant, SymbolInformation, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -21,16 +20,11 @@ object Generator {
       case e: Export.Obj => e.si.symbol -> e
     }.toMap
 
-    val exportedTraits = exports.collect {
-      case e: Export.Trt => e.si.symbol -> e
-    }.toMap
-
     def exportedTypeName(symbol: Symbol): Option[String] =
       exportedClasses
         .get(symbol)
         .map(_.name.str)
         .orElse(exportedObjects.get(symbol).map(_.name.str))
-        .orElse(exportedTraits.get(symbol).map(_ => fullName(symbol).str))
 
     def formatType(tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
@@ -165,30 +159,20 @@ object Generator {
       }
     }
 
-    // export interfaces for exported classes / objects if the interface would extends some parent interfaces
-    // (the declaration of the exported interfaces are "merged" with the declaration of classes / objects with the
-    //  same name; cf. TypeScript declaration merging).
-    def exportMergedItf(si: SymbolInformation, name: SimpleName): Unit = {
-      val itf = Interface(si, name, Nil, symTab)
-      if (itf.parents.exists(p => rootNamespace.containsItf(p.fullName))) {
-        exportItf(itf, 0)
-      }
-    }
-
     def exportObj(e: Export.Obj): Unit = {
-      exportMergedItf(e.si, e.name)
-
-      sb.append(s"export const ${e.name}: {\n")
-      e.member.foreach {
-        case e: Export.Def => sb.append(memberDef(e))
-        case e: Export.Val => sb.append(memberVal(e))
-        case e: Export.Var => sb.append(memberVar(e))
-      }
-      sb.append("}\n")
+      // export an interface with the object members and a constant of the object type
+      // -> this allows the object to be part of a union type
+      exportItf(Interface(e.si, e.name, e.member, symTab), 0)
+      sb.append(s"export const ${e.name}: ${e.name}\n")
     }
 
     def exportCls(e: Export.Cls): Unit = {
-      exportMergedItf(e.si, e.name)
+      // export an interface with the same name as the exported class if the interface would extends some parent interfaces
+      // -> the declaration of that interface and the declaration of the class are "merged"; cf. TypeScript declaration merging
+      val itf = Interface(e.si, e.name, Nil, symTab)
+      if (itf.parents.exists(p => rootNamespace.containsItf(p.fullName))) {
+        exportItf(itf, 0)
+      }
 
       val tParams = formatTypes(e.classSignature.typeParamDisplayNames(symTab))
 
@@ -295,9 +279,7 @@ object Generator {
     sb.toString
   }
 
-  def nonExportedTypeName(symbol: String): String = BuiltIn.builtInTypeNames.getOrElse(symbol, opaqueTypeName(symbol))
-
-  def opaqueTypeName(symbol: String) = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
+  def nonExportedTypeName(symbol: String): String = BuiltIn.builtInTypeNames.getOrElse(symbol, symbol2Classname(symbol))
 
   def escapeString(str: String): String = {
     str.flatMap {
