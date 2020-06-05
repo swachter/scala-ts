@@ -2,6 +2,21 @@
 
 The `ScalaTsPlugin` processes [ScalaJS](https://www.scala-js.org/) sources and generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html).
 
+### Usage
+
+Add the following lines to `project/plugins.sbt`:
+
+```
+resolvers += Resolver.jcenterRepo
+addSbtPlugin("eu.swdev" % """sbt-scala-ts""" % "0.2"
+```
+
+and enable the `ScalaTsPlugin` in `build.sbt`:
+
+```
+enablePlugins(ScalaTsPlugin)
+```
+
 ### How does it work?
 
 The implementation is based on [Scalameta](https://scalameta.org/). Information about the ScalaJS sources is collected by traversing source trees and retrieving symbol information from `SemanticDB`. Accordingly, ScalaJS sources must be compiled with the `SemanticDB` compiler plugin being added and the parameter `-Yrangepos` being set. The `ScalaTsPlugin` cares for this configuration.
@@ -20,7 +35,6 @@ The output of the plugin is a Node module of kind `ESModule`.
 | `scalaTsGenerateDeclarationFile` | Generate TypeScript declaration file |
 | `scalaTsGeneratePackageFile` | Generate package.json file |
 | `scalaTsPackage` | Package all - generate the node module |
-
 
 ### Type mapping
 

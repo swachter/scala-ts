@@ -30,7 +30,7 @@ lazy val root = (project in file("."))
       // when run by the ScriptedPlugin the node modules have to be reinstalled in the temporary project folder
       // -> remove the node_modules folder and run "npm i" before executing the tests
       val r = (
-        Process("rm" :: "-r" :: "node_modules" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
+        Process("rm" :: "-rf" :: "node_modules" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
           Process("npm" :: "i" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
           Process("npm" :: "t" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) !
         )

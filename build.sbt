@@ -8,9 +8,9 @@ lazy val supportedScalaVersions = List(scala212, scala213)
 
 lazy val commonSettings = Seq(
   organization := "eu.swdev",
-  version := "0.2-SNAPSHOT",
+  version := "0.3-SNAPSHOT",
   bintrayPackageLabels := Seq("sbt","plugin"),
-  bintrayVcsUrl := Some("""https://github.com/swachter/scala-ts-playground.git"""),
+  bintrayVcsUrl := Some("""https://github.com/swachter/scala-ts.git"""),
   bintrayOrganization := None, // TODO: what is the organization for
   licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 )
