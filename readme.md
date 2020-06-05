@@ -1,27 +1,29 @@
 ## ScalaTsPlugin
 
-The `ScalaTsPlugin` processes [ScalaJS](https://www.scala-js.org/) sources and generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html).
+The `ScalaTsPlugin` processes [ScalaJS](https://www.scala-js.org/) sources, generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html), and bundles its output and the output of ScalaJS to form a Node module.
 
 ### Usage
 
-Add the following lines to `project/plugins.sbt`:
+Add the following lines to `project/plugins.sbt`
 
 ```
 resolvers += Resolver.jcenterRepo
-addSbtPlugin("eu.swdev" % """sbt-scala-ts""" % "0.2"
+addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.2"
 ```
 
-and enable the `ScalaTsPlugin` in `build.sbt`:
+and enable the `ScalaTsPlugin` in `build.sbt`
 
 ```
 enablePlugins(ScalaTsPlugin)
 ```
+ 
+No further configuration is required. 
 
 ### How does it work?
 
 The implementation is based on [Scalameta](https://scalameta.org/). Information about the ScalaJS sources is collected by traversing source trees and retrieving symbol information from `SemanticDB`. Accordingly, ScalaJS sources must be compiled with the `SemanticDB` compiler plugin being added and the parameter `-Yrangepos` being set. The `ScalaTsPlugin` cares for this configuration.
 
-The output of the plugin is a Node module of kind `ESModule`.
+The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it to emit an ECMAScript module.
 
 ### Configuration
 
@@ -29,7 +31,7 @@ The output of the plugin is a Node module of kind `ESModule`.
 | --- | --- |
 | `scalaTsOutputDir` | Directory where to put the TypeScript declaration file (default: target/node_module) |
 | `scalaTsModuleName` | Name of the generated node module (default: project name) |
-| `scalaTsModuleVersion` | Version of the generated node module (default: project version) |
+| `scalaTsModuleVersion` | Version of the generated node module (default: project version); **the version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
 | `scalaTsFilenamePrefix` | Filename prefix of generated JavaScript and TypeScript declaration file (default: project name) |
 | `scalaTsDialect` | Dialect of the ScalaJS sources (default: Scala213) |
 | `scalaTsGenerateDeclarationFile` | Generate TypeScript declaration file |

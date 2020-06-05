@@ -81,6 +81,10 @@ object ScalaTsPlugin extends AutoPlugin {
     },
     scalaTsGeneratePackageFile := {
       val outputFile = scalaTsOutputDir.value / "package.json"
+      val version = scalaTsModuleVersion.value
+      if (!(version matches """^\d+\.\d+\.\d+$$""")) {
+        throw new MessageOnlyException(s"node module version '$version' is not a valid semantic version (3 dot separated numbers); adjust the project version or set the scalaTsModuleVersion")
+      }
       val content =
         s"""
            |{
