@@ -97,7 +97,8 @@ object Namespace {
 
     referencedInterfaces.foreach(rootNamespace += _)
 
-    //
+    // create interfaces for all types between exported classes / objects and already created interfaces
+    // -> fill the gaps in inheritance chains
 
     def hasExportedAncestorInterface(sym: Symbol): Boolean = {
       symTab.info(sym) match {

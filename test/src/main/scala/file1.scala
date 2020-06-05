@@ -77,3 +77,11 @@ object ObjectAdt {
   }
 
 }
+
+@JSExportTopLevel("JsClass")
+class JsClass(val initialStr: String, var num: Int) extends js.Object {
+  private var _str = initialStr
+  def str_=(s: String): Unit = _str = s
+  def str = _str
+  def doubleNum(): Unit = num = num * 2
+}
