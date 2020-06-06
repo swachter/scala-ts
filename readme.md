@@ -34,9 +34,9 @@ The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it 
 | `scalaTsModuleVersion` | Version of the generated node module (default: project version); **the version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
 | `scalaTsFilenamePrefix` | Filename prefix of generated JavaScript and TypeScript declaration file (default: project name) |
 | `scalaTsDialect` | Dialect of the ScalaJS sources (default: Scala213) |
-| `scalaTsGenerateDeclarationFile` | Generate TypeScript declaration file |
-| `scalaTsGeneratePackageFile` | Generate package.json file |
-| `scalaTsPackage` | Package all - generate the node module |
+| `scalaTsGenerateDeclarationFile` | Task: Generate TypeScript declaration file |
+| `scalaTsGeneratePackageFile` | Task: Generate package.json file |
+| `scalaTsPackage` | Task: Package all - generate the node module |
 
 ### Type mapping
 
@@ -97,11 +97,11 @@ For each sealed trait a union type is created that contains all direct subtypes 
 | --- | --- |
 | `sealed trait T` | `type T$ = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...`
 
-If the sealed trait belongs to package then the union type is defined in the corresponding namespace. Sealed trait hierarchies and generics are supported.
+If the sealed trait belongs to a package then the union type is defined in the corresponding namespace. Sealed trait hierarchies and generics are supported.
 
 ### Discriminated Union Types
 
-If all union cases have a common `dicrimantor` property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks.
+If all union cases have a common _discrimantor_ property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks.
 
 Example Scala code (without `JSExport` annotations):
 
@@ -131,7 +131,7 @@ function match(t: T$): number | string {
 
 ### Generated Interface Hierarchy
 
-In addition to the interfaces that were generated for _opaque_ types, interfaces are generated for all traits in the processed sources that are base types of exported classes or objects. Finally, interfaces are generated for all types 'between' these interfaces and all exported classes and objects. The generated interfaces form an inheritance hierarchy, thereby supporting polymorphism.
+In addition to the interfaces that are generated for _opaque_ types, interfaces are generated for all traits in the processed sources that are base types of exported classes or objects. Finally, interfaces are generated for all types 'between' these interfaces and all exported classes and objects. The generated interfaces form an inheritance hierarchy, thereby supporting polymorphism.
 
 ### Folder Contents
 
