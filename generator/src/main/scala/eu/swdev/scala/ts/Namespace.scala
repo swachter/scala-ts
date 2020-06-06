@@ -149,7 +149,10 @@ object Namespace {
     }
   }
 
-  def isSpecialType(symbol: Symbol) = specialTypes.contains(symbol) || symbol.matches("scala/scalajs/js/Function\\d+#")
+  def isSpecialType(symbol: Symbol) =
+    specialTypes.contains(symbol) ||
+      symbol.matches("scala/scalajs/js/Function\\d+#") ||
+      symbol.matches("scala/scalajs/js/Tuple\\d+#")
 
   val specialTypes = Set[Symbol]("scala/scalajs/js/package.UndefOr#", "scala/scalajs/js/Array#")
 

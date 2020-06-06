@@ -55,6 +55,8 @@ Supported ScalaJS Interoperability Types
 | --- | --- |
 | `js.UndefOr[X]` | `p?: X` or `X `<code>&#124;</code>` undefined` depending on position |
 | `js.Array[X]` | `X[]` |
+| `js.FunctionN[T1, ... TN, R]` | `(p1: T1, ... pn: TN) => R` |
+| `js.TupleN[T1, ... TN]` | `[T1, ... TN]` |
 
 Scala types that are referenced in exported definitions (i.e. vals, vars, or methods) but are not exported themselves are called _opaque_ types. In order to keep type safety, for each opaque type a corresponding marker interface is exported. Each marker interface contains a property with a name that is equal to the fully qualified type name and the value `never`. This simulates some kind of _nominal_ typing for these types instead of _structural_ typing. In order to avoid name clashes, interfaces of opaque types are included in namespaces that match their package structure. Example:
 
