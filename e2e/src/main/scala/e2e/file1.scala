@@ -94,3 +94,11 @@ object FunctionTest {
   @JSExportTopLevel("fun2")
   def fun2[T1, T2, R](a1: js.Array[T1], a2: js.Array[T2], f: js.Function2[T1, T2, R]): js.Array[R] = a1.zip(a2).map(f.tupled)
 }
+
+object TupleTest {
+  @JSExportTopLevel("tupleFunction")
+  def tupleFunction[T1, T2, R](f: js.Function2[T1, T2, R]): js.Function1[js.Tuple2[T1, T2], R] = {
+    val x = f.tupled
+    t => x(t)
+  }
+}
