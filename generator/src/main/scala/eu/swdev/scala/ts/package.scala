@@ -2,7 +2,7 @@ package eu.swdev.scala
 
 import scala.meta.inputs.Position
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
-import scala.meta.internal.semanticdb.{ClassSignature, SingleType, SymbolInformation, TypeRef, Range => SRange}
+import scala.meta.internal.semanticdb.{ClassSignature, Scope, SingleType, SymbolInformation, TypeRef, TypeSignature, Range => SRange}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -24,11 +24,8 @@ package object ts {
   }
 
   implicit class ClassSignatureOps(val classSignature: ClassSignature) extends AnyVal {
-    def typeParamSymbols: Seq[String] = classSignature.typeParameters match {
-      case Some(s) => s.symlinks
-      case None    => Seq()
-    }
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = typeParamSymbols.map(symTab.info(_).get.displayName)
+    def typeParamSymbols: Seq[String] = ts.typeParamSymbols(classSignature.typeParameters)
+    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = ts.typeParamDisplayNames(classSignature.typeParameters, symTab)
   }
 
   implicit class TypeOps(val tpe: isb.Type) extends AnyVal {
@@ -43,10 +40,21 @@ package object ts {
   }
 
   implicit class SymbolInformationOps(val si: SymbolInformation) extends AnyVal {
+
     def parents: Seq[isb.Type] = if (si.signature.isInstanceOf[ClassSignature]) {
       si.signature.asInstanceOf[ClassSignature].parents
     } else {
       Seq()
+    }
+
+    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = {
+      if (si.signature.isInstanceOf[ClassSignature]) {
+        ts.typeParamDisplayNames(si.signature.asInstanceOf[isb.ClassSignature].typeParameters, symTab)
+      } else if (si.signature.isInstanceOf[TypeSignature]) {
+        ts.typeParamDisplayNames(si.signature.asInstanceOf[isb.TypeSignature].typeParameters, symTab)
+      } else {
+        Seq()
+      }
     }
   }
 
@@ -58,4 +66,7 @@ package object ts {
 
   def symbol2Classname(symbol: Symbol): String = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
 
+  def typeParamSymbols(s: Option[Scope]): Seq[String] = s.toSeq.flatMap(_.symlinks)
+
+  def typeParamDisplayNames(s: Option[Scope], symTab: SymbolTable): Seq[String] = typeParamSymbols(s).map(symTab.info(_).get.displayName)
 }

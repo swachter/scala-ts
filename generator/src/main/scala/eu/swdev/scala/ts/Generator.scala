@@ -37,6 +37,8 @@ object Generator {
         }.mkString("(", ", ", ")")
         val returnType = formatType(targs.last)
         s"$args => $returnType"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/`|`#", targs) =>
+        s"${formatType(targs(0))} | ${formatType(targs(1))}"
       case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Tuple\\d+#" =>
         targs.map(formatType).mkString("[", ", ", "]")
       case TypeRef(isb.Type.Empty, symbol, tArgs) =>

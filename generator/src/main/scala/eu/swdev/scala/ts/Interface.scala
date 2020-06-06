@@ -15,12 +15,11 @@ object Interface {
   def apply(si: SymbolInformation, member: List[Export.Member], symTab: SymbolTable): Interface = apply(si, simpleName(si.symbol), member, symTab)
 
   def apply(si: SymbolInformation, simpleName: SimpleName, member: List[Export.Member], symTab: SymbolTable): Interface = {
-    val cs = si.signature.asInstanceOf[ClassSignature]
     Interface(
       si.symbol,
       simpleName,
-      cs.typeParamDisplayNames(symTab),
-      ParentType.parentTypes(cs),
+      si.typeParamDisplayNames(symTab),
+      ParentType.parentTypes(si),
       member
     )
   }
@@ -40,8 +39,8 @@ case class ParentType(fullName: FullName, typeArgs: Seq[isb.Type])
 
 object ParentType {
 
-  def parentTypes(cs: ClassSignature): Seq[ParentType] = {
-    cs.parents.collect {
+  def parentTypes(si: SymbolInformation): Seq[ParentType] = {
+    si.parents.collect {
       case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
         ParentType(fullName(symbol), typeArguments)
     }

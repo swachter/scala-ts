@@ -6,6 +6,4 @@ package object js {
 
   type UndefOr[+A] = (A @uncheckedVariance) | Unit
 
-  sealed trait |[A, B]
-
 }

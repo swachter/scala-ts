@@ -3,6 +3,7 @@ package e2e
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
 import js.JSConverters._
+import scala.scalajs.js.|
 
 @JSExportTopLevel("Simple")
 case class Simple(int: Int, string: String, boolean: Boolean, double: Double)
@@ -101,4 +102,19 @@ object TupleTest {
     val x = f.tupled
     t => x(t)
   }
+}
+
+object UnionTest {
+
+  type U = Int | String | Boolean
+
+  @JSExportTopLevel("invert")
+  def invert(v: Int | String | Boolean): Int | String | Boolean =
+    if (v.isInstanceOf[Int]) {
+      -v.asInstanceOf[Int]
+    } else if (v.isInstanceOf[String]) {
+      v.asInstanceOf[String].reverse
+    } else {
+      !v.asInstanceOf[Boolean]
+    }
 }
