@@ -180,7 +180,7 @@ object Generator {
       // export an interface with the same name as the exported class if the interface would extends some parent interfaces
       // -> the declaration of that interface and the declaration of the class are "merged"; cf. TypeScript declaration merging
       val itf = Interface(e.si, e.name, Nil, symTab)
-      if (itf.parents.exists(p => rootNamespace.containsItf(p.fullName))) {
+      if (itf.parents.exists(p => rootNamespace.containsItfOrType(p.fullName))) {
         exportItf(itf, 0)
       }
 
@@ -206,7 +206,7 @@ object Generator {
 
     def exportItf(itf: Interface, indent: Int): Unit = {
 
-      val parents = itf.parents.filter(p => rootNamespace.containsItf(p.fullName))
+      val parents = itf.parents.filter(p => rootNamespace.containsItfOrType(p.fullName))
 
       val ext =
         if (parents.isEmpty) ""
@@ -258,6 +258,12 @@ object Generator {
       sb.append(s"$space${exp}type ${union.fullName.last}${formatTypes(tParams)} = $members\n")
     }
 
+    def exportType(tpe: TypeAlias, indent: Int): Unit = {
+      val exp   = if (indent == 0) "export " else ""
+      val space = "  " * indent
+      sb.append(s"$space${exp}type ${tpe.simpleName}${formatTypes(tpe.typeParamDisplayNames(symTab))} = ${formatType(tpe.rhs)}\n")
+    }
+
     def exportNs(ns: Namespace, indent: Int): Unit = {
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
@@ -266,6 +272,7 @@ object Generator {
       }
       ns.itfs.values.foreach(exportItf(_, indent + 2))
       ns.unions.values.foreach(exportUnion(_, indent + 2))
+      ns.types.values.foreach(exportType(_, indent + 2))
       ns.nested.values.foreach(exportNs(_, indent + 2))
       if (indent >= 0) {
         sb.append(s"$space}\n")
@@ -279,6 +286,7 @@ object Generator {
       case e: Export.Obj => exportObj(e)
       case e: Export.Cls => exportCls(e)
       case e: Export.Trt => ()
+      case e: Export.Tpe => ()
     }
 
     val unions = Union.unions(exports)

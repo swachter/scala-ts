@@ -81,7 +81,8 @@ Translation rules for top-level definitions (names given in `@JSExportTopLevel` 
 | `var x: tpe` | `let x: tpe` |
 | `def x(...): tpe` | `function x(...): tpe` |
 | `class X { ...member... }` | `class X { ...member... }`<br>`interface X extends ... {}` if the class extends interfaces |
-| `object X { ...member... }` | `interface X { ...member... }`<br>`const X: X` | 
+| `object X { ...member... }` | `interface X { ...member... }`<br>`const X: X` |
+| `type X = ...` | `type X = ...` (if the type is referenced in the exported API) | 
 
 
 Translation rules for class and object members (constructor `val`/`var` parameters are also considered):

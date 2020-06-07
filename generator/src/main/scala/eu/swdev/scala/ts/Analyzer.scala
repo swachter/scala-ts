@@ -163,6 +163,18 @@ object Analyzer {
           }
         }
 
+        def processType(defn: Defn.Type): Unit = {
+          for {
+            si <- semSrc.symbolInfo(defn.pos, Kind.TYPE)
+          } {
+            val e = Export.Tpe(semSrc, defn, si)
+            (e.typeSignature.lowerBound.typeSymbol, e.typeSignature.upperBound.typeSymbol) match {
+              case (Some(s1), Some(s2)) if s1 == s2 => builder += e
+              case _                                =>
+            }
+          }
+        }
+
         override def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
           case t @ Defn.Def(mods, _, _, _, _, _) => processDefValVar(t, mods, Export.Def)
           case t @ Defn.Val(mods, _, _, _)       => processDefValVar(t, mods, Export.Val)
@@ -170,6 +182,7 @@ object Analyzer {
           case t @ Defn.Class(mods, _, _, _, _)  => processCls(t, mods, visitChildren)
           case t @ Defn.Object(mods, _, _)       => processObj(t, mods, visitChildren)
           case t @ Defn.Trait(mods, _, _, _, _)  => processTrait(t, visitChildren)
+          case t @ Defn.Type(_, _, _, _)         => processType(t)
           case _                                 => visitChildren
         }
       }
@@ -225,6 +238,7 @@ object Analyzer {
     case e: Export.Cls       => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
     case e: Export.Obj       => e.member.flatMap(referencedTypes)
     case e: Export.Trt       => e.member.flatMap(referencedTypes)
+    case e: Export.Tpe       => Nil
     case e: Export.CtorParam => List(e.valueSignature.tpe)
   }
 

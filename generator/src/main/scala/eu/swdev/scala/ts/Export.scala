@@ -1,7 +1,7 @@
 package eu.swdev.scala.ts
 
-import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, ValueSignature}
-import scala.meta.{Defn, Term}
+import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
+import scala.meta.{Defn, Term, Type}
 
 case class SimpleName(str: String) extends AnyVal {
   override def toString: String = str
@@ -44,6 +44,10 @@ object Export {
     def valueSignature = si.signature.asInstanceOf[ValueSignature]
   }
 
+  sealed trait HasTypeSignature extends Export {
+    def typeSignature = si.signature.asInstanceOf[TypeSignature]
+  }
+
   sealed trait TopLevel extends Export
 
   sealed trait Member extends Export
@@ -55,6 +59,7 @@ object Export {
   case class Obj(semSrc: SemSource, tree: Defn.Object, name: SimpleName, si: SymbolInformation, member: List[Member]) extends TopLevel
   case class Cls(semSrc: SemSource, tree: Defn.Class, name: SimpleName, si: SymbolInformation, member: List[Member], ctorParams: List[Export.CtorParam]) extends HasClassSignature with TopLevel
   case class Trt(semSrc: SemSource, tree: Defn.Trait, si: SymbolInformation, member: List[Member]) extends HasClassSignature with TopLevel
+  case class Tpe(semSrc: SemSource, tree: Defn.Type, si: SymbolInformation) extends HasTypeSignature with TopLevel
 
   case class CtorParam(semSrc: SemSource, tree: Term.Param, name: SimpleName, si: SymbolInformation, mod: CtorParamMod) extends HasValueSignature
 

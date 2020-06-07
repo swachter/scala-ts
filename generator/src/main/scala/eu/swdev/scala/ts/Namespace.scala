@@ -10,6 +10,7 @@ class Namespace(val name: SimpleName) {
   val nested = mutable.SortedMap.empty[SimpleName, Namespace]
   val itfs   = mutable.SortedMap.empty[SimpleName, Interface]
   val unions = mutable.SortedMap.empty[SimpleName, Union]
+  val types  = mutable.SortedMap.empty[SimpleName, TypeAlias]
 
   def +=(itf: Interface): this.type = {
     enclosingNamespace(itf.fullName).itfs += itf.simpleName -> itf
@@ -21,11 +22,20 @@ class Namespace(val name: SimpleName) {
     this
   }
 
-  def containsItf(fullName: FullName): Boolean = {
+  def +=(typeAlias: TypeAlias): this.type = {
+    enclosingNamespace(typeAlias.fullName).types += typeAlias.fullName.last -> typeAlias
+    this
+  }
+
+  def containsItf(fullName: FullName): Boolean = contains(fullName, itfs.contains)
+
+  def containsItfOrType(fullName: FullName): Boolean = contains(fullName, sn => itfs.contains(sn) || types.contains(sn))
+
+  private def contains(fullName: FullName, p: SimpleName => Boolean): Boolean = {
     val sn = fullName.head
     fullName.tail match {
-      case Some(fn) => nested.get(sn).map(_.containsItf(fn)).getOrElse(false)
-      case None     => itfs.contains(sn)
+      case Some(fn) => nested.get(sn).map(_.contains(fn, p)).getOrElse(false)
+      case None     => p(sn)
     }
   }
 
@@ -68,6 +78,16 @@ object Namespace {
       case e                                                  => Analyzer.referencedTypes(e, symTab)
     }.flatten
 
+    val referencedTypeSymbols = referencedTypes.flatMap(_.typeSymbol).toSet
+
+    val typeAliases = exports.collect {
+      case e: Export.Tpe if referencedTypeSymbols.contains(e.si.symbol) => TypeAlias(e)
+    }
+
+    typeAliases.foreach(rootNamespace += _)
+
+    val typeAliasSymbols = typeAliases.map(_.e.si.symbol).toSet
+
     // checks if the given type is an exported class / object, an exported trait interface or a built-in or special type
     def isKnownType(tpe: isb.Type): Boolean = tpe match {
       case ConstantType(_) => true
@@ -81,6 +101,7 @@ object Namespace {
     def isKnownTypeSymbol(symbol: Symbol): Boolean = {
       rootSymbols.contains(symbol) ||
       traitInterfaceSymbols.contains(symbol) ||
+      typeAliasSymbols.contains(symbol) ||
       BuiltIn.builtInTypeNames.contains(symbol) ||
       isSpecialType(symbol)
     }
@@ -103,7 +124,7 @@ object Namespace {
     def hasExportedAncestorInterface(sym: Symbol): Boolean = {
       symTab.info(sym) match {
         case Some(si) => si.parents.exists(hasExportedAncestorOrSelfInterface(_))
-        case None => false
+        case None     => false
       }
     }
 
