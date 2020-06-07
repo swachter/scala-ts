@@ -1,4 +1,6 @@
-package eu.swdev.scala.ts.dts
+package dts
+
+import eu.swdev.scala.ts.dts.DtsFunSuite
 
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
@@ -9,7 +11,7 @@ class AccessorTest extends DtsFunSuite {
       |export interface AccessorTest {
       |  get property(): number
       |  set property(v: number)
-      |  'eu.swdev.scala.ts.dts.AccessorTest': never
+      |  'AccessorTest': never
       |}
       |export const AccessorTest: AccessorTest
       |""".check()

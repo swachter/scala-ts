@@ -10,7 +10,7 @@ class ObjectTest extends DtsFunSuite {
       |  doIt(): void
       |  readonly x: number
       |  y: number
-      |  'eu.swdev.scala.ts.dts.ObjectTest': never
+      |  'SomeObject': never
       |}
       |export const SomeObject: SomeObject
       |""".check()

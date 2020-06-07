@@ -1,6 +1,6 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts.Export.Trt
+import eu.swdev.scala.ts.Input.Trait
 
 import scala.collection.mutable
 import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeRef}
@@ -12,9 +12,9 @@ object SealedTraitSubtypeAnalyzer {
     * Calculates a map from symbols of sealed traits to their list of subtypes
     */
   def subtypes(
-      sealedTraits: List[Trt],
-      exportedClasses: Map[Symbol, Export.Cls],
-      exportedObjects: Map[Symbol, Export.Obj],
+                sealedTraits: List[Trait],
+                exportedClasses: Map[Symbol, Input.Cls],
+                exportedObjects: Map[Symbol, Input.Obj],
   ): Map[Symbol, List[Subtype]] = {
 
     val result = mutable.Map.empty[Symbol, List[Subtype]]
@@ -31,8 +31,8 @@ object SealedTraitSubtypeAnalyzer {
         //    (this step can use subtype lists for sealed traits from the result that were already determined)
         val subtypeList = subtypeSymbolInformations.map { subtypeSymbolInformation =>
           (exportedClasses.get(subtypeSymbolInformation.symbol), exportedObjects.get(subtypeSymbolInformation.symbol), result.get(subtypeSymbolInformation.symbol)) match {
-            case (Some(e), _, _) => Some(Subtype.ExportedSubclass(parent, e))
-            case (_, Some(e), _) => Some(Subtype.ExportedSubobject(parent, e))
+            case (Some(e), _, _) => Some(Subtype.Subclass(parent, e))
+            case (_, Some(e), _) => Some(Subtype.Subobject(parent, e))
             case (_, _, Some(l)) => Some(Subtype.Subtrait(parent, subtypeSymbolInformation, l))
             case (_, _, _) =>
               subtypeSymbolInformation.signature match {
@@ -71,7 +71,7 @@ object SealedTraitSubtypeAnalyzer {
     go()
   }
 
-  private def isSubtype(superTrait: Trt, si: SymbolInformation): Boolean = si.signature match {
+  private def isSubtype(superTrait: Trait, si: SymbolInformation): Boolean = si.signature match {
     case ClassSignature(_, parents, _, _) if parents.exists {
           case TypeRef(isb.Type.Empty, symbol, tArgs) if symbol == superTrait.si.symbol => true
           case _                                                                        => false
@@ -81,7 +81,7 @@ object SealedTraitSubtypeAnalyzer {
   }
 
   sealed trait Subtype extends Product with Serializable {
-    def parent: Export.Trt
+    def parent: Input.Trait
     def parentSymbol: Symbol = parent.si.symbol
     def classSignature: ClassSignature
     def unionMemberName: FullName
@@ -113,24 +113,24 @@ object SealedTraitSubtypeAnalyzer {
   }
 
   object Subtype {
-    case class ExportedSubclass(parent: Export.Trt, exportedSubclass: Export.Cls) extends Subtype {
-      override def unionMemberName     = FullName(exportedSubclass.name.str)
-      override def classSignature      = exportedSubclass.classSignature
+    case class Subclass(parent: Input.Trait, subcls: Input.Cls) extends Subtype {
+      override def unionMemberName     = subcls.name.map(_.toFullName).getOrElse(FullName(subcls.si.symbol))
+      override def classSignature      = subcls.classSignature
       override def completeSubtypeArgs = localSubtypeArgs
     }
-    case class ExportedSubobject(parent: Export.Trt, e: Export.Obj) extends Subtype {
-      override def unionMemberName     = FullName(e.name.str)
-      override def classSignature      = e.si.signature.asInstanceOf[ClassSignature]
+    case class Subobject(parent: Input.Trait, subobj: Input.Obj) extends Subtype {
+      override def unionMemberName     = subobj.name.map(_.toFullName).getOrElse(FullName(subobj.si.symbol))
+      override def classSignature      = subobj.si.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
-    case class OpaqueSubclass(parent: Export.Trt, subtypeSymbolInformation: SymbolInformation) extends Subtype {
-      override def unionMemberName     = fullName(subtypeSymbolInformation.symbol)
-      override def classSignature      = subtypeSymbolInformation.signature.asInstanceOf[ClassSignature]
+    case class OpaqueSubclass(parent: Input.Trait, subclsSymbolInfo: SymbolInformation) extends Subtype {
+      override def unionMemberName     = FullName(subclsSymbolInfo.symbol)
+      override def classSignature      = subclsSymbolInfo.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
-    case class Subtrait(parent: Export.Trt, subtypeSymbolInformation: SymbolInformation, subtypes: List[Subtype]) extends Subtype {
-      override def unionMemberName = fullName(subtypeSymbolInformation.symbol)
-      override def classSignature  = subtypeSymbolInformation.signature.asInstanceOf[ClassSignature]
+    case class Subtrait(parent: Input.Trait, subtraitSymbolInfo: SymbolInformation, subtypes: List[Subtype]) extends Subtype {
+      override def unionMemberName = FullName(subtraitSymbolInfo.symbol)
+      override def classSignature  = subtraitSymbolInfo.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = {
         val allTypeArgs = subtypes.flatMap(_.completeSubtypeArgs)
         val (parentArgs, privateArgs) = SubtypeArg.split(allTypeArgs)

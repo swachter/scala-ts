@@ -2,7 +2,28 @@ package eu.swdev.scala
 
 import scala.meta.inputs.Position
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
-import scala.meta.internal.semanticdb.{ClassSignature, Scope, SingleType, SymbolInformation, TypeRef, TypeSignature, Range => SRange}
+import scala.meta.internal.semanticdb.{
+  AnnotatedType,
+  ByNameType,
+  ClassSignature,
+  ConstantType,
+  ExistentialType,
+  IntersectionType,
+  MethodSignature,
+  RepeatedType,
+  Scope,
+  SingleType,
+  StructuralType,
+  SuperType,
+  SymbolInformation,
+  ThisType,
+  TypeRef,
+  TypeSignature,
+  UnionType,
+  UniversalType,
+  WithType,
+  Range => SRange
+}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -18,55 +39,154 @@ package object ts {
 
   implicit class SymbolTableOps(val symbolTable: SymbolTable) extends AnyVal {
 
-    def typeParameter(symbol: String): Option[SymbolInformation] = symbolTable.info(symbol).filter(_.kind == Kind.TYPE_PARAMETER)
+    def typeParamSymInfo(symbol: Symbol): Option[SymbolInformation] = symbolTable.info(symbol).filter(_.kind == Kind.TYPE_PARAMETER)
 
-    def isTypeParameter(symbol: String): Boolean = typeParameter(symbol).isDefined
+    def classSymInfo(symbol: Symbol): Option[SymbolInformation] = symbolTable.info(symbol).filter(_.kind == Kind.CLASS)
+
+    /**
+      * A type is a trait, a type alias, a class, or an object
+      */
+    def typeSymInfo(symbol: String): Option[SymbolInformation] = symbolTable.info(symbol).filter {
+      _.kind match {
+        case Kind.TRAIT | Kind.TYPE | Kind.CLASS | Kind.OBJECT => true
+        case _                                                 => false
+      }
+    }
+
+    def isTypeParam(symbol: Symbol): Boolean = typeParamSymInfo(symbol).isDefined
+
+    def isClass(symbol: Symbol) = classSymInfo(symbol).isDefined
+
+    def isType(symbol: Symbol) = typeSymInfo(symbol).isDefined
+
   }
 
   implicit class ClassSignatureOps(val classSignature: ClassSignature) extends AnyVal {
-    def typeParamSymbols: Seq[String] = ts.typeParamSymbols(classSignature.typeParameters)
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = ts.typeParamDisplayNames(classSignature.typeParameters, symTab)
+    def typeParamSymbols: Seq[String]                           = classSignature.typeParameters.typeParamSymbols
+    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = classSignature.typeParameters.typeParamDisplayNames(symTab)
   }
 
   implicit class TypeOps(val tpe: isb.Type) extends AnyVal {
 
-    def isTypeParameter(symTab: SymbolTable): Boolean = typeSymbol.map(symTab.isTypeParameter(_)).getOrElse(false)
+    def isTypeParam(symTab: SymbolTable): Boolean = typeSymbol.map(symTab.isTypeParam(_)).getOrElse(false)
 
     def typeSymbol: Option[String] = tpe match {
       case TypeRef(isb.Type.Empty, symbol, _) => Some(symbol)
       case SingleType(isb.Type.Empty, symbol) => Some(symbol)
       case _                                  => None
     }
+
+    def parents(symTab: SymbolTable): Seq[isb.Type] = tpe match {
+      case IntersectionType(types)                => types.flatMap(_.parents(symTab))
+      case SuperType(prefix, symbol)              => symTab.info(symbol).toSeq.flatMap(_.parents(symTab))
+      case ByNameType(tpe)                        => tpe.parents(symTab)
+      case AnnotatedType(annotations, tpe)        => tpe.parents(symTab)
+      case TypeRef(prefix, symbol, typeArguments) => symTab.info(symbol).toSeq.flatMap(_.parents(symTab))
+      case StructuralType(tpe, declarations)      => tpe.parents(symTab)
+      case ConstantType(constant)                 => Seq()
+      case ThisType(symbol)                       => symTab.info(symbol).toSeq.flatMap(_.parents(symTab))
+      case RepeatedType(tpe)                      => tpe.parents(symTab)
+      case WithType(types)                        => types.flatMap(_.parents(symTab))
+      case UniversalType(typeParameters, tpe)     => tpe.parents(symTab)
+      case SingleType(prefix, symbol)             => symTab.info(symbol).toSeq.flatMap(_.parents(symTab))
+      case ExistentialType(tpe, declarations)     => tpe.parents(symTab)
+      case UnionType(types)                       => types.flatMap(_.parents(symTab))
+      case isb.Type.Empty                         => Seq()
+    }
+
+    def ancestors(symTab: SymbolTable): Seq[isb.Type] = tpe match {
+      case IntersectionType(types)                => types.flatMap(_.ancestors(symTab))
+      case SuperType(prefix, symbol)              => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+      case ByNameType(tpe)                        => tpe.ancestors(symTab)
+      case AnnotatedType(annotations, tpe)        => tpe.ancestors(symTab)
+      case TypeRef(prefix, symbol, typeArguments) => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+      case StructuralType(tpe, declarations)      => tpe.ancestors(symTab)
+      case ConstantType(constant)                 => Seq()
+      case ThisType(symbol)                       => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+      case RepeatedType(tpe)                      => tpe.ancestors(symTab)
+      case WithType(types)                        => types.flatMap(_.ancestors(symTab))
+      case UniversalType(typeParameters, tpe)     => tpe.ancestors(symTab)
+      case SingleType(prefix, symbol)             => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+      case ExistentialType(tpe, declarations)     => tpe.ancestors(symTab)
+      case UnionType(types)                       => types.flatMap(_.ancestors(symTab))
+      case isb.Type.Empty                         => Seq()
+    }
+
+    def ancestorsOrSelf(symTab: SymbolTable): Seq[isb.Type] =
+      tpe +: (tpe match {
+        case IntersectionType(types)                => types.flatMap(_.ancestors(symTab))
+        case SuperType(prefix, symbol)              => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+        case ByNameType(tpe)                        => tpe.ancestors(symTab)
+        case AnnotatedType(annotations, tpe)        => tpe.ancestors(symTab)
+        case TypeRef(prefix, symbol, typeArguments) => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+        case StructuralType(tpe, declarations)      => tpe.ancestors(symTab)
+        case ConstantType(constant)                 => Seq()
+        case ThisType(symbol)                       => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+        case RepeatedType(tpe)                      => tpe.ancestors(symTab)
+        case WithType(types)                        => types.flatMap(_.ancestors(symTab))
+        case UniversalType(typeParameters, tpe)     => tpe.ancestors(symTab)
+        case SingleType(prefix, symbol)             => symTab.info(symbol).toSeq.flatMap(_.ancestors(symTab))
+        case ExistentialType(tpe, declarations)     => tpe.ancestors(symTab)
+        case UnionType(types)                       => types.flatMap(_.ancestors(symTab))
+        case isb.Type.Empty                         => Seq()
+      })
+
+    /**
+      * Checks if this type is a subtype of the given symbol
+      */
+    def isSubtypeOf(sym: Symbol, symTab: SymbolTable): Boolean = {
+      tpe.typeSymbol.exists(_ == sym) || tpe.parents(symTab).exists(_.isSubtypeOf(sym, symTab))
+    }
+
   }
 
   implicit class SymbolInformationOps(val si: SymbolInformation) extends AnyVal {
 
-    def parents: Seq[isb.Type] = if (si.signature.isInstanceOf[ClassSignature]) {
-      si.signature.asInstanceOf[ClassSignature].parents
-    } else {
-      Seq()
+    def parents(symTab: SymbolTable): Seq[isb.Type] =
+      if (si.signature.isInstanceOf[ClassSignature]) {
+        si.signature.asInstanceOf[ClassSignature].parents
+      } else if (si.signature.isInstanceOf[TypeSignature]) {
+        val ts = si.signature.asInstanceOf[TypeSignature]
+        ts.lowerBound.parents(symTab) ++ ts.upperBound.parents(symTab)
+      } else {
+        Seq()
+      }
+
+    def ancestors(symTab: SymbolTable): Seq[isb.Type] =
+      if (si.signature.isInstanceOf[ClassSignature]) {
+        si.signature.asInstanceOf[ClassSignature].parents.flatMap(_.ancestorsOrSelf(symTab))
+      } else if (si.signature.isInstanceOf[TypeSignature]) {
+        val ts = si.signature.asInstanceOf[TypeSignature]
+        ts.lowerBound.ancestors(symTab) ++ ts.upperBound.ancestors(symTab)
+      } else {
+        Seq()
+      }
+
+    /**
+      * Checks if this symbol information is a subtype of the given symbol
+      */
+    def isSubtypeOf(sym: Symbol, symTab: SymbolTable): Boolean = {
+      si.symbol == sym || si.parents(symTab).exists(_.isSubtypeOf(sym, symTab))
     }
 
     def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = {
       if (si.signature.isInstanceOf[ClassSignature]) {
-        ts.typeParamDisplayNames(si.signature.asInstanceOf[isb.ClassSignature].typeParameters, symTab)
+        si.signature.asInstanceOf[isb.ClassSignature].typeParameters.typeParamDisplayNames(symTab)
       } else if (si.signature.isInstanceOf[TypeSignature]) {
-        ts.typeParamDisplayNames(si.signature.asInstanceOf[isb.TypeSignature].typeParameters, symTab)
+        si.signature.asInstanceOf[isb.TypeSignature].typeParameters.typeParamDisplayNames(symTab)
+      } else if (si.signature.isInstanceOf[MethodSignature]) {
+        si.signature.asInstanceOf[isb.MethodSignature].typeParameters.typeParamDisplayNames(symTab)
       } else {
         Seq()
       }
     }
   }
 
+  implicit class ScopeOptionOps(val o: Option[Scope]) {
+    def typeParamSymbols: Seq[String] = o.toSeq.flatMap(_.symlinks)
+    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = typeParamSymbols.map(symTab.info(_).get.displayName)
+  }
+
   type Symbol = String
 
-  def fullName(symbol: Symbol): FullName = FullName(symbol2Classname(symbol))
-
-  def simpleName(symbol: Symbol): SimpleName = SimpleName(symbol2Classname(symbol).split('.').last)
-
-  def symbol2Classname(symbol: Symbol): String = symbol.substring(0, symbol.length - 1).replace('/', '.').replace(".package.", ".")
-
-  def typeParamSymbols(s: Option[Scope]): Seq[String] = s.toSeq.flatMap(_.symlinks)
-
-  def typeParamDisplayNames(s: Option[Scope], symTab: SymbolTable): Seq[String] = typeParamSymbols(s).map(symTab.info(_).get.displayName)
 }

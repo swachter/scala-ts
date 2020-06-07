@@ -109,7 +109,7 @@ object UnionTest {
   type U = Int | String | Boolean
 
   @JSExportTopLevel("invert")
-  def invert(v: Int | String | Boolean): Int | String | Boolean =
+  def invert(v: U): U =
     if (v.isInstanceOf[Int]) {
       -v.asInstanceOf[Int]
     } else if (v.isInstanceOf[String]) {

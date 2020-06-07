@@ -8,12 +8,12 @@ class Adt3Test extends DtsFunSuite {
     """
       |export interface Adt3TestCase1 extends eu.swdev.scala.ts.dts.Adt3Test.T {
       |  readonly str: string
-      |  'eu.swdev.scala.ts.dts.Adt3Test.Case1': never
+      |  'Adt3TestCase1': never
       |}
       |export const Adt3TestCase1: Adt3TestCase1
       |export interface Adt3TestCase2 extends eu.swdev.scala.ts.dts.Adt3Test.T {
       |  readonly num: number
-      |  'eu.swdev.scala.ts.dts.Adt3Test.Case2': never
+      |  'Adt3TestCase2': never
       |}
       |export const Adt3TestCase2: Adt3TestCase2
       |export namespace eu {

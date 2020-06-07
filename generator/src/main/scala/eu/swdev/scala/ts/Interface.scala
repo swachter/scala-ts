@@ -1,25 +1,22 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts
-
-import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeRef}
+import scala.meta.internal.semanticdb.{SymbolInformation, TypeRef}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
 object Interface {
 
-  def apply(e: Export.Trt, symTab: SymbolTable): Interface = apply(e.si, e.member, symTab)
-
   def apply(si: SymbolInformation, symTab: SymbolTable): Interface = apply(si, Nil, symTab)
 
-  def apply(si: SymbolInformation, member: List[Export.Member], symTab: SymbolTable): Interface = apply(si, simpleName(si.symbol), member, symTab)
+  def apply(si: SymbolInformation, member: List[Input.MemberOrCtorParam], symTab: SymbolTable): Interface = {
+    apply(si, FullName(si.symbol), member, symTab)
+  }
 
-  def apply(si: SymbolInformation, simpleName: SimpleName, member: List[Export.Member], symTab: SymbolTable): Interface = {
-    Interface(
-      si.symbol,
-      simpleName,
+  def apply(si: SymbolInformation, fullName: FullName, member: List[Input.MemberOrCtorParam], symTab: SymbolTable): Interface = {
+    new Interface(
+      fullName,
       si.typeParamDisplayNames(symTab),
-      ParentType.parentTypes(si),
+      ParentType.parentTypes(si, symTab),
       member
     )
   }
@@ -31,18 +28,18 @@ object Interface {
 
 }
 
-case class Interface(symbol: Symbol, simpleName: SimpleName, typeParams: Seq[String], parents: Seq[ParentType], members: List[Export.Member]) {
-  val fullName = ts.fullName(symbol)
+case class Interface private (fullName: FullName, typeParams: Seq[String], parents: Seq[ParentType], members: List[Input.MemberOrCtorParam]) {
+  def simpleName = fullName.last
 }
 
 case class ParentType(fullName: FullName, typeArgs: Seq[isb.Type])
 
 object ParentType {
 
-  def parentTypes(si: SymbolInformation): Seq[ParentType] = {
-    si.parents.collect {
+  def parentTypes(si: SymbolInformation, symTab: SymbolTable): Seq[ParentType] = {
+    si.parents(symTab).collect {
       case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
-        ParentType(fullName(symbol), typeArguments)
+        ParentType(FullName(symbol), typeArguments)
     }
   }
 

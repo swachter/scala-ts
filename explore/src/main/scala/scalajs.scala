@@ -272,3 +272,18 @@ class IntFormatter extends Formatter[Int] {
   override def format(x: Int): String = String.valueOf(x)
   val tpe: "i" = "i"
 }
+
+object NonExportedJsObject extends js.Object {
+  val name = "nonExportedJsObject"
+}
+
+class NonExportedJsClass extends js.Object {
+  val name = "nonExportedJsClass"
+}
+
+object NonExportedJsAccess {
+  @JSExportTopLevel("nonExportedJsObject")
+  val nonExportedJsObject = NonExportedJsObject
+  @JSExportTopLevel("nonExportedJsClass")
+  def nonExportedJsClass() = new NonExportedJsClass
+}

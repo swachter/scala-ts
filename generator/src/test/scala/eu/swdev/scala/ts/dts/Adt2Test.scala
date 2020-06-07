@@ -7,13 +7,13 @@ class Adt2Test extends DtsFunSuite {
   test("simple") {
     """
       |export interface Adt2Case1<Y> extends eu.swdev.scala.ts.dts.Adt2Test.Base<Y> {
-      |  'eu.swdev.scala.ts.dts.Adt2Test.Case1': never
+      |  'Adt2Case1': never
       |}
       |export class Adt2Case1<Y> {
       |  constructor()
       |}
       |export interface Adt2Case2 extends eu.swdev.scala.ts.dts.Adt2Test.Base<never> {
-      |  'eu.swdev.scala.ts.dts.Adt2Test.Case2': never
+      |  'Adt2Case2': never
       |}
       |export class Adt2Case2 {
       |  constructor()

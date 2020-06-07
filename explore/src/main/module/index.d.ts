@@ -287,3 +287,14 @@ export class IntFormatter {
 }
 
 export type FormatterUnion = BooleanFormatter | IntFormatter
+
+export interface NonExportedJsObject {
+  readonly name: string
+}
+
+export interface NonExportedJsClass {
+  readonly name: string
+}
+
+export const nonExportedJsObject: NonExportedJsObject
+export function nonExportedJsClass(): NonExportedJsClass

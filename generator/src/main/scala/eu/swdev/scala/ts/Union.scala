@@ -10,18 +10,18 @@ object Union {
 
   case class UnionMember(name: FullName, typeArgs: Seq[SubtypeArg])
 
-  def unions(exports: List[Export]): List[Union] = {
+  def unions(exports: List[Input]): List[Union] = {
 
     val exportedClasses = exports.collect {
-      case e: Export.Cls => e.si.symbol -> e
+      case e: Input.Cls => e.si.symbol -> e
     }.toMap
 
     val exportedObjects = exports.collect {
-      case e: Export.Obj => e.si.symbol -> e
+      case e: Input.Obj => e.si.symbol -> e
     }.toMap
 
     val sealedTraitExports = exports.collect {
-      case e: Export.Trt if e.tree.mods.exists(_.isInstanceOf[Mod.Sealed]) => e
+      case e: Input.Trait if e.tree.mods.exists(_.isInstanceOf[Mod.Sealed]) => e
     }
 
     val subtypes = SealedTraitSubtypeAnalyzer.subtypes(sealedTraitExports, exportedClasses, exportedObjects)
@@ -32,13 +32,13 @@ object Union {
 
   }
 
-  def apply(sealedTrait: Export.Trt, members: Seq[UnionMember]): Union = new Union(sealedTrait, members.sortBy(_.name.str))
+  def apply(sealedTrait: Input.Trait, members: Seq[UnionMember]): Union = new Union(sealedTrait, members.sortBy(_.name.str))
 
 }
 
 import eu.swdev.scala.ts.Union._
 
-case class Union private (sealedTrait: Export.Trt, members: Seq[UnionMember]) {
-  def fullName: FullName = FullName(s"${ts.fullName(sealedTrait.si.symbol).str}$$")
+case class Union private (sealedTrait: Input.Trait, members: Seq[UnionMember]) {
+  def fullName: FullName = FullName(sealedTrait.si.symbol).withDollar
   def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = sealedTrait.classSignature.typeParamDisplayNames(symTab)
 }
