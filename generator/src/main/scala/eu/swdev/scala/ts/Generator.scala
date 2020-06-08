@@ -50,6 +50,8 @@ object Generator {
         "Date"
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/RegExp#", targs) =>
         "RegExp"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Symbol#", targs) =>
+        "symbol"
       case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Function\\d+#" =>
         val args = targs
           .dropRight(1)

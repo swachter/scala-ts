@@ -127,6 +127,7 @@ object Namespace {
     "scala/scalajs/js/Dictionary#",
     "scala/scalajs/js/Promise#",
     "scala/scalajs/js/RegExp#",
+    "scala/scalajs/js/Symbol#",
   )
 
 }
