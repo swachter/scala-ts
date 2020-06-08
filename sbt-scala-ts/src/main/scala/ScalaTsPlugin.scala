@@ -16,18 +16,19 @@ object ScalaTsPlugin extends AutoPlugin {
   override def requires = ScalaJSPlugin
 
   object autoImport {
-    val scalaTsModuleName    = settingKey[String]("Name of the generated node module (default: project name)")
-    val scalaTsModuleVersion = settingKey[String]("Version of the generated node module (default: project version)")
-    val scalaTsDialect       = settingKey[Dialect]("Dialect of the ScalaJS sources (default: Scala213)")
-    val scalaTsFastOpt       = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
-    val scalaTsFullOpt       = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
+    val scalaTsModuleName = settingKey[String]("Name of the generated node module (default: project name)")
+    val scalaTsModuleVersion =
+      settingKey[String => String]("Transforms the project version into a node module version (default: identity function with check)")
+    val scalaTsDialect = settingKey[Dialect]("Dialect of the ScalaJS sources (default: Scala213)")
+    val scalaTsFastOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
+    val scalaTsFullOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
   }
 
   import autoImport._
 
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     scalaTsModuleName := name.value,
-    scalaTsModuleVersion := version.value,
+    scalaTsModuleVersion := semanticVersionCheck,
     scalaTsDialect := dialects.Scala213,
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
@@ -39,7 +40,7 @@ object ScalaTsPlugin extends AutoPlugin {
       generateFiles(
         (artifactPath in fastOptJS in Compile).value,
         scalaTsModuleName.value,
-        scalaTsModuleVersion.value,
+        scalaTsModuleVersion.value.apply(version.value),
         scalaTsDialect.value,
         (classDirectory in Compile).value,
         (fullClasspath in Compile).value,
@@ -51,7 +52,7 @@ object ScalaTsPlugin extends AutoPlugin {
       generateFiles(
         (artifactPath in fullOptJS in Compile).value,
         scalaTsModuleName.value,
-        scalaTsModuleVersion.value,
+        scalaTsModuleVersion.value.apply(version.value),
         scalaTsDialect.value,
         (classDirectory in Compile).value,
         (fullClasspath in Compile).value,
@@ -59,6 +60,16 @@ object ScalaTsPlugin extends AutoPlugin {
       )
     },
   )
+
+  def semanticVersionCheck(v: String): String = {
+    // regex copied from https://semver.org/
+    if (v matches "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$") {
+      v
+    } else {
+      throw new MessageOnlyException(
+        "version '$v' is not a valid semantic version (cf. https://semver.org/); adjust the project version or set the scalaTsModuleVersion function")
+    }
+  }
 
   def generateFiles(
       jsFile: File,
@@ -83,29 +94,28 @@ object ScalaTsPlugin extends AutoPlugin {
 
     val exports = semSrcs.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
 
+    def inputInfo =
+      exports
+        .groupBy(_.getClass.getSimpleName)
+        .toList
+        .sortBy(_._1)
+        .map {
+          case (cn, lst) => s"$cn: ${lst.length}"
+        }
+        .mkString("{", ", ", "}")
+
+    log.info(s"ScalaTs input : $inputInfo")
+
     val output = Generator.generate(exports, symTab)
 
-    val exportInfo = exports
-      .groupBy(_.getClass.getSimpleName)
-      .toList
-      .sortBy(_._1)
-      .map {
-        case (cn, lst) => f"  # $cn%-5s: ${lst.length}"
-      }
-      .mkString("\n")
-
-    log.info(s"type declaration file: $dtsFile")
-    log.info(s"$exportInfo")
+    log.info(s"ScalaTs output: $dtsFile")
 
     log.debug(output)
 
     IO.write(dtsFile, output, scala.io.Codec.UTF8.charSet)
 
     val outputFile = jsPath.resolveSibling("package.json").toFile
-    if (!(moduleVersion matches """^\d+\.\d+\.\d+$$""")) {
-      throw new MessageOnlyException(
-        s"node module version '$moduleVersion' is not a valid semantic version (3 dot separated numbers); adjust the project version or set the scalaTsModuleVersion")
-    }
+
     val content =
       s"""
          |{

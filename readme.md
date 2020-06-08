@@ -30,7 +30,7 @@ The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it 
 | Key | Description |
 | --- | --- |
 | `scalaTsModuleName` | Name of the generated node module (default: project name) |
-| `scalaTsModuleVersion` | Version of the generated node module (default: project version); **the version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
+| `scalaTsModuleVersion` | Transforms the project version into the node module version (default: identity function with check);<br> **the node module version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
 | `scalaTsDialect` | Dialect of the ScalaJS sources (default: Scala213) |
 | `scalaTsFastOpt` | Task: Generate node module including typescript declaration file based on the fastOptJS output |
 | `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |

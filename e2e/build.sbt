@@ -8,11 +8,10 @@ lazy val root = (project in file("."))
   .enablePlugins(ScalaTsPlugin)
   .settings(
     scalaVersion := "2.13.2",
-    version := "0.0.1",
+    version := "0.0.1-SNAPSHOT",
     name := "scala-ts-e2e",
     organization := "eu.swdev",
     scalaTsModuleName := "scala-ts-mod",
-    scalaTsModuleVersion := "0.0.2",
     (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     test := {
