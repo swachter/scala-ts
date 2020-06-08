@@ -42,6 +42,8 @@ object Generator {
         s"${formatType(targs(0))} | undefined"
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
         s"${formatType(targs(0))}[]"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Dictionary#", targs) =>
+        s"{ [key: string]: ${formatType(targs(0))} }"
       case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Function\\d+#" =>
         val args = targs
           .dropRight(1)

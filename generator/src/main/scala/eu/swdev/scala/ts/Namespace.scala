@@ -119,6 +119,11 @@ object Namespace {
       symbol.matches("scala/scalajs/js/Function\\d+#") ||
       symbol.matches("scala/scalajs/js/Tuple\\d+#")
 
-  val specialTypes = Set[Symbol]("scala/scalajs/js/package.UndefOr#", "scala/scalajs/js/Array#", "scala/scalajs/js/`|`#")
+  val specialTypes = Set[Symbol](
+    "scala/scalajs/js/package.UndefOr#",
+    "scala/scalajs/js/Array#",
+    "scala/scalajs/js/`|`#",
+    "scala/scalajs/js/Dictionary#"
+  )
 
 }

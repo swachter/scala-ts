@@ -118,3 +118,12 @@ object UnionTest {
       !v.asInstanceOf[Boolean]
     }
 }
+
+object DictionaryTest {
+
+  @JSExportTopLevel("sumDict")
+  def sumValues(d: js.Dictionary[Int]) = d.values.sum
+
+  @JSExportTopLevel("addToDict")
+  def add[T](k: String, v: T, d: js.Dictionary[T]) = d.addOne(k -> v)
+}
