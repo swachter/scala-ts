@@ -1,6 +1,6 @@
 # check if the type mapping file gets created
-> scalaTsPackage
-$ exists target/node_module/test.d.ts
-$ exists target/node_module/package.json
-$ exists target/node_module/test.js
+> scalaTsFastOpt
+$ exists target/scala-2.13/test-fastopt.d.ts
+$ exists target/scala-2.13/package.json
+$ exists target/scala-2.13/test-fastopt.js
 # $ pause
