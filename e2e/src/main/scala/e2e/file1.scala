@@ -138,3 +138,18 @@ object PromiseTest {
   }
 
 }
+
+object DateTest {
+
+  @JSExportTopLevel("fullYearOfDate")
+  def fullYearOfDate(d: js.Date): Double = d.getFullYear()
+}
+
+object RegExpTest {
+
+  @JSExportTopLevel("regExpMatches")
+  def matches(r: js.RegExp, s: String): Boolean = r.test(s)
+
+  @JSExportTopLevel("createRegExp")
+  def regexp(s: String): js.RegExp = js.RegExp(s)
+}

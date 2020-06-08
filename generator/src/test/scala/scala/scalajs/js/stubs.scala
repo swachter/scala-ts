@@ -23,3 +23,7 @@ sealed trait |[A, B]
 sealed trait Dictionary[A] extends Any
 
 class Promise[+A] extends Object
+
+class Date extends Object
+
+class RegExp(pattern: String, flags: String = "") extends Object
