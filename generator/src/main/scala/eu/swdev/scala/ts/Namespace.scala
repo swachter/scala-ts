@@ -123,7 +123,8 @@ object Namespace {
     "scala/scalajs/js/package.UndefOr#",
     "scala/scalajs/js/Array#",
     "scala/scalajs/js/`|`#",
-    "scala/scalajs/js/Dictionary#"
+    "scala/scalajs/js/Dictionary#",
+    "scala/scalajs/js/Promise#",
   )
 
 }

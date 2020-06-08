@@ -127,3 +127,14 @@ object DictionaryTest {
   @JSExportTopLevel("addToDict")
   def add[T](k: String, v: T, d: js.Dictionary[T]) = d.addOne(k -> v)
 }
+
+object PromiseTest {
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  @JSExportTopLevel("mapPromise")
+  def map[A, B](p: js.Promise[A], f: js.Function1[A, B]): js.Promise[B] = {
+    p.toFuture.map(f).toJSPromise
+  }
+
+}

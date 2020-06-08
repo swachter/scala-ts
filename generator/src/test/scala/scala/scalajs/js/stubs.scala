@@ -21,3 +21,5 @@ sealed trait Tuple3[+T1, +T2, +T3] extends Object
 sealed trait |[A, B]
 
 sealed trait Dictionary[A] extends Any
+
+class Promise[+A] extends Object
