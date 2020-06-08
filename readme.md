@@ -29,14 +29,18 @@ The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it 
 
 | Key | Description |
 | --- | --- |
-| `scalaTsOutputDir` | Directory where to put the TypeScript declaration file (default: target/node_module) |
 | `scalaTsModuleName` | Name of the generated node module (default: project name) |
 | `scalaTsModuleVersion` | Version of the generated node module (default: project version); **the version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
-| `scalaTsFilenamePrefix` | Filename prefix of generated JavaScript and TypeScript declaration file (default: project name) |
 | `scalaTsDialect` | Dialect of the ScalaJS sources (default: Scala213) |
-| `scalaTsGenerateDeclarationFile` | Task: Generate TypeScript declaration file |
-| `scalaTsGeneratePackageFile` | Task: Generate package.json file |
-| `scalaTsPackage` | Task: Package all - generate the node module |
+| `scalaTsFastOpt` | Task: Generate node module including typescript declaration file based on the fastOptJS output |
+| `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |
+
+The output directory of the generated node module can be configured by the `crossTarget` setting for the `fastOptJS` or `fullOptJS` tasks, respectively. E.g.:
+
+```
+(crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
+(crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
+```
 
 ### Type mapping
 
@@ -75,14 +79,15 @@ General rules:
 
 Translation rules for top-level definitions (names given in `@JSExportTopLevel` and `@JSExport` annotations are respected):
 
-| Scala Definition | TypeScript Definition |
-| --- | --- |
+| Scala Definition | TypeScript Definition | Note |
+| --- | --- | --- |
 | `val x: tpe` | `const x: tpe` | 
 | `var x: tpe` | `let x: tpe` |
 | `def x(...): tpe` | `function x(...): tpe` |
-| `class X { ...member... }` | `class X { ...member... }`<br>`interface X extends ... {}` if the class extends interfaces |
+| `class X { ...member... }` | `class X { ...member... }`<br>`interface X extends ... {}` | interface generated iff the class extends exported interfaces |
 | `object X { ...member... }` | `interface X { ...member... }`<br>`const X: X` |
-| `type X = ...` | `type X = ...` (if the type is referenced in the exported API) | 
+| `trait X { ...member... }` | `interface X { ...member... }` | generated iff the trait is referenced in the exported API | 
+| `type X = ...` | `type X = ...` | generated iff the type alias is referenced in the exported API | 
 
 
 Translation rules for class and object members (constructor `val`/`var` parameters are also considered):

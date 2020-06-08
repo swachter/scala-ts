@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "tsc -version && tsc && node --experimental-vm-modules node_modules/jest/bin/jest"
+    "test": "tsc && node --experimental-vm-modules node_modules/jest/bin/jest"
   },
   "author": "",
   "license": "ISC",

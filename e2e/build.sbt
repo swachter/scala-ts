@@ -13,10 +13,10 @@ lazy val root = (project in file("."))
     organization := "eu.swdev",
     scalaTsModuleName := "scala-ts-mod",
     scalaTsModuleVersion := "0.0.2",
-    artifactPath in fastOptJS in Compile := (baseDirectory in Compile).value / "target" / "node_module" / "scala-ts-e2e-fastopt-js",
     (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
+    (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     test := {
-      // tests depend on scalaTsPackage
+      // tests depend on ScalaTs output
       scalaTsFastOpt.value
       val r = (
         Process("npm" :: "t" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) !
@@ -26,7 +26,7 @@ lazy val root = (project in file("."))
       }
     },
     npmReinstallAndTest := {
-      // tests depend on scalaTsPackage
+      // tests depend on ScalaTs output
       scalaTsFastOpt.value
       // when run by the ScriptedPlugin the node modules have to be reinstalled in the temporary project folder
       // -> remove the node_modules folder and run "npm i" before executing the tests
