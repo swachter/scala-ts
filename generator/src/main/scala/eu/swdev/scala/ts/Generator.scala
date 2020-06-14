@@ -11,6 +11,7 @@ import scala.meta.internal.semanticdb.{
   FloatConstant,
   IntConstant,
   LongConstant,
+  RepeatedType,
   ShortConstant,
   SingleType,
   StringConstant,
@@ -62,6 +63,17 @@ object Generator {
           .mkString("(", ", ", ")")
         val returnType = formatType(targs.last)
         s"$args => $returnType"
+      case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/ThisFunction\\d+#" =>
+        val args = targs
+          .dropRight(1)
+          .zipWithIndex
+          .map {
+            case (tpe, 0)   => s"this: ${formatType(tpe)}"
+            case (tpe, idx) => s"p$idx: ${formatType(tpe)}"
+          }
+          .mkString("(", ", ", ")")
+        val returnType = formatType(targs.last)
+        s"$args => $returnType"
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/`|`#", targs) =>
         s"${formatType(targs(0))} | ${formatType(targs(1))}"
       case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Tuple\\d+#" =>
@@ -102,9 +114,9 @@ object Generator {
     def formatTypes(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
 
     def formatNameAndType(name: SimpleName, tpe: isb.Type): String = tpe match {
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
-        s"$name?: ${formatType(targs(0))}"
-      case _ => s"$name: ${formatType(tpe)}"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${formatType(targs(0))}"
+      case RepeatedType(tpe)                                                   => s"...$name: ${formatType(tpe)}[]"
+      case _                                                                   => s"$name: ${formatType(tpe)}"
     }
 
     def formatMethodParam(symbol: String, e: Input.Def): String = {

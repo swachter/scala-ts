@@ -14,6 +14,14 @@ trait Function1[-T1, +R] extends Function
 
 trait Function2[-T1, -T2, +R] extends Function
 
+trait ThisFunction extends Function
+
+trait ThisFunction0[-T0, +R] extends ThisFunction
+
+trait ThisFunction1[-T0, -T1, +R] extends ThisFunction
+
+trait ThisFunction2[-T0, -T1, -T2, +R] extends ThisFunction
+
 sealed trait Tuple2[+T1, +T2] extends Object
 
 sealed trait Tuple3[+T1, +T2, +T3] extends Object

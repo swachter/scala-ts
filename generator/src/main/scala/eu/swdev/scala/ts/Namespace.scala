@@ -117,6 +117,7 @@ object Namespace {
   def isSpecialType(symbol: Symbol) =
     specialTypes.contains(symbol) ||
       symbol.matches("scala/scalajs/js/Function\\d+#") ||
+      symbol.matches("scala/scalajs/js/ThisFunction\\d+#") ||
       symbol.matches("scala/scalajs/js/Tuple\\d+#")
 
   val specialTypes = Set[Symbol](

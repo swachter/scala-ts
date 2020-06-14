@@ -60,6 +60,7 @@ Supported ScalaJS Interoperability Types
 | `js.UndefOr[X]` | `p?: X` or `X `<code>&#124;</code>` undefined` depending on position |
 | `js.Array[X]` | `X[]` |
 | `js.FunctionN[T1, ... TN, R]` | `(p1: T1, ... pn: TN) => R` |
+| `js.ThisFunctionN[T0, T1, ... TN, R]` | `(this: T0, p1: T1, ... pn: TN) => R` |
 | `js.TupleN[T1, ... TN]` | `[T1, ... TN]` |
 | <code>js.&#124;[T1, T2]</code> | `T1 `<code>&#124;</code>` T2` |
 | `js.Dictionary[T]` | `{ [key: string]: T }` |
@@ -104,6 +105,12 @@ Translation rules for class and object members (constructor `val`/`var` paramete
 | `def x: tpe` | `get x(): tpe` |
 | `def x_=(v: tpe)` | `set x(v: tpe)` |
 | `def x(...): tpe` | `x(...): tpe` |
+
+Translation rule for repeated method parameters (varargs):
+
+| Scala Method Parameter | TypeScript Method Parameter |
+| --- | --- |
+| `x: X*` | `...x: X[]` |
 
 For each sealed trait a union type is created that contains all direct subtypes (classes or traits) as alternatives. The name of the union type is equal to the name of the sealed trait with a $ sign appended.
 
