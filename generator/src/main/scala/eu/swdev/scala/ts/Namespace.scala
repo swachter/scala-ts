@@ -126,6 +126,8 @@ object Namespace {
     "scala/scalajs/js/Array#",
     "scala/scalajs/js/Date#",
     "scala/scalajs/js/Dictionary#",
+    "scala/scalajs/js/Iterable#",
+    "scala/scalajs/js/Iterator#",
     "scala/scalajs/js/Promise#",
     "scala/scalajs/js/RegExp#",
     "scala/scalajs/js/Symbol#",

@@ -3,7 +3,8 @@ package e2e
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
 import js.JSConverters._
-import scala.scalajs.js.|
+import scala.collection.mutable
+import scala.scalajs.js.{ThisFunction0, ThisFunction1, ThisFunction2, |}
 
 @JSExportTopLevel("Simple")
 case class Simple(int: Int, string: String, boolean: Boolean, double: Double)
@@ -68,23 +69,23 @@ object ObjectAdt {
   @JSExportAll
   object Case1 extends Adt {
     val tpe: 1 = 1
-    val str = "abc"
+    val str    = "abc"
   }
   @JSExportTopLevel("ObjectAdtCase2")
   @JSExportAll
   object Case2 extends Adt {
     val tpe: 2 = 2
-    val num = 555
+    val num    = 555
   }
 
 }
 
 @JSExportTopLevel("JsClass")
 class JsClass(val initialStr: String, var num: Int) extends js.Object {
-  private var _str = initialStr
+  private var _str           = initialStr
   def str_=(s: String): Unit = _str = s
-  def str = _str
-  def doubleNum(): Unit = num = num * 2
+  def str                    = _str
+  def doubleNum(): Unit      = num = num * 2
 }
 
 object FunctionTest {
@@ -100,7 +101,8 @@ object TupleTest {
   @JSExportTopLevel("tupleFunction")
   def tupleFunction[T1, T2, R](f: js.Function2[T1, T2, R]): js.Function1[js.Tuple2[T1, T2], R] = {
     val x = f.tupled
-    t => x(t)
+    t =>
+      x(t)
   }
 }
 
@@ -152,4 +154,40 @@ object RegExpTest {
 
   @JSExportTopLevel("createRegExp")
   def regexp(s: String): js.RegExp = js.RegExp(s)
+}
+
+object VarArgsTest {
+  @JSExportTopLevel("sumVarArgs")
+  def sum(is: Int*): Int = is.sum
+  @JSExportTopLevel("createDictionary")
+  def dictionary[V](ts: js.Tuple2[String, V]*): js.Dictionary[V] = js.Dictionary.apply(ts.map(js.Tuple2.toScalaTuple2(_)): _*)
+}
+
+object ThisFunctionTest {
+
+  type Listener = ThisFunction1[Unit, String, Unit]
+
+  @JSExportTopLevel("Notifier")
+  @JSExportAll
+  class Notifier {
+    private val listeners              = mutable.ArrayBuffer.empty[Listener]
+    def addListener(l: Listener): Unit = listeners += l
+    def notify(s: String): Unit        = listeners.foreach(_.apply((), s))
+  }
+
+  @JSExportTopLevel("Listener")
+  @JSExportAll
+  class ListenerImpl {
+    var s: String                                         = _
+    def notify(s: String)                                 = this.s = s
+    def notifyFunction: ThisFunction1[Unit, String, Unit] = (_, s) => notify(s)
+  }
+
+}
+
+object IteratorTest {
+  @JSExportTopLevel("sumIterable")
+  def sum(i: js.Iterable[Int]): Int = i.sum
+  @JSExportTopLevel("numberIterator")
+  def iterator(n: Int): js.Iterator[Int] = (0 to n).toJSIterable.jsIterator()
 }

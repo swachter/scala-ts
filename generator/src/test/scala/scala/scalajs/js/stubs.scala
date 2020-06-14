@@ -37,3 +37,7 @@ class Date extends Object
 class RegExp(pattern: String, flags: String = "") extends Object
 
 sealed trait Symbol extends Any
+
+trait Iterator[+A] extends Object
+
+trait Iterable[+A] extends Object

@@ -47,6 +47,10 @@ object Generator {
         s"{ [key: string]: ${formatType(targs(0))} }"
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/Promise#", targs) =>
         s"Promise<${formatType(targs(0))}>"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterable#", targs) =>
+        s"Iterable<${formatType(targs(0))}>"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterator#", targs) =>
+        s"Iterator<${formatType(targs(0))}>"
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/Date#", targs) =>
         "Date"
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/RegExp#", targs) =>

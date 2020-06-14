@@ -65,6 +65,8 @@ Supported ScalaJS Interoperability Types
 | <code>js.&#124;[T1, T2]</code> | `T1 `<code>&#124;</code>` T2` |
 | `js.Dictionary[T]` | `{ [key: string]: T }` |
 | `js.Promise[T]` | `Promise<T>` |
+| `js.Iterable[T]` | `Iterable<T>` |
+| `js.Iterator[T]` | `Iterator<T>` |
 | `js.Date` | `Date` |
 | `js.RegExp` | `RegExp` |
 | `js.Symbol` | `symbol` |
