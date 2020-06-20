@@ -8,12 +8,12 @@ class AccessorTest extends DtsFunSuite {
 
   test("dts") {
     """
-      |export interface AccessorTest {
+      |export interface AccessorTest$ {
       |  get property(): number
       |  set property(v: number)
-      |  'AccessorTest': never
+      |  'AccessorTest$': never
       |}
-      |export const AccessorTest: AccessorTest
+      |export const AccessorTest: AccessorTest$
       |""".check()
   }
 
