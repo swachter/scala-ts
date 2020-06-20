@@ -193,3 +193,6 @@ function genFormat(formatter: fs.FormatterUnion) {
 
 genFormat(booleanFormatter)
 genFormat(intFormatter)
+
+console.log(`fs.outerObject.a: ${fs.outerObject.a}`)
+console.log(`fs.outerObject.o2.b: ${fs.outerObject.o2.b}`)

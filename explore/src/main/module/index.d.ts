@@ -298,3 +298,10 @@ export interface NonExportedJsClass {
 
 export const nonExportedJsObject: NonExportedJsObject
 export function nonExportedJsClass(): NonExportedJsClass
+
+export const outerObject: {
+  a: string,
+  o2: {
+    b: string
+  }
+}

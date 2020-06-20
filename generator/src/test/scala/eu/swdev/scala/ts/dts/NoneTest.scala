@@ -6,10 +6,10 @@ class NoneTest extends DtsFunSuite {
 
   test("dts") {
     """
-      |export const none: scala.None
+      |export const none: scala.None$
       |export namespace scala {
-      |    interface None {
-      |      'scala.None': never
+      |    interface None$ {
+      |      'scala.None$': never
       |    }
       |}
       |""".check()

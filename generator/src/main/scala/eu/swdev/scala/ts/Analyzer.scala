@@ -19,7 +19,7 @@ object Analyzer {
   val jsExportSymbol         = classSymbol[JSExport]
   val jsExportAllSymbol      = classSymbol[JSExportAll]
 
-  def analyze(semSrc: SemSource, symTab: SymbolTable): List[Input.TopLevel] = {
+  def analyze(semSrc: SemSource, symTab: SymbolTable): List[Input.Defn] = {
 
     def existsSymbolReference(tree: Tree, symbol: String): Boolean =
       semSrc
@@ -30,20 +30,17 @@ object Analyzer {
     def existsExportAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsExportSymbol)
     def existsExportAllAnnot(tree: Tree): Boolean      = existsSymbolReference(tree, jsExportAllSymbol)
 
-    def topLevelExportName(mods: List[Mod]): Option[SimpleName] = {
-      mods.collect {
-        case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => SimpleName(lit)
-      }.headOption
-    }
+    def exportName(mods: List[Mod]): ExportAnnot =
+      mods
+        .collect {
+          case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => ExportAnnot.TopLevel(lit)
+          case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t)         => ExportAnnot.MemberWithName(lit)
+          case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                                 => ExportAnnot.MemberWithoutName
+        }
+        .headOption
+        .getOrElse(ExportAnnot.None)
 
-    def exportName(mods: List[Mod], defaultName: String): Option[SimpleName] = {
-      mods.collect {
-        case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t) => SimpleName(lit)
-        case Mod.Annot(t @ Init(_, _, _)) if existsExportAnnot(t)                           => SimpleName(defaultName)
-      }.headOption
-    }
-
-    def exportAll(mods: List[Mod]): Boolean = {
+    def hasExportAllAnnot(mods: List[Mod]): Boolean = {
       mods.exists {
         case Mod.Annot(t @ Init(_, _, _)) => existsExportAllAnnot(t)
         case _                            => false
@@ -59,120 +56,90 @@ object Analyzer {
 
     val traverser = new Traverser {
 
-      val builder = List.newBuilder[Input.TopLevel]
+      class State(expAll: Boolean) {
 
-      trait State {
-        def process(tree: Tree, visitChildren: => Unit): Unit
-      }
-
-      object InitialState extends State {
+        val builder = List.newBuilder[Input.Defn]
 
         def processDefValVar[D <: Defn](defn: D,
                                         mods: List[Mod],
-                                        ctor: (SemSource, D, SimpleName, SymbolInformation) => Input.TopLevel): Unit = {
-          for {
-            si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
-            en <- topLevelExportName(mods)
-          } {
-            builder += ctor(semSrc, defn, en, si)
+                                        ctor: (SemSource, D, ExportAnnot, SymbolInformation) => Input.Defn): Unit =
+          if (!hasPrivateMod(mods)) {
+            for {
+              si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
+            } {
+              val en = exportName(mods)
+              val export = en match {
+                case ExportAnnot.None => expAll
+                case _                => true
+              }
+              if (export) {
+                builder += ctor(semSrc, defn, exportName(mods), si)
+              }
+            }
           }
+
+        def recurse(expAll: Boolean, visitChildren: => Unit): List[Input.Defn] = {
+          states.push(new State(expAll))
+          visitChildren
+          states.pop().builder.result()
         }
 
-        def processCls(defn: Defn.Class, mods: List[Mod], visitChildren: => Unit): Unit = {
+        def processCls(defn: Defn.Class, visitChildren: => Unit): Unit = if (!hasPrivateMod(defn.mods)) {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.CLASS)
           } {
-            val en = topLevelExportName(mods)
-            val isJsAny = isSubtypeOfJsAny(si)
+            val ctorParamTerms = defn.ctor.paramss.flatten
 
-            if (en.isDefined || isJsAny) {
+            val isCaseClass = hasCaseClassMod(defn.mods)
 
-              // only classes that have an @ExportTopLevel annotation or that extends js.Any are considered
+            val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
+              case Some(ctorSi) =>
+                val ctorSig = ctorSi.signature.asInstanceOf[MethodSignature]
+                val ctorParamSymbolInfos = ctorSig.parameterLists
+                  .flatMap(_.symlinks.map(semSrc.symbolInfo(_)))
 
-              val memberBuilder = List.newBuilder[Input.Member]
-
-              val ctorParamTerms = defn.ctor.paramss.flatten
-
-              val isCaseClass = hasCaseClassMod(mods)
-
-              val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
-                case Some(ctorSi) =>
-                  val ctorSig = ctorSi.signature.asInstanceOf[MethodSignature]
-                  val ctorParamSymbolInfos = ctorSig.parameterLists
-                    .flatMap(_.symlinks.map(semSrc.symbolInfo(_)))
-
-                  ctorParamSymbolInfos.flatMap { ctorParamSymbolInfo =>
-                    ctorParamTerms.collect {
-                      case tp@Term.Param(termMods, termName, termType, defaultTerm)
+                ctorParamSymbolInfos.flatMap { ctorParamSymbolInfo =>
+                  ctorParamTerms.collect {
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm)
                         if termName.value == ctorParamSymbolInfo.displayName && !hasPrivateMod(termMods) && hasVarMod(termMods) =>
-                        Input.CtorParam(semSrc,
-                          tp,
-                          SimpleName(ctorParamSymbolInfo.displayName),
-                          ctorParamSymbolInfo,
-                          Input.CtorParamMod.Var)
-                      case tp@Term.Param(termMods, termName, termType, defaultTerm)
+                      Input.CtorParam(semSrc, tp, ctorParamSymbolInfo.displayName, ctorParamSymbolInfo, Input.CtorParamMod.Var)
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm)
                         if termName.value == ctorParamSymbolInfo.displayName && !hasPrivateMod(termMods) && (isCaseClass || hasValMod(
                           termMods)) =>
-                        Input.CtorParam(semSrc,
-                          tp,
-                          SimpleName(ctorParamSymbolInfo.displayName),
-                          ctorParamSymbolInfo,
-                          Input.CtorParamMod.Val)
-                      case tp@Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSymbolInfo.displayName =>
-                        Input.CtorParam(semSrc,
-                          tp,
-                          SimpleName(ctorParamSymbolInfo.displayName),
-                          ctorParamSymbolInfo,
-                          Input.CtorParamMod.Loc)
-                    }
-                  }.toList
-                case None => Nil
-              }
-
-              state = InContainerState(memberBuilder, exportAll(mods) || isJsAny)
-              visitChildren
-              state = InitialState
-              builder += Input.Cls(semSrc, defn, en, si, memberBuilder.result(), ctorParams)
+                      Input.CtorParam(semSrc, tp, ctorParamSymbolInfo.displayName, ctorParamSymbolInfo, Input.CtorParamMod.Val)
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSymbolInfo.displayName =>
+                      Input.CtorParam(semSrc, tp, ctorParamSymbolInfo.displayName, ctorParamSymbolInfo, Input.CtorParamMod.Prv)
+                  }
+                }.toList
+              case None => Nil
             }
+
+            val members = recurse(hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si), visitChildren)
+            builder += Input.Cls(semSrc, defn, exportName(defn.mods), si, members, ctorParams)
           }
 
         }
 
-        def processObj(defn: Defn.Object, mods: List[Mod], visitChildren: => Unit): Unit = {
+        def processObj(defn: Defn.Object, visitChildren: => Unit): Unit = if (!hasPrivateMod(defn.mods)) {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
-            val en = topLevelExportName(mods)
-            val isJsAny = isSubtypeOfJsAny(si)
-
-            if (en.isDefined || isJsAny) {
-              val memberBuilder = List.newBuilder[Input.Member]
-              state = InContainerState(memberBuilder, exportAll(mods) || isJsAny)
-              visitChildren
-              state = InitialState
-              builder += Input.Obj(semSrc, defn, en, si, memberBuilder.result())
-            } else {
-              visitChildren
-            }
+            val members = recurse(hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si), visitChildren)
+            builder += Input.Obj(semSrc, defn, exportName(defn.mods), si, members, expAll)
           }
 
         }
 
-        def processTrait(defn: Defn.Trait, visitChildren: => Unit): Unit = {
+        def processTrait(defn: Defn.Trait, visitChildren: => Unit): Unit = if (!hasPrivateMod(defn.mods)) {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.TRAIT)
           } {
-            val memberBuilder = List.newBuilder[Input.Member]
-            state = InContainerState(memberBuilder, exportAll(defn.mods) || isSubtypeOfJsAny(si))
-            visitChildren
-            state = InitialState
-            val members = memberBuilder.result()
-            // only include traits with exported members
+            val members = recurse(hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si), visitChildren)
             builder += Input.Trait(semSrc, defn, si, members)
           }
         }
 
-        def processType(defn: Defn.Type): Unit = {
+        def processType(defn: Defn.Type): Unit = if (!hasPrivateMod(defn.mods)) {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.TYPE)
           } {
@@ -184,56 +151,31 @@ object Analyzer {
           }
         }
 
-        override def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
-          case t @ Defn.Def(mods, _, _, _, _, _) => processDefValVar(t, mods, Input.Def)
-          case t @ Defn.Val(mods, _, _, _)       => processDefValVar(t, mods, Input.Val)
-          case t @ Defn.Var(mods, _, _, _)       => processDefValVar(t, mods, Input.Var)
-          case t @ Defn.Class(mods, _, _, _, _)  => processCls(t, mods, visitChildren)
-          case t @ Defn.Object(mods, _, _)       => processObj(t, mods, visitChildren)
-          case t @ Defn.Trait(mods, _, _, _, _)  => processTrait(t, visitChildren)
-          case t @ Defn.Type(_, _, _, _)         => processType(t)
-          case _                                 => visitChildren
+        def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
+          case t: Defn.Def    => processDefValVar(t, t.mods, Input.Def)
+          case t: Defn.Val    => processDefValVar(t, t.mods, Input.Val)
+          case t: Defn.Var    => processDefValVar(t, t.mods, Input.Var)
+          case t: Defn.Class  => processCls(t, visitChildren)
+          case t: Defn.Object => processObj(t, visitChildren)
+          case t: Defn.Trait  => processTrait(t, visitChildren)
+          case t: Defn.Type   => processType(t)
+          case _              => visitChildren
         }
       }
 
-      case class InContainerState(builder: mutable.Builder[Input.Member, List[Input.Member]], exportAll: Boolean) extends State {
-
-        def processDefValVar[D <: Defn](defn: D,
-                                        mods: List[Mod],
-                                        ctor: (SemSource, D, SimpleName, SymbolInformation) => Input.Member): Unit = {
-          if (!hasPrivateMod(mods)) {
-            for {
-              si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
-              en <- exportName(mods, si.displayName).orElse(Some(SimpleName(si.displayName)).filter(_ => exportAll))
-            } {
-              builder += ctor(semSrc, defn, en, si)
-            }
-          }
-        }
-
-        override def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
-          case t @ Defn.Def(mods, _, _, _, _, _) => processDefValVar(t, mods, Input.Def)
-          case t @ Defn.Val(mods, _, _, _)       => processDefValVar(t, mods, Input.Val)
-          case t @ Defn.Var(mods, _, _, _)       => processDefValVar(t, mods, Input.Var)
-          case t @ Defn.Class(_, _, _, _, _)     => ()
-          case t @ Defn.Object(_, _, _)          => ()
-          case t @ Defn.Trait(_, _, _, _, _)     => ()
-          case _                                 => visitChildren
-        }
-
-      }
-
-      var state: State = InitialState
+      val states = mutable.ArrayStack(new State(false))
 
       override def apply(tree: Tree): Unit = {
-        state.process(tree, super.apply(tree))
+        states.top.process(tree, super.apply(tree))
       }
 
     }
 
     traverser.apply(semSrc.source)
 
-    traverser.builder.result()
+    val inputs = traverser.states.top.builder.result()
+
+    flatten(inputs)
   }
 
   // determine all types that are referenced in the given export item
@@ -246,8 +188,8 @@ object Analyzer {
     case e: Input.Var       => List(e.methodSignature.returnType)
     case e: Input.Cls       => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
     case e: Input.Obj       => e.member.flatMap(referencedTypes)
-    case e: Input.Trait       => e.member.flatMap(referencedTypes)
-    case e: Input.Alias       => Nil
+    case e: Input.Trait     => e.member.flatMap(referencedTypes)
+    case e: Input.Alias     => Nil
     case e: Input.CtorParam => List(e.valueSignature.tpe)
   }
 
@@ -258,6 +200,39 @@ object Analyzer {
       vs.tpe
     }
     e.methodSignature.parameterLists.flatMap(_.symlinks).map(argType).toList
+  }
+
+  def topLevel(is: List[Input.Defn]): List[TopLevelExport] = {
+    is.collect {
+      case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.name.topLevelExportName.get, i)
+    }
+  }
+
+  private def flatten(is: List[Input.Defn]): List[Input.Defn] = {
+    val b = List.newBuilder[Input.Defn]
+    def go(i: Input.Defn): Unit = {
+      b += i
+      i match {
+        case i: Input.ClsOrObj => i.member.foreach(go)
+        case i: Input.Trait    => i.member.foreach(go)
+        case _                 =>
+      }
+    }
+    is.foreach(go)
+    b.result()
+  }
+
+  def types(is: List[Input.Defn]): List[Input.Type] = {
+    val b = List.newBuilder[Input.Type]
+    def go(i: Input.Defn): Unit = i match {
+      case i: Input.DefOrValOrVar =>
+      case i: Input.Alias         => b += i
+      case i: Input.Cls           => b += i; i.member.foreach(go)
+      case i: Input.Obj           => b += i; i.member.foreach(go)
+      case i: Input.Trait         => b += i; i.member.foreach(go)
+    }
+    is.foreach(go)
+    b.result()
   }
 
 }

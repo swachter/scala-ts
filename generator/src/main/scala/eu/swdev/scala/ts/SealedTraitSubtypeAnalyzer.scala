@@ -12,9 +12,9 @@ object SealedTraitSubtypeAnalyzer {
     * Calculates a map from symbols of sealed traits to their list of subtypes
     */
   def subtypes(
-                sealedTraits: List[Trait],
-                exportedClasses: Map[Symbol, Input.Cls],
-                exportedObjects: Map[Symbol, Input.Obj],
+      sealedTraits: List[Trait],
+      exportedClasses: Map[Symbol, Input.Cls],
+      exportedObjects: Map[Symbol, Input.Obj],
   ): Map[Symbol, List[Subtype]] = {
 
     val result = mutable.Map.empty[Symbol, List[Subtype]]
@@ -30,7 +30,9 @@ object SealedTraitSubtypeAnalyzer {
         // -> for each such symbol map it into a Subtype instance
         //    (this step can use subtype lists for sealed traits from the result that were already determined)
         val subtypeList = subtypeSymbolInformations.map { subtypeSymbolInformation =>
-          (exportedClasses.get(subtypeSymbolInformation.symbol), exportedObjects.get(subtypeSymbolInformation.symbol), result.get(subtypeSymbolInformation.symbol)) match {
+          (exportedClasses.get(subtypeSymbolInformation.symbol),
+           exportedObjects.get(subtypeSymbolInformation.symbol),
+           result.get(subtypeSymbolInformation.symbol)) match {
             case (Some(e), _, _) => Some(Subtype.Subclass(parent, e))
             case (_, Some(e), _) => Some(Subtype.Subobject(parent, e))
             case (_, _, Some(l)) => Some(Subtype.Subtrait(parent, subtypeSymbolInformation, l))
@@ -114,25 +116,27 @@ object SealedTraitSubtypeAnalyzer {
 
   object Subtype {
     case class Subclass(parent: Input.Trait, subcls: Input.Cls) extends Subtype {
-      override def unionMemberName     = subcls.name.map(_.toFullName).getOrElse(FullName(subcls.si.symbol))
+      override def unionMemberName =
+        subcls.name.topLevelExportName.map(FullName.fromSimpleName(_)).getOrElse(FullName.fromSymbol(subcls.si.symbol))
       override def classSignature      = subcls.classSignature
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class Subobject(parent: Input.Trait, subobj: Input.Obj) extends Subtype {
-      override def unionMemberName     = subobj.name.map(_.toFullName).getOrElse(FullName(subobj.si.symbol))
+      override def unionMemberName =
+        subobj.name.topLevelExportName.map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName.fromSymbol(subobj.si.symbol))
       override def classSignature      = subobj.si.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class OpaqueSubclass(parent: Input.Trait, subclsSymbolInfo: SymbolInformation) extends Subtype {
-      override def unionMemberName     = FullName(subclsSymbolInfo.symbol)
+      override def unionMemberName     = FullName.fromSymbol(subclsSymbolInfo.symbol)
       override def classSignature      = subclsSymbolInfo.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class Subtrait(parent: Input.Trait, subtraitSymbolInfo: SymbolInformation, subtypes: List[Subtype]) extends Subtype {
-      override def unionMemberName = FullName(subtraitSymbolInfo.symbol)
+      override def unionMemberName = FullName.fromSymbol(subtraitSymbolInfo.symbol)
       override def classSignature  = subtraitSymbolInfo.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = {
-        val allTypeArgs = subtypes.flatMap(_.completeSubtypeArgs)
+        val allTypeArgs               = subtypes.flatMap(_.completeSubtypeArgs)
         val (parentArgs, privateArgs) = SubtypeArg.split(allTypeArgs)
         parentArgs ++ privateArgs
       }
@@ -146,11 +150,9 @@ object SealedTraitSubtypeAnalyzer {
     case object Private         extends SubtypeArg
 
     def split(allTypeArgs: Seq[SubtypeArg]): (Seq[Parent], Seq[Private.type]) = {
-      val parentArgsSet = allTypeArgs
-        .collect {
-          case p @ Parent(_) => p
-        }
-        .toSet
+      val parentArgsSet = allTypeArgs.collect {
+        case p @ Parent(_) => p
+      }.toSet
 
       val parentArgs = parentArgsSet.toList.sortBy(_.idx)
 

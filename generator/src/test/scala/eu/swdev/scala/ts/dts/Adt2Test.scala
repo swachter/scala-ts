@@ -27,7 +27,7 @@ class Adt2Test extends DtsFunSuite {
       |                        interface Base<X> {
       |                          'eu.swdev.scala.ts.dts.Adt2Test.Base': never
       |                        }
-      |                        type Base$<X> = Adt2Case1<X> | Adt2Case2
+      |                        type Base$u<X> = Adt2Case1<X> | Adt2Case2
       |                    }
       |                }
       |            }

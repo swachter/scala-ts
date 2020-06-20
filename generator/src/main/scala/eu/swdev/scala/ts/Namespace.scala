@@ -5,45 +5,27 @@ import scala.meta.internal.semanticdb.{ClassSignature, ConstantType, SingleType,
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
-class Namespace(val name: SimpleName) {
+class Namespace(val name: String) {
 
-  import Namespace._
+  val nested = mutable.SortedMap.empty[String, Namespace]
+  val types  = mutable.SortedMap.empty[String, Output.Type]
 
-  val nested  = mutable.SortedMap.empty[SimpleName, Namespace]
-  val itfs    = mutable.SortedMap.empty[SimpleName, Interface]
-  val unions  = mutable.SortedMap.empty[SimpleName, Union]
-  val aliases = mutable.SortedMap.empty[SimpleName, Alias]
-
-  def +=(itf: Interface): this.type = {
-    enclosingNamespace(itf.fullName).itfs += itf.simpleName -> itf
+  def +=(tpe: Output.Type): this.type = {
+    enclosingNamespace(tpe.fullName).types += tpe.simpleName -> tpe
     this
   }
 
-  def +=(union: Union): this.type = {
-    enclosingNamespace(union.fullName).unions += union.fullName.last -> union
-    this
-  }
-
-  def +=(alias: Alias): this.type = {
-    enclosingNamespace(alias.fullName).aliases += alias.fullName.last -> alias
-    this
-  }
-
-  def containsItf(fullName: FullName): Boolean = contains(fullName, spaceContainsItf)
-
-  def containsItfOrType(fullName: FullName): Boolean = contains(fullName, spaceContainsItfOrAlias)
-
-  private def contains(fullName: FullName, p: (Namespace, SimpleName) => Boolean): Boolean = {
+  def contains(fullName: FullName): Boolean = {
     val sn = fullName.head
     fullName.tail match {
-      case Some(fn) => nested.get(sn).map(_.contains(fn, p)).getOrElse(false)
-      case None     => p(this, sn)
+      case Some(fn) => nested.get(sn).map(_.contains(fn)).getOrElse(false)
+      case None     => types.contains(sn)
     }
   }
 
   private def enclosingNamespace(fullName: FullName): Namespace = {
     var n = this
-    fullName.str.split('.').dropRight(1).map(SimpleName(_)).foreach { p =>
+    fullName.str.split('.').dropRight(1).foreach { p =>
       n = n.nested.getOrElseUpdate(p, new Namespace(p))
     }
     n
@@ -53,44 +35,41 @@ class Namespace(val name: SimpleName) {
 
 object Namespace {
 
-  def spaceContainsItf(namespace: Namespace, name: SimpleName)        = namespace.itfs.contains(name)
-  def spaceContainsItfOrAlias(namespace: Namespace, name: SimpleName) = namespace.itfs.contains(name) || namespace.aliases.contains(name)
+  def deriveInterfaces(inputs: List[Input.Defn], symTab: SymbolTable): Namespace = {
 
-  def deriveInterfaces(inputs: List[Input.TopLevel], symTab: SymbolTable): Namespace = {
-
-    val rootNamespace = new Namespace(SimpleName(""))
+    val rootNamespace = new Namespace("")
 
     // all symbols that are referenced (directly or transitively) by the top level exported api
     val apiRefs = ReferencedSymbolsAnalyzer.referencedSymbols(inputs, symTab)
 
-    // determine the ancestors of all types that are referenced in the API
-    val ancestorRefs = inputs
-      .collect {
-        case i: Input.Type if apiRefs.contains(i.si.symbol) => i.si.ancestors(symTab).flatMap(_.typeSymbol)
-      }
-      .flatten
-      .toSet
+    val allTypes = Analyzer.types(inputs)
+
+    // the types that are referenced in the exported API
+    val referencedTypes = allTypes.filter(tpe => apiRefs.contains(tpe.si.symbol))
+
+    // determine the type symbols of all ancestors of referenced types
+    val ancestorRefs = referencedTypes.flatMap(_.si.ancestors(symTab)).flatMap(_.typeSymbol).toSet
 
     // add interfaces for all types in the input that are referenced
     // -> classes and object that are top level exports are not added here
     // -> they are added right beside their class / const during code generation
-    inputs.filter(i => apiRefs.contains(i.si.symbol) || ancestorRefs.contains(i.si.symbol)).foreach {
-      case i: Input.Cls if !i.name.isDefined => rootNamespace += Interface(i.si, i.member, symTab)
-      case i: Input.Obj if !i.name.isDefined => rootNamespace += Interface(i.si, i.member, symTab)
-      case i: Input.Trait                    => rootNamespace += Interface(i.si, i.member, symTab)
-      case i: Input.Alias                    => rootNamespace += Alias(i)
-      case _                                 =>
+    allTypes.filter(i => apiRefs.contains(i.si.symbol) || ancestorRefs.contains(i.si.symbol)).foreach {
+      case i: Input.Cls if !i.isTopLevelExport => rootNamespace += Output.Interface(i.si, i.member ++ i.ctorParams, symTab)
+      case i: Input.Obj if !i.isTopLevelExport => rootNamespace += Output.Interface(i.si, i.member, symTab)
+      case i: Input.Trait                      => rootNamespace += Output.Interface(i.si, i.member, symTab)
+      case i: Input.Alias                      => rootNamespace += Output.Alias(i)
+      case _: Input.Cls | _: Input.Obj         =>
     }
 
     // topLevelSymbols that have already been added
     // -> the namespace.containsItfOrType test does not cover top level symbols because they are placed in the root
     //    namespace and not in namespace corresponding to their package
-    val topLevelSymbols = inputs.collect {
-      case i: Input.Cls if i.name.isDefined => i.si.symbol
-      case i: Input.Obj if i.name.isDefined => i.si.symbol
+    val topLevelSymbols = allTypes.collect {
+      case i: Input.Cls if i.isTopLevelExport => i.si.symbol
+      case i: Input.Obj if i.isTopLevelExport => i.si.symbol
     }.toSet
 
-    def isAlreadyAdded(sym: Symbol) = topLevelSymbols.contains(sym) || rootNamespace.containsItfOrType(FullName(sym))
+    def isAlreadyAdded(sym: Symbol) = topLevelSymbols.contains(sym) || rootNamespace.contains(FullName.fromSymbol(sym))
 
     def canBeAdded(sym: Symbol) = !(isAlreadyAdded(sym) || BuiltIn.builtInTypeNames.contains(sym) || isSpecialType(sym))
 
@@ -98,7 +77,7 @@ object Namespace {
     val referenced = apiRefs
       .flatMap(symTab.typeSymInfo)
       .collect {
-        case si if canBeAdded(si.symbol) => Interface(si, symTab)
+        case si if canBeAdded(si.symbol) => Output.Interface(si, symTab)
       }
 
     referenced.foreach(rootNamespace += _)
@@ -106,7 +85,7 @@ object Namespace {
     // close the gaps in the inheritance hierarchy
     // -> add interfaces for all ancestors that have an already exported ancestor
     val gaps = ancestorRefs.flatMap(symTab.typeSymInfo(_)).collect {
-      case si if canBeAdded(si.symbol) && si.ancestors(symTab).flatMap(_.typeSymbol).exists(isAlreadyAdded) => Interface(si, symTab)
+      case si if canBeAdded(si.symbol) && si.ancestors(symTab).flatMap(_.typeSymbol).exists(isAlreadyAdded) => Output.Interface(si, symTab)
     }
 
     gaps.foreach(rootNamespace += _)

@@ -3,31 +3,56 @@ package eu.swdev.scala.ts
 import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
 import scala.meta.{Defn, Term}
 
-case class SimpleName(str: String) extends AnyVal {
+class FullName private (val str: String) extends AnyVal {
   override def toString: String = str
-  def toFullName: FullName = FullName.fromSimpleName(this)
-}
-
-object SimpleName {
-  implicit val ord = implicitly[Ordering[String]].on[SimpleName](_.str)
-}
-
-case class FullName private (str: String) extends AnyVal {
-  override def toString: String = str
-  def last: SimpleName = SimpleName(str.split('.').last)
-  def head: SimpleName = SimpleName(str.split('.').head)
+  def last: String              = str.split('.').last
+  def head: String              = str.split('.').head
   def tail: Option[FullName] = {
     val idx = str.indexOf('.')
     if (idx >= 0) Some(new FullName(str.substring(idx + 1))) else None
   }
-  def withDollar = new FullName(s"$str$$")
+  def withUnionSuffix = new FullName(s"$str$$u")
 }
 
 object FullName {
-  def symbol2TypeName(sym: Symbol): String = sym.substring(0, sym.length - 1).replace('/', '.').replace(".package.", ".")
-  def apply(symbol: Symbol): FullName = new FullName(symbol2TypeName(symbol))
-  def fromSimpleName(simpleName: SimpleName): FullName = new FullName(simpleName.str)
+  def symbol2TypeName(sym: Symbol): String = {
+    val suffix = if (sym.endsWith(".")) {
+      "$"
+    } else {
+      ""
+    }
+    val s = sym.substring(0, sym.length - 1).replace('/', '.').replace(".package.", ".")
+    s"$s$suffix"
+  }
+  def fromSymbol(symbol: Symbol): FullName         = new FullName(symbol2TypeName(symbol))
+  def fromSimpleName(simpleName: String): FullName = new FullName(simpleName)
+
   implicit val ord = implicitly[Ordering[String]].on[FullName](_.str)
+}
+
+sealed trait ExportAnnot {
+  def isMember: Boolean
+  def topLevelExportName: Option[String]
+}
+
+object ExportAnnot {
+  sealed trait Member extends ExportAnnot {
+    override def isMember: Boolean = true
+  }
+  case object None extends ExportAnnot {
+    override def isMember: Boolean                  = false
+    override def topLevelExportName: Option[String] = scala.None
+  }
+  case object MemberWithoutName extends Member {
+    override def topLevelExportName: Option[String] = scala.None
+  }
+  case class MemberWithName(s: String) extends Member {
+    override def topLevelExportName: Option[String] = scala.None
+  }
+  case class TopLevel(s: String) extends ExportAnnot {
+    override def isMember: Boolean                  = false
+    override def topLevelExportName: Option[String] = Some(s)
+  }
 }
 
 sealed trait Input {
@@ -37,47 +62,83 @@ sealed trait Input {
 
 object Input {
 
-  sealed trait HasClassSignature extends Input {
+  sealed trait HasClassSignature { self: Input =>
     def classSignature = si.signature.asInstanceOf[ClassSignature]
   }
 
-  sealed trait HasMethodSignature extends Input {
+  sealed trait HasMethodSignature { self: Input =>
     def methodSignature = si.signature.asInstanceOf[MethodSignature]
   }
 
-  sealed trait HasValueSignature extends Input {
+  sealed trait HasValueSignature { self: Input =>
     def valueSignature = si.signature.asInstanceOf[ValueSignature]
   }
 
-  sealed trait HasTypeSignature extends Input {
+  sealed trait HasTypeSignature { self: Input =>
     def typeSignature = si.signature.asInstanceOf[TypeSignature]
   }
 
-  sealed trait TopLevel extends Input
+  sealed trait Exportable extends Input {
+    def name: ExportAnnot
+    def memberName: String = name match {
+      case ExportAnnot.MemberWithName(n) => n
+      case _                             => si.displayName
+    }
+    def isTopLevelExport: Boolean = name match {
+      case ExportAnnot.TopLevel(_) => true
+      case _                       => false
+    }
+  }
 
-  sealed trait Type extends TopLevel
+  sealed trait Defn extends Input
 
-  sealed trait MemberOrCtorParam
+  sealed trait Type extends Defn
 
-  sealed trait Member extends HasMethodSignature with MemberOrCtorParam
+  sealed trait DefOrValOrVar extends Defn with Exportable with HasMethodSignature
 
-  case class Def(semSrc: SemSource, tree: Defn.Def, name: SimpleName, si: SymbolInformation) extends TopLevel with Member
-  case class Val(semSrc: SemSource, tree: Defn.Val, name: SimpleName, si: SymbolInformation) extends TopLevel with Member
-  case class Var(semSrc: SemSource, tree: Defn.Var, name: SimpleName, si: SymbolInformation) extends TopLevel with Member
+  sealed trait ClsOrObj extends Type with Exportable {
+    def member: List[Defn]
+  }
 
-  case class Obj(semSrc: SemSource, tree: Defn.Object, name: Option[SimpleName], si: SymbolInformation, member: List[Member]) extends Type
-  case class Cls(semSrc: SemSource, tree: Defn.Class, name: Option[SimpleName], si: SymbolInformation, member: List[Member], ctorParams: List[Input.CtorParam]) extends HasClassSignature with Type
-  case class Trait(semSrc: SemSource, tree: Defn.Trait, si: SymbolInformation, member: List[Member]) extends HasClassSignature with Type
-  case class Alias(semSrc: SemSource, tree: Defn.Type, si: SymbolInformation) extends HasTypeSignature with Type
+  //
+  //
+  //
 
-  case class CtorParam(semSrc: SemSource, tree: Term.Param, name: SimpleName, si: SymbolInformation, mod: CtorParamMod) extends HasValueSignature with MemberOrCtorParam
+  case class Def(semSrc: SemSource, tree: Defn.Def, name: ExportAnnot, si: SymbolInformation) extends DefOrValOrVar
+  case class Val(semSrc: SemSource, tree: Defn.Val, name: ExportAnnot, si: SymbolInformation) extends DefOrValOrVar
+  case class Var(semSrc: SemSource, tree: Defn.Var, name: ExportAnnot, si: SymbolInformation) extends DefOrValOrVar
+
+  case class Obj(semSrc: SemSource, tree: Defn.Object, name: ExportAnnot, si: SymbolInformation, member: List[Defn], expAll: Boolean)
+      extends ClsOrObj {
+    def isMember = expAll || name.isMember
+  }
+
+  case class Cls(semSrc: SemSource,
+                 tree: Defn.Class,
+                 name: ExportAnnot,
+                 si: SymbolInformation,
+                 member: List[Defn],
+                 ctorParams: List[Input.CtorParam])
+      extends ClsOrObj
+      with HasClassSignature
+
+  case class Trait(semSrc: SemSource, tree: Defn.Trait, si: SymbolInformation, member: List[Defn]) extends Type with HasClassSignature
+
+  case class Alias(semSrc: SemSource, tree: Defn.Type, si: SymbolInformation) extends Type with HasTypeSignature
+
+  case class CtorParam(semSrc: SemSource, tree: Term.Param, name: String, si: SymbolInformation, mod: CtorParamMod)
+      extends Input
+      with HasValueSignature
 
   sealed trait CtorParamMod
 
   object CtorParamMod {
     object Val extends CtorParamMod
     object Var extends CtorParamMod
-    object Loc extends CtorParamMod
+    // private constructor param
+    object Prv extends CtorParamMod
   }
 
 }
+
+case class TopLevelExport(name: String, exportable: Input.Exportable)

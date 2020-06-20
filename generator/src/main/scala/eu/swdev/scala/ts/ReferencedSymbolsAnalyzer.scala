@@ -35,13 +35,9 @@ object ReferencedSymbolsAnalyzer {
     *
     * The symbols of the top level exported items are also included.
     */
-  def referencedSymbols(inputs: List[Input], symTab: SymbolTable): Set[Symbol] = {
+  def referencedSymbols(inputs: List[Input.Defn], symTab: SymbolTable): Set[Symbol] = {
 
-    val topLevelExports = inputs.collect {
-      case i: Input.Cls if i.name.isDefined => i // classes are considered only if they have a @JSTopLevelExport
-      case i: Input.Obj if i.name.isDefined => i // objects are considered only if they have a @JSTopLevelExport
-      case i: Input.Member                  => i
-    }
+    val topLevelExports = Analyzer.topLevel(inputs).map(_.exportable)
 
     val c = new Collector(inputs, symTab, mutable.Set.empty)
     topLevelExports.foreach(i => c.collect(i.si))
@@ -66,13 +62,18 @@ object ReferencedSymbolsAnalyzer {
     }
 
     private def collectMember(i: Input.Type): Unit = i match {
-      case i @ Input.Obj(semSrc, tree, name, si, member)             => member.foreach(collect)
-      case i @ Input.Cls(semSrc, tree, name, si, member, ctorParams) => member.foreach(collect); ctorParams.foreach(collect)
-      case i @ Input.Trait(semSrc, tree, si, member)                 => member.foreach(collect)
-      case i @ Input.Alias(semSrc, tree, si)                         => collect(i.typeSignature)
+      case i: Input.Obj   => i.member.foreach(collect)
+      case i: Input.Cls   => i.member.foreach(collect); i.ctorParams.foreach(collect)
+      case i: Input.Trait => i.member.foreach(collect)
+      case i: Input.Alias => collect(i.typeSignature)
     }
 
-    def collect(i: Input.Member): Unit = collect(i.methodSignature)
+    def collect(i: Input.Defn): Unit = i match {
+      case i: Input.DefOrValOrVar => collect(i)
+      case i: Input.Type          => // nested type members are not considered; they do not appear as members in the output
+    }
+
+    def collect(i: Input.DefOrValOrVar): Unit = collect(i.methodSignature)
 
     def collect(i: Input.CtorParam): Unit = collect(i.si)
 

@@ -6,16 +6,16 @@ class Adt3Test extends DtsFunSuite {
 
   test("simple") {
     """
-      |export interface Adt3TestCase1 extends eu.swdev.scala.ts.dts.Adt3Test.T {
+      |export interface Adt3TestCase1$ extends eu.swdev.scala.ts.dts.Adt3Test.T {
       |  readonly str: string
-      |  'Adt3TestCase1': never
+      |  'Adt3TestCase1$': never
       |}
-      |export const Adt3TestCase1: Adt3TestCase1
-      |export interface Adt3TestCase2 extends eu.swdev.scala.ts.dts.Adt3Test.T {
+      |export const Adt3TestCase1: Adt3TestCase1$
+      |export interface Adt3TestCase2$ extends eu.swdev.scala.ts.dts.Adt3Test.T {
       |  readonly num: number
-      |  'Adt3TestCase2': never
+      |  'Adt3TestCase2$': never
       |}
-      |export const Adt3TestCase2: Adt3TestCase2
+      |export const Adt3TestCase2: Adt3TestCase2$
       |export namespace eu {
       |    namespace swdev {
       |        namespace scala {
@@ -25,7 +25,7 @@ class Adt3Test extends DtsFunSuite {
       |                        interface T {
       |                          'eu.swdev.scala.ts.dts.Adt3Test.T': never
       |                        }
-      |                        type T$ = Adt3TestCase1 | Adt3TestCase2
+      |                        type T$u = Adt3TestCase1$ | Adt3TestCase2$
       |                    }
       |                }
       |            }

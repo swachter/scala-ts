@@ -3,7 +3,7 @@ import {assertNever} from './util'
 
 describe('simple adt', function() {
 
-  function match(adt: m.e2e.SimpleAdt.Adt$): string | number {
+  function match(adt: m.e2e.SimpleAdt.Adt$u): string | number {
     if (adt.tpe === 's') {
       return adt.str
     } else if (adt.tpe === 'i') {

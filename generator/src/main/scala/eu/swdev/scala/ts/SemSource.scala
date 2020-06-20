@@ -15,14 +15,13 @@ case class SemSource(td: TextDocument, source: Source) {
   def symbolInfo(pos: Position, kind: Kind): Option[SymbolInformation] = symbolInfos(pos, kind).headOption
 
   def symbolInfos(pos: Position, kind: Kind): Seq[SymbolInformation] = {
-    td.occurrences
-      .filter(so => so.role == Role.DEFINITION && so.range.map(pos.includes(_)).getOrElse(false))
-      .map { so =>
-        td.symbols.find(si => si.kind == kind && si.symbol == so.symbol)
-      }
-      .collect {
-        case Some(s) => s
-      }
+    td.occurrences.collect {
+      case so if so.role == Role.DEFINITION && so.range.isDefined && pos.includes(so.range.get) => so -> so.range.get
+    }.map {
+      case (so, range) => td.symbols.find(si => si.kind == kind && si.symbol == so.symbol).map((_, range))
+    }.collect {
+      case Some(s) => s
+    }.sortBy(_._2.startCharacter).map(_._1)
   }
 
   def symbolOccurrences(pos: Position, role: Role): Seq[SymbolOccurrence] = {

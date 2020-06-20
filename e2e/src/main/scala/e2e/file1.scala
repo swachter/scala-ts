@@ -191,3 +191,46 @@ object IteratorTest {
   @JSExportTopLevel("numberIterator")
   def iterator(n: Int): js.Iterator[Int] = (0 to n).toJSIterable.jsIterator()
 }
+
+object ApiReferenceTest {
+
+  // types Input, Output, In1, In2, In2$, Out1, and Out2$ are exported
+  // -> they are reference in the exported method
+
+  type In2  = In2.type
+  type Out2 = Out2.type // the Out2 type alias is not exported because it is not referenced
+
+  type Input  = In1 | In2
+  type Output = Out1 | Out2.type
+
+  @JSExportTopLevel("convertInput2Output")
+  def convertInput2Output(i: Input): Output = {
+    if (i.isInstanceOf[In1]) {
+      new Out1(i.asInstanceOf[In1].i)
+    } else {
+      Out2
+    }
+  }
+
+  @JSExportTopLevel("createInput")
+  def createInput(i: Int): Input = {
+    if (i % 2 == 0) {
+      new In1(i)
+    } else {
+      In2
+    }
+  }
+
+  class Out1(val i: Int) extends js.Object
+
+  object Out2 extends js.Object {
+    val s = "abc"
+  }
+
+  class In1(val i: Int) extends js.Object
+
+  object In2 extends js.Object {
+    val s = "abc"
+  }
+
+}

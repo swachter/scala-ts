@@ -93,7 +93,7 @@ Translation rules for top-level definitions (names given in `@JSExportTopLevel` 
 | `var x: tpe` | `let x: tpe` |
 | `def x(...): tpe` | `function x(...): tpe` |
 | `class X { ...member... }` | `class X { ...member... }`<br>`interface X extends ... {}` | interface generated iff the class extends exported interfaces |
-| `object X { ...member... }` | `interface X { ...member... }`<br>`const X: X` |
+| `object X { ...member... }` | `interface X$ { ...member... }`<br>`const X: X$` |
 | `trait X { ...member... }` | `interface X { ...member... }` | generated iff the trait is referenced in the exported API | 
 | `type X = ...` | `type X = ...` | generated iff the type alias is referenced in the exported API | 
 
@@ -114,17 +114,17 @@ Translation rule for repeated method parameters (varargs):
 | --- | --- |
 | `x: X*` | `...x: X[]` |
 
-For each sealed trait a union type is created that contains all direct subtypes (classes or traits) as alternatives. The name of the union type is equal to the name of the sealed trait with a $ sign appended.
+For each sealed trait a union type is created that contains all direct subtypes (classes or traits) as alternatives. The name of the union type is equal to the name of the sealed trait with '$u' appended.
 
 | Scala Definition | TypeScript Definition |
 | --- | --- |
-| `sealed trait T` | `type T$ = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...`
+| `sealed trait T` | `type T$u = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...`
 
 If the sealed trait belongs to a package then the union type is defined in the corresponding namespace. Sealed trait hierarchies and generics are supported.
 
 ### Discriminated Union Types
 
-If all union cases have a common _discrimantor_ property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks.
+If all union cases have a common _discrimantor_ property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks. (Note: `instanceof` checks are currently not supported for case classes; cf. [scala-js / 4062](https://github.com/scala-js/scala-js/issues/4062).)
 
 Example Scala code (without `JSExport` annotations):
 
@@ -141,7 +141,7 @@ function assertNever(n: never): never {
     throw new Error('never case reached')
 }
 
-function match(t: T$): number | string {
+function match(t: T$u): number | string {
   if (t.tpe === 'i') {
     return t.i // TypeScript knows that t has type Case1 -> access of t.i possible
   } else if (t.tpe === 's') {

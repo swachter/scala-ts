@@ -1,5 +1,5 @@
 import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel}
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel, JSName}
 import scala.util.{Failure, Random, Success}
 import js.JSConverters._
 import scala.collection.mutable
@@ -286,4 +286,12 @@ object NonExportedJsAccess {
   val nonExportedJsObject = NonExportedJsObject
   @JSExportTopLevel("nonExportedJsClass")
   def nonExportedJsClass() = new NonExportedJsClass
+}
+
+// @JSExportTopLevel("outerObject")
+@JSExportTopLevel("obj1")
+object obj1 extends js.Object {
+  object obj2 extends js.Object {
+    val member = "m"
+  }
 }

@@ -29,6 +29,21 @@ import scala.meta.internal.{semanticdb => isb}
 
 package object ts {
 
+  case class ParentType(fullName: FullName, typeArgs: Seq[isb.Type])
+
+  object ParentType {
+
+    def parentTypes(si: SymbolInformation, symTab: SymbolTable): Seq[ParentType] = {
+      si.parents(symTab).collect {
+        case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
+          ParentType(FullName.fromSymbol(symbol), typeArguments)
+      }
+    }
+
+  }
+
+
+
   implicit class PositionOps(val pos: Position) extends AnyVal {
     def includes(range: SRange): Boolean = {
       val s = pos.startLine < range.startLine || pos.startLine == range.startLine && pos.startColumn <= range.startCharacter
@@ -180,6 +195,14 @@ package object ts {
         Seq()
       }
     }
+
+    def parentTypes(symTab: SymbolTable): Seq[ParentType] = {
+      si.parents(symTab).collect {
+        case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
+          ParentType(FullName.fromSymbol(symbol), typeArguments)
+      }
+    }
+
   }
 
   implicit class ScopeOptionOps(val o: Option[Scope]) {

@@ -6,13 +6,13 @@ class ObjectTest extends DtsFunSuite {
 
   test("dts") {
     """
-      |export interface SomeObject {
+      |export interface SomeObject$ {
       |  doIt(): void
       |  readonly x: number
       |  y: number
-      |  'SomeObject': never
+      |  'SomeObject$': never
       |}
-      |export const SomeObject: SomeObject
+      |export const SomeObject: SomeObject$
       |""".check()
   }
 
