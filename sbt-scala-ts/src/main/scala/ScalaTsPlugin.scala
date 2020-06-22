@@ -106,7 +106,7 @@ object ScalaTsPlugin extends AutoPlugin {
 
     log.info(s"ScalaTs input : $inputInfo")
 
-    val output = Generator.generate(exports, symTab)
+    val output = Generator.generate(exports, symTab, Seq.empty)
 
     log.info(s"ScalaTs output: $dtsFile")
 

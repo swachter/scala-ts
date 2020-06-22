@@ -84,3 +84,5 @@ lazy val root = project.in(file("."))
     crossScalaVersions := Nil,
     publish / skip  := true,
   )
+
+onChangedBuildSource in Global := ReloadOnSourceChanges

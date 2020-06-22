@@ -35,7 +35,7 @@ class Namespace(val name: String) {
 
 object Namespace {
 
-  def deriveInterfaces(inputs: List[Input.Defn], symTab: SymbolTable): Namespace = {
+  def deriveInterfaces(inputs: List[Input.Defn], symTab: SymbolTable, isKnownOrBuiltIn: Symbol => Boolean): Namespace = {
 
     val rootNamespace = new Namespace("")
 
@@ -71,7 +71,7 @@ object Namespace {
 
     def isAlreadyAdded(sym: Symbol) = topLevelSymbols.contains(sym) || rootNamespace.contains(FullName.fromSymbol(sym))
 
-    def canBeAdded(sym: Symbol) = !(isAlreadyAdded(sym) || BuiltIn.builtInTypeNames.contains(sym) || isSpecialType(sym))
+    def canBeAdded(sym: Symbol) = !(isAlreadyAdded(sym) || isKnownOrBuiltIn(sym))
 
     // add interfaces for all types that are referenced but have no interface yet
     val referenced = apiRefs
@@ -92,24 +92,5 @@ object Namespace {
 
     rootNamespace
   }
-
-  def isSpecialType(symbol: Symbol) =
-    specialTypes.contains(symbol) ||
-      symbol.matches("scala/scalajs/js/Function\\d+#") ||
-      symbol.matches("scala/scalajs/js/ThisFunction\\d+#") ||
-      symbol.matches("scala/scalajs/js/Tuple\\d+#")
-
-  val specialTypes = Set[Symbol](
-    "scala/scalajs/js/`|`#",
-    "scala/scalajs/js/package.UndefOr#",
-    "scala/scalajs/js/Array#",
-    "scala/scalajs/js/Date#",
-    "scala/scalajs/js/Dictionary#",
-    "scala/scalajs/js/Iterable#",
-    "scala/scalajs/js/Iterator#",
-    "scala/scalajs/js/Promise#",
-    "scala/scalajs/js/RegExp#",
-    "scala/scalajs/js/Symbol#",
-  )
 
 }

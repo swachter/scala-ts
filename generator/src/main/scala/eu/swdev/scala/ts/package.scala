@@ -212,4 +212,11 @@ package object ts {
 
   type Symbol = String
 
+  // a type formatter that can format some types (but maybe not all)
+  type PTypeFormatter = PartialFunction[isb.Type, String]
+
+  // creator for a partial type formatter
+  // -> the creator can use the given type formatter to delegate formatting of nested types
+  type CTypeFormatter = TypeFormatter => PTypeFormatter
+
 }

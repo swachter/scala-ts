@@ -2,32 +2,16 @@ package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
 
-import scala.meta.internal.semanticdb.{
-  BooleanConstant,
-  ByteConstant,
-  CharConstant,
-  ConstantType,
-  DoubleConstant,
-  FloatConstant,
-  IntConstant,
-  LongConstant,
-  RepeatedType,
-  ShortConstant,
-  SingleType,
-  StringConstant,
-  TypeRef,
-  ValueSignature
-}
+import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
+import TypeFormatter.formatTypes
 
 object Generator {
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable): String = {
+  def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter]): String = {
 
     val topLevel = Analyzer.topLevel(inputs)
-
-    val rootNamespace = Namespace.deriveInterfaces(inputs, symTab)
 
     val exportedClassNames = topLevel.collect {
       case TopLevelExport(name, i: Input.Cls) => i.si.symbol -> name
@@ -40,89 +24,14 @@ object Generator {
     def exportedTypeName(symbol: Symbol): Option[String] =
       exportedClassNames.get(symbol).orElse(exportedObjectNames.get(symbol))
 
-    def formatType(tpe: isb.Type): String = tpe match {
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
-        s"${formatType(targs(0))} | undefined"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
-        s"${formatType(targs(0))}[]"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Dictionary#", targs) =>
-        s"{ [key: string]: ${formatType(targs(0))} }"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Promise#", targs) =>
-        s"Promise<${formatType(targs(0))}>"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterable#", targs) =>
-        s"Iterable<${formatType(targs(0))}>"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterator#", targs) =>
-        s"Iterator<${formatType(targs(0))}>"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Date#", targs) =>
-        "Date"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/RegExp#", targs) =>
-        "RegExp"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/Symbol#", targs) =>
-        "symbol"
-      case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Function\\d+#" =>
-        val args = targs
-          .dropRight(1)
-          .zipWithIndex
-          .map {
-            case (tpe, idx) => s"p${idx + 1}: ${formatType(tpe)}"
-          }
-          .mkString("(", ", ", ")")
-        val returnType = formatType(targs.last)
-        s"$args => $returnType"
-      case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/ThisFunction\\d+#" =>
-        val args = targs
-          .dropRight(1)
-          .zipWithIndex
-          .map {
-            case (tpe, 0)   => s"this: ${formatType(tpe)}"
-            case (tpe, idx) => s"p$idx: ${formatType(tpe)}"
-          }
-          .mkString("(", ", ", ")")
-        val returnType = formatType(targs.last)
-        s"$args => $returnType"
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/`|`#", targs) =>
-        s"${formatType(targs(0))} | ${formatType(targs(1))}"
-      case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Tuple\\d+#" =>
-        targs.map(formatType).mkString("[", ", ", "]")
-      case TypeRef(isb.Type.Empty, symbol, tArgs) =>
-        def tas = formatTypes(tArgs.map(formatType))
-        symTab.typeParamSymInfo(symbol) match {
-          case Some(si) => si.displayName
-          case None =>
-            exportedTypeName(symbol) match {
-              case Some(str) => s"$str$tas"
-              case None      => s"${nonExportedTypeName(symbol)}$tas"
-            }
-        }
-      case SingleType(isb.Type.Empty, symbol) =>
-        exportedTypeName(symbol) match {
-          case Some(str) => str
-          case None      => nonExportedTypeName(symbol)
-        }
+    val typeFormatter = new TypeFormatter(custom, exportedTypeName, symTab)
 
-      case ConstantType(constant) =>
-        constant match {
-          case BooleanConstant(value) => String.valueOf(value)
-          case ByteConstant(value)    => String.valueOf(value)
-          case CharConstant(value)    => "object" // ScalaJS represents char as object
-          case DoubleConstant(value)  => String.valueOf(value)
-          case FloatConstant(value)   => String.valueOf(value)
-          case IntConstant(value)     => String.valueOf(value)
-          case LongConstant(value)    => "object" // ScalaJS represents long as object
-          case ShortConstant(value)   => String.valueOf(value)
-          case StringConstant(value)  => s"'${escapeString(value)}'"
-          case _                      => "any"
-        }
-
-      case _ => "any"
-    }
-
-    def formatTypes(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
+    val rootNamespace = Namespace.deriveInterfaces(inputs, symTab, typeFormatter.isKnownOrBuiltIn)
 
     def formatNameAndType(name: String, tpe: isb.Type): String = tpe match {
-      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${formatType(targs(0))}"
-      case RepeatedType(tpe)                                                   => s"...$name: ${formatType(tpe)}[]"
-      case _                                                                   => s"$name: ${formatType(tpe)}"
+      case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${typeFormatter(targs(0))}"
+      case RepeatedType(tpe)                                                   => s"...$name: ${typeFormatter(tpe)}[]"
+      case _                                                                   => s"$name: ${typeFormatter(tpe)}"
     }
 
     def formatMethodParam(symbol: String, e: Input.Def): String = {
@@ -144,22 +53,22 @@ object Generator {
         case None        => ""
       }
       val params     = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i))).mkString(", ")
-      val returnType = formatType(i.methodSignature.returnType)
+      val returnType = typeFormatter(i.methodSignature.returnType)
       sb.append(s"export function $name$tParams($params): $returnType\n")
     }
 
     def exportVal(name: String, i: Input.Val): Unit = {
-      val returnType = formatType(i.methodSignature.returnType)
+      val returnType = typeFormatter(i.methodSignature.returnType)
       sb.append(s"export const $name: $returnType\n")
     }
 
     def exportVar(name: String, i: Input.Var): Unit = {
-      val returnType = formatType(i.methodSignature.returnType)
+      val returnType = typeFormatter(i.methodSignature.returnType)
       sb.append(s"export let $name: $returnType\n")
     }
 
     def memberDef(i: Input.Def): String = {
-      val returnType = formatType(i.methodSignature.returnType)
+      val returnType = typeFormatter(i.methodSignature.returnType)
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
         s"  get ${i.memberName}(): $returnType\n"
@@ -219,7 +128,7 @@ object Generator {
       val ext = i.si
         .parents(symTab)
         .find(p => p.typeSymbol.filter(exportedClassNames.contains(_)).map(symTab.isClass(_)).getOrElse(false))
-        .fold("")(p => s" extends ${formatType(p)}")
+        .fold("")(p => s" extends ${typeFormatter(p)}")
 
       // an interface with the same name is included in the root namespace
       // -> that interface possibly extends base interfaces
@@ -246,7 +155,7 @@ object Generator {
 
       val ext =
         if (parents.isEmpty) ""
-        else parents.map(p => s"${p.fullName}${formatTypes(p.typeArgs.map(formatType))}").mkString(" extends ", ", ", "")
+        else parents.map(p => s"${p.fullName}${formatTypes(p.typeArgs.map(typeFormatter))}").mkString(" extends ", ", ", "")
 
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
@@ -301,7 +210,7 @@ object Generator {
     def exportAlias(tpe: Output.Alias, indent: Int): Unit = {
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
-      sb.append(s"$space${exp}type ${tpe.simpleName}${formatTypes(tpe.typeParamDisplayNames(symTab))} = ${formatType(tpe.rhs)}\n")
+      sb.append(s"$space${exp}type ${tpe.simpleName}${formatTypes(tpe.typeParamDisplayNames(symTab))} = ${typeFormatter(tpe.rhs)}\n")
     }
 
     def exportNs(ns: Namespace, indent: Int): Unit = {
@@ -337,21 +246,4 @@ object Generator {
     sb.toString
   }
 
-  def nonExportedTypeName(symbol: String): String = BuiltIn.builtInTypeNames.getOrElse(symbol, FullName.fromSymbol(symbol).str)
-
-  def escapeString(str: String): String = {
-    str.flatMap {
-      case '\b'                      => "\\b"
-      case '\f'                      => "\\f"
-      case '\n'                      => "\\n"
-      case '\r'                      => "\\r"
-      case '\t'                      => "\\t"
-      case '\u000b'                  => "\\v"
-      case '\''                      => "\\'"
-      case '\"'                      => "\\\""
-      case '\\'                      => "\\"
-      case c if c >= ' ' && c <= 126 => c.toString
-      case c                         => f"\\u$c%04x"
-    }
-  }
 }
