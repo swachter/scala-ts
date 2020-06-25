@@ -1,10 +1,10 @@
 package e2e
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel, JSGlobal}
 import js.JSConverters._
 import scala.collection.mutable
-import scala.scalajs.js.{ThisFunction0, ThisFunction1, ThisFunction2, |}
+import scala.scalajs.js.{ThisFunction0, ThisFunction1, ThisFunction2, UndefOr, |}
 
 @JSExportTopLevel("Simple")
 case class Simple(int: Int, string: String, boolean: Boolean, double: Double)
@@ -233,4 +233,23 @@ object ApiReferenceTest {
     val s = "abc"
   }
 
+}
+
+object GlobalTest {
+  @js.native
+  @JSGlobal("WeakMap")
+  class WeakMap[K <: js.Object, V <: js.Any] extends js.Object {
+
+    def delete(key: K): Unit = js.native
+
+    def has(key: K): Boolean = js.native
+
+    def get(key: K): UndefOr[V] = js.native
+
+    def set(key: K, value: V): Unit = js.native
+
+  }
+
+  @JSExportTopLevel("setInWeakMap")
+  def setInWeakMap[K <: js.Object, V <: js.Any](key: K, value: V, map: WeakMap[K, V]): Unit = map.set(key, value)
 }

@@ -54,7 +54,7 @@ object Output {
     def apply(si: SymbolInformation, symTab: SymbolTable): Interface = apply(si, Nil, symTab)
 
     def apply(si: SymbolInformation, member: List[Input], symTab: SymbolTable): Interface = {
-      apply(si, FullName.fromSymbol(si.symbol), member, symTab)
+      apply(si, FullName(si), member, symTab)
     }
 
     def apply(si: SymbolInformation, fullName: FullName, member: List[Input], symTab: SymbolTable): Interface = {
@@ -71,15 +71,14 @@ object Output {
   //
 
   case class Alias(e: Input.Alias) extends Type {
-    def fullName: FullName = FullName.fromSymbol(e.si.symbol)
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = e.si.typeParamDisplayNames(symTab)
+    def fullName: FullName = FullName(e.si)
     def rhs = e.typeSignature.lowerBound
   }
 
   //
 
   case class Union private (sealedTrait: Input.Trait, members: Seq[UnionMember]) extends Type {
-    def fullName: FullName = FullName.fromSymbol(sealedTrait.si.symbol).withUnionSuffix
+    def fullName: FullName = FullName(sealedTrait.si).withUnionSuffix
     def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = sealedTrait.classSignature.typeParamDisplayNames(symTab)
   }
 

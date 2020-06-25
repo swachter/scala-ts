@@ -2,14 +2,15 @@ package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
 
-import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, ValueSignature}
+import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, TypeSignature, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
-import TypeFormatter.formatTypes
 
 object Generator {
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter]): String = {
+  import TypeFormatter._
+
+  def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader): String = {
 
     val topLevel = Analyzer.topLevel(inputs)
 
@@ -26,7 +27,18 @@ object Generator {
 
     val typeFormatter = new TypeFormatter(custom, exportedTypeName, symTab)
 
-    val rootNamespace = Namespace.deriveInterfaces(inputs, symTab, typeFormatter.isKnownOrBuiltIn)
+    import typeFormatter._
+
+    val nativeAnalyzer = new NativeAnalyzer(classLoader)
+
+    val (rootNamespace, globalOrImported) = Namespace.deriveInterfaces(
+      inputs,
+      symTab,
+      typeFormatter.isKnownOrBuiltIn,
+      nativeAnalyzer
+    )
+
+    globalOrImported.foreach(typeFormatter.namedNativeTypes += _)
 
     def formatNameAndType(name: String, tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${typeFormatter(targs(0))}"
@@ -42,19 +54,26 @@ object Generator {
 
     def tParam(symbol: String, e: Input): String = {
       val si = e.semSrc.symbolInfo(symbol)
-      s"${si.displayName}"
+      val ts = si.signature.asInstanceOf[TypeSignature]
+      val ub = ts.upperBound.typeSymbol match {
+        case Some("scala/Any#") => ""
+        case Some(_) => s" extends ${formatType(ts.upperBound)}"
+        case None => ""
+      }
+      s"${si.displayName}$ub"
+    }
+
+    def tParams(symbols: Seq[Symbol], i: Input): String = {
+      formatTypeNames(symbols.map(tParam(_, i)))
     }
 
     val sb = new StringBuilder
 
     def exportDef(name: String, i: Input.Def): Unit = {
-      val tParams = i.methodSignature.typeParameters match {
-        case Some(scope) => formatTypes(scope.symlinks.map(tParam(_, i)))
-        case None        => ""
-      }
+      val tps = tParams(i.methodSignature.typeParamSymbols, i)
       val params     = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i))).mkString(", ")
       val returnType = typeFormatter(i.methodSignature.returnType)
-      sb.append(s"export function $name$tParams($params): $returnType\n")
+      sb.append(s"export function $name$tps($params): $returnType\n")
     }
 
     def exportVal(name: String, i: Input.Val): Unit = {
@@ -68,6 +87,7 @@ object Generator {
     }
 
     def memberDef(i: Input.Def): String = {
+      val tps = tParams(i.methodSignature.typeParamSymbols, i)
       val returnType = typeFormatter(i.methodSignature.returnType)
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
@@ -79,7 +99,7 @@ object Generator {
           // name ends with _= -> it's a setter
           s"  set ${i.memberName.dropRight(2)}($params)\n"
         } else {
-          s"  ${i.memberName}($params): $returnType\n"
+          s"  ${i.memberName}$tps($params): $returnType\n"
         }
       }
     }
@@ -102,7 +122,7 @@ object Generator {
     }
 
     def memberObj(i: Input.Obj): String = {
-      s"readonly ${i.memberName}: ${FullName.fromSymbol(i.si.symbol)}"
+      s"readonly ${i.memberName}: ${FullName(i.si)}"
     }
 
     def exportObj(name: String, i: Input.Obj): Unit = {
@@ -122,7 +142,7 @@ object Generator {
       if (itf.parents.exists(isParentTypeKnown)) {
         exportItf(itf, 0)
       }
-      val tParams = formatTypes(i.classSignature.typeParamDisplayNames(symTab))
+      val tps = tParams(i.classSignature.typeParamSymbols, i)
 
       // check if there is an exported parent class
       val ext = i.si
@@ -134,7 +154,7 @@ object Generator {
       // -> that interface possibly extends base interfaces
       // -> the declaration of the interface and the declaration of the class are "merged"
       //    (cf. TypeScript declaration merging)
-      sb.append(s"export class $name$tParams$ext {\n")
+      sb.append(s"export class $name$tps$ext {\n")
 
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
       sb.append(s"  constructor($cParams)\n")
@@ -155,12 +175,12 @@ object Generator {
 
       val ext =
         if (parents.isEmpty) ""
-        else parents.map(p => s"${p.fullName}${formatTypes(p.typeArgs.map(typeFormatter))}").mkString(" extends ", ", ", "")
+        else parents.map(p => s"${p.fullName}${formatTypes(p.typeArgs)}").mkString(" extends ", ", ", "")
 
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
 
-      sb.append(s"$space${exp}interface ${itf.simpleName}${formatTypes(itf.typeParams)}$ext {\n")
+      sb.append(s"$space${exp}interface ${itf.simpleName}${formatTypeNames(itf.typeParams)}$ext {\n")
 
       itf.members
         .map {
@@ -200,17 +220,19 @@ object Generator {
               case SubtypeArg.Parent(idx) => (parentArgNames(idx) :: accu._1, accu._2)
               case SubtypeArg.Private     => (s"T${accu._2}$$" :: accu._1, accu._2 + 1)
           })
-          (s"${member.name}${formatTypes(tArgs)}" :: accu._1, count)
+          (s"${member.name}${formatTypeNames(tArgs)}" :: accu._1, count)
         })
 
       val members = subtypes.reverse.mkString(" | ")
-      sb.append(s"$space${exp}type ${union.fullName.last}${formatTypes(tParams)} = $members\n")
+      sb.append(s"$space${exp}type ${union.fullName.last}${formatTypeNames(tParams)} = $members\n")
     }
 
     def exportAlias(tpe: Output.Alias, indent: Int): Unit = {
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
-      sb.append(s"$space${exp}type ${tpe.simpleName}${formatTypes(tpe.typeParamDisplayNames(symTab))} = ${typeFormatter(tpe.rhs)}\n")
+      val tps = tParams(tpe.e.si.typeParamSymbols, tpe.e)
+
+      sb.append(s"$space${exp}type ${tpe.simpleName}$tps = ${typeFormatter(tpe.rhs)}\n")
     }
 
     def exportNs(ns: Namespace, indent: Int): Unit = {
@@ -228,6 +250,17 @@ object Generator {
       if (indent >= 0) {
         sb.append(s"$space}\n")
       }
+    }
+
+    val mods2Names = typeFormatter.namedNativeTypes.toList.collect {
+      case (_, Nativeness.Imported(module, name)) => module -> name
+    }.groupBy(_._1).mapValues(l => l.map(_._2).toSet)
+
+    mods2Names.toList.sortBy(_._1).foreach { case (module, names) =>
+      val defImport = if (names.contains("default")) Some(s"${moduleName2Id(module)}_") else None
+      val namespaceExport = if (names.exists(_ != "default")) Some(s"* as ${moduleName2Id(module)}") else None
+      val str = (defImport ++ namespaceExport.toSeq).mkString(", ")
+      sb.append(s"import $str from '$module'\n")
     }
 
     topLevel.foreach {

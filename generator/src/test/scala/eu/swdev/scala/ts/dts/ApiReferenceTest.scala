@@ -49,8 +49,11 @@ object ApiReferenceTest {
   type Input  = In1 | In2
   type Output = Out1 | Out2.type
 
-  @JSExportTopLevel("someExportedMethod")
-  def someExportedMethod(in: Input): Output = ???
+  @JSExportTopLevel("convertInput2Output")
+  def convertInput2Output(i: Input): Output = ???
+
+  @JSExportTopLevel("createInput")
+  def createInput(i: Int): Input = ???
 
   class Out1(val i: Int) extends js.Object
 

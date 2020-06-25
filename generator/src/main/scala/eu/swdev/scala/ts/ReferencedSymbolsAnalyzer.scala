@@ -35,7 +35,7 @@ object ReferencedSymbolsAnalyzer {
     *
     * The symbols of the top level exported items are also included.
     */
-  def referencedSymbols(inputs: List[Input.Defn], symTab: SymbolTable): Set[Symbol] = {
+  def referencedTypeSymbols(inputs: List[Input.Defn], symTab: SymbolTable): Set[Symbol] = {
 
     val topLevelExports = Analyzer.topLevel(inputs).map(_.exportable)
 

@@ -78,7 +78,7 @@ trait DtsGeneration {
 
     val exports = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
 
-    Generator.generate(exports, symTab, Seq.empty).trim
+    Generator.generate(exports, symTab, Seq.empty, getClass.getClassLoader).trim
   }
 
 }

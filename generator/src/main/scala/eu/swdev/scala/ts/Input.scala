@@ -24,6 +24,7 @@ object FullName {
     val s = sym.substring(0, sym.length - 1).replace('/', '.').replace(".package.", ".")
     s"$s$suffix"
   }
+  def apply(si: SymbolInformation): FullName       = fromSymbol(si.symbol)
   def fromSymbol(symbol: Symbol): FullName         = new FullName(symbol2TypeName(symbol))
   def fromSimpleName(simpleName: String): FullName = new FullName(simpleName)
 

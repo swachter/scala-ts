@@ -31,7 +31,6 @@ The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it 
 | --- | --- |
 | `scalaTsModuleName` | Name of the generated node module (default: project name) |
 | `scalaTsModuleVersion` | Transforms the project version into the node module version (default: identity function with check);<br> **the node module version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
-| `scalaTsDialect` | Dialect of the ScalaJS sources (default: Scala213) |
 | `scalaTsFastOpt` | Task: Generate node module including typescript declaration file based on the fastOptJS output |
 | `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |
 
@@ -57,6 +56,8 @@ Supported ScalaJS Interoperability Types
 
 | ScalaJS Type | TypeScript Type |
 | --- | --- |
+| `js.Any` | `any` |
+| `js.Object` | `object` |
 | `js.UndefOr[X]` | `p?: X` or `X `<code>&#124;</code>` undefined` depending on position |
 | `js.Array[X]` | `X[]` |
 | `js.FunctionN[T1, ... TN, R]` | `(p1: T1, ... pn: TN) => R` |
@@ -83,7 +84,7 @@ Scala types that are referenced in exported definitions (i.e. vals, vars, or met
 General rules:
 - Type ascriptions can be omitted from ScalaJS sources; they are automatically inferred and included in the generated TypeScript declaration file.
 - Multiple argument lists are flattened into a single argument list.
-- Generics are supported; variance annotations are ignored.
+- Generics including upper bounds are supported; variance annotations are ignored.
 
 Translation rules for top-level definitions (names given in `@JSExportTopLevel` and `@JSExport` annotations are respected):
 

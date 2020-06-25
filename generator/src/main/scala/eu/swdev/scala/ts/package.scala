@@ -35,14 +35,12 @@ package object ts {
 
     def parentTypes(si: SymbolInformation, symTab: SymbolTable): Seq[ParentType] = {
       si.parents(symTab).collect {
-        case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
+        case TypeRef(isb.Type.Empty, symbol, typeArguments) =>
           ParentType(FullName.fromSymbol(symbol), typeArguments)
       }
     }
 
   }
-
-
 
   implicit class PositionOps(val pos: Position) extends AnyVal {
     def includes(range: SRange): Boolean = {
@@ -79,6 +77,14 @@ package object ts {
   implicit class ClassSignatureOps(val classSignature: ClassSignature) extends AnyVal {
     def typeParamSymbols: Seq[String]                           = classSignature.typeParameters.typeParamSymbols
     def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = classSignature.typeParameters.typeParamDisplayNames(symTab)
+  }
+
+  implicit class MethodSignatureOps(val signature: MethodSignature) extends AnyVal {
+    def typeParamSymbols: Seq[String] = signature.typeParameters.typeParamSymbols
+  }
+
+  implicit class TypeSignatureOps(val signature: TypeSignature) extends AnyVal {
+    def typeParamSymbols: Seq[String] = signature.typeParameters.typeParamSymbols
   }
 
   implicit class TypeOps(val tpe: isb.Type) extends AnyVal {
@@ -196,9 +202,21 @@ package object ts {
       }
     }
 
+    def typeParamSymbols: Seq[String] = {
+      if (si.signature.isInstanceOf[ClassSignature]) {
+        si.signature.asInstanceOf[isb.ClassSignature].typeParamSymbols
+      } else if (si.signature.isInstanceOf[TypeSignature]) {
+        si.signature.asInstanceOf[isb.TypeSignature].typeParamSymbols
+      } else if (si.signature.isInstanceOf[MethodSignature]) {
+        si.signature.asInstanceOf[isb.MethodSignature].typeParamSymbols
+      } else {
+        Seq()
+      }
+    }
+
     def parentTypes(symTab: SymbolTable): Seq[ParentType] = {
       si.parents(symTab).collect {
-        case TypeRef(isb.Type.Empty, symbol, typeArguments)  =>
+        case TypeRef(isb.Type.Empty, symbol, typeArguments) =>
           ParentType(FullName.fromSymbol(symbol), typeArguments)
       }
     }
@@ -206,7 +224,7 @@ package object ts {
   }
 
   implicit class ScopeOptionOps(val o: Option[Scope]) {
-    def typeParamSymbols: Seq[String] = o.toSeq.flatMap(_.symlinks)
+    def typeParamSymbols: Seq[String]                           = o.toSeq.flatMap(_.symlinks)
     def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = typeParamSymbols.map(symTab.info(_).get.displayName)
   }
 

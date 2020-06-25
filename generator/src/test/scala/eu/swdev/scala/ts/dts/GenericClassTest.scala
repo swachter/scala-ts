@@ -9,7 +9,7 @@ class GenericClassTest extends DtsFunSuite {
       |export class Box<T> {
       |  constructor(value: T)
       |  readonly value: T
-      |  map(f: scala.Function1<T,X>): Box<X>
+      |  map<X>(f: scala.Function1<T,X>): Box<X>
       |}
       |export function box<T>(value: T): Box<T>
       |export function unbox<T>(b: Box<T>): T

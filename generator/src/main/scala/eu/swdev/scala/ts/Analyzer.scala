@@ -19,6 +19,9 @@ object Analyzer {
   val jsExportSymbol         = classSymbol[JSExport]
   val jsExportAllSymbol      = classSymbol[JSExportAll]
 
+  /**
+   * @return flattened list of all input definitions
+   */
   def analyze(semSrc: SemSource, symTab: SymbolTable): List[Input.Defn] = {
 
     def existsSymbolReference(tree: Tree, symbol: String): Boolean =
@@ -222,17 +225,11 @@ object Analyzer {
     b.result()
   }
 
-  def types(is: List[Input.Defn]): List[Input.Type] = {
-    val b = List.newBuilder[Input.Type]
-    def go(i: Input.Defn): Unit = i match {
-      case i: Input.DefOrValOrVar =>
-      case i: Input.Alias         => b += i
-      case i: Input.Cls           => b += i; i.member.foreach(go)
-      case i: Input.Obj           => b += i; i.member.foreach(go)
-      case i: Input.Trait         => b += i; i.member.foreach(go)
-    }
-    is.foreach(go)
-    b.result()
+  /**
+   * @param is flattened list of all input definitions
+   */
+  def types(is: List[Input.Defn]): List[Input.Type] = is.collect {
+    case i: Input.Type => i
   }
 
 }

@@ -1,5 +1,6 @@
 package eu.swdev.scala.ts
 
+import scala.collection.mutable
 import scala.meta.internal.semanticdb.{
   BooleanConstant,
   ByteConstant,
@@ -32,13 +33,32 @@ class TypeFormatter(
 
   import TypeFormatter._
 
-  override def apply(tpe: Type): String = formatter(tpe)
+  override def apply(tpe: Type): String = formatType(tpe)
+
+  def formatType(tpe: Type): String = formatter(tpe)
+
+  def formatTypes(targs: Seq[isb.Type]) = formatTypeNames(targs.map(formatType))
 
   def isKnownOrBuiltIn(sym: Symbol): Boolean = knownOrBuiltInFormatter.isDefinedAt(TypeRef(isb.Type.Empty, sym, Seq.empty))
+
+  val namedNativeTypes = mutable.Map.empty[Symbol, Nativeness.Named]
 
   val builtInFormatterCreator: CTypeFormatter = formatType => {
     case TypeRef(isb.Type.Empty, symbol, targs) if simpleBuiltInTypeNames.contains(symbol) =>
       simpleBuiltInTypeNames(symbol)
+    case TypeRef(isb.Type.Empty, symbol, targs) if namedNativeTypes.contains(symbol) =>
+      val tas = formatTypes(targs)
+      namedNativeTypes(symbol) match {
+        case Nativeness.Global(name)                => s"$name$tas"
+        case Nativeness.Imported(module, "default") => s"${moduleName2Id(module)}_$tas"
+        case Nativeness.Imported(module, name)      => s"${moduleName2Id(module)}.$name$tas"
+      }
+    case SingleType(isb.Type.Empty, symbol) if namedNativeTypes.contains(symbol) =>
+      namedNativeTypes(symbol) match {
+        case Nativeness.Global(name)                => s"$name"
+        case Nativeness.Imported(module, "default") => s"${moduleName2Id(module)}_"
+        case Nativeness.Imported(module, name)      => s"${moduleName2Id(module)}.$name"
+      }
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
       s"${formatType(targs(0))} | undefined"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
@@ -98,7 +118,7 @@ class TypeFormatter(
   val catchAllFormatterCreator: CTypeFormatter = formatType => {
 
     case TypeRef(isb.Type.Empty, symbol, tArgs) =>
-      def tas = formatTypes(tArgs.map(formatType))
+      def tas = formatTypeNames(tArgs.map(formatType))
       exportedTypeName(symbol) match {
         case Some(str) => s"$str$tas"
         case None      => s"${nonExportedTypeName(symbol)}$tas"
@@ -125,7 +145,9 @@ class TypeFormatter(
     "scala/Nothing#"           -> "never",
     "scala/Predef.String#"     -> "string",
     "scala/Unit#"              -> "void",
+    "scala/scalajs/js/Any#"    -> "any",
     "scala/scalajs/js/Date#"   -> "Date",
+    "scala/scalajs/js/Object#" -> "object",
     "scala/scalajs/js/RegExp#" -> "RegExp",
     "scala/scalajs/js/Symbol#" -> "symbol"
   )
@@ -159,6 +181,15 @@ object TypeFormatter {
     }
   }
 
-  def formatTypes(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
+  def moduleName2Id(moduleName: String) = {
+    val namePart = moduleName.map {
+      case c @ ('$' | '_')                                    => c
+      case c if Character.isLetter(c) || Character.isDigit(c) => c
+      case _                                                  => '_'
+    }
+    s"$$$namePart"
+  }
+
+  def formatTypeNames(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")
 
 }

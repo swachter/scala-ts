@@ -117,23 +117,23 @@ object SealedTraitSubtypeAnalyzer {
   object Subtype {
     case class Subclass(parent: Input.Trait, subcls: Input.Cls) extends Subtype {
       override def unionMemberName =
-        subcls.name.topLevelExportName.map(FullName.fromSimpleName(_)).getOrElse(FullName.fromSymbol(subcls.si.symbol))
+        subcls.name.topLevelExportName.map(FullName.fromSimpleName(_)).getOrElse(FullName(subcls.si))
       override def classSignature      = subcls.classSignature
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class Subobject(parent: Input.Trait, subobj: Input.Obj) extends Subtype {
       override def unionMemberName =
-        subobj.name.topLevelExportName.map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName.fromSymbol(subobj.si.symbol))
+        subobj.name.topLevelExportName.map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName(subobj.si))
       override def classSignature      = subobj.si.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class OpaqueSubclass(parent: Input.Trait, subclsSymbolInfo: SymbolInformation) extends Subtype {
-      override def unionMemberName     = FullName.fromSymbol(subclsSymbolInfo.symbol)
+      override def unionMemberName     = FullName(subclsSymbolInfo)
       override def classSignature      = subclsSymbolInfo.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class Subtrait(parent: Input.Trait, subtraitSymbolInfo: SymbolInformation, subtypes: List[Subtype]) extends Subtype {
-      override def unionMemberName = FullName.fromSymbol(subtraitSymbolInfo.symbol)
+      override def unionMemberName = FullName(subtraitSymbolInfo)
       override def classSignature  = subtraitSymbolInfo.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = {
         val allTypeArgs               = subtypes.flatMap(_.completeSubtypeArgs)
