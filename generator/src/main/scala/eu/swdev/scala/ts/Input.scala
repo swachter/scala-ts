@@ -3,7 +3,7 @@ package eu.swdev.scala.ts
 import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
 import scala.meta.{Defn, Term}
 
-class FullName private (val str: String) extends AnyVal {
+case class FullName private (str: String) extends AnyVal {
   override def toString: String = str
   def last: String              = str.split('.').last
   def head: String              = str.split('.').head

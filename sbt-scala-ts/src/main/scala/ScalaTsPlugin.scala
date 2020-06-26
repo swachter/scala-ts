@@ -82,7 +82,7 @@ object ScalaTsPlugin extends AutoPlugin {
         .withBootJars((config.compileClassDir +: config.compileFullClasspath).toVector)
         .withOutputStrategy(OutputStrategy.LoggedOutput(log))
         //.withRunJVMOptions(Vector("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"))
-        .withEnvVars(config.asEnvVars ++ Map("JAVA_OPTS" -> "-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005")),
+        .withEnvVars(config.asEnvVars),
       Seq(s"${classOf[ForkedMain].getName}")
     )
   }

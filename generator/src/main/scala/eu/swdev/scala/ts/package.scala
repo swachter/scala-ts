@@ -50,6 +50,24 @@ package object ts {
     }
   }
 
+  case class TParam(displayName: String, upperBound: Option[isb.Type])
+
+  object TParam {
+    def apply(sym: Symbol, symTab: SymbolTable): TParam = {
+      symTab.info(sym) match {
+        case Some(si) =>
+          val ts = si.signature.asInstanceOf[TypeSignature]
+          val upperBound = ts.upperBound.typeSymbol match {
+            case Some("scala/Any#") => None
+            case Some(_)            => Some(ts.upperBound)
+            case None               => None
+          }
+          TParam(si.displayName, upperBound)
+        case None => throw new RuntimeException(s"missing symbol information for type parameter symbol: $sym")
+      }
+    }
+  }
+
   implicit class SymbolTableOps(val symbolTable: SymbolTable) extends AnyVal {
 
     def typeParamSymInfo(symbol: Symbol): Option[SymbolInformation] = symbolTable.info(symbol).filter(_.kind == Kind.TYPE_PARAMETER)
@@ -75,8 +93,7 @@ package object ts {
   }
 
   implicit class ClassSignatureOps(val classSignature: ClassSignature) extends AnyVal {
-    def typeParamSymbols: Seq[String]                           = classSignature.typeParameters.typeParamSymbols
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = classSignature.typeParameters.typeParamDisplayNames(symTab)
+    def typeParamSymbols: Seq[String] = classSignature.typeParameters.typeParamSymbols
   }
 
   implicit class MethodSignatureOps(val signature: MethodSignature) extends AnyVal {
@@ -190,18 +207,6 @@ package object ts {
       si.symbol == sym || si.parents(symTab).exists(_.isSubtypeOf(sym, symTab))
     }
 
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = {
-      if (si.signature.isInstanceOf[ClassSignature]) {
-        si.signature.asInstanceOf[isb.ClassSignature].typeParameters.typeParamDisplayNames(symTab)
-      } else if (si.signature.isInstanceOf[TypeSignature]) {
-        si.signature.asInstanceOf[isb.TypeSignature].typeParameters.typeParamDisplayNames(symTab)
-      } else if (si.signature.isInstanceOf[MethodSignature]) {
-        si.signature.asInstanceOf[isb.MethodSignature].typeParameters.typeParamDisplayNames(symTab)
-      } else {
-        Seq()
-      }
-    }
-
     def typeParamSymbols: Seq[String] = {
       if (si.signature.isInstanceOf[ClassSignature]) {
         si.signature.asInstanceOf[isb.ClassSignature].typeParamSymbols
@@ -224,8 +229,7 @@ package object ts {
   }
 
   implicit class ScopeOptionOps(val o: Option[Scope]) {
-    def typeParamSymbols: Seq[String]                           = o.toSeq.flatMap(_.symlinks)
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = typeParamSymbols.map(symTab.info(_).get.displayName)
+    def typeParamSymbols: Seq[String] = o.toSeq.flatMap(_.symlinks)
   }
 
   type Symbol = String

@@ -96,7 +96,6 @@ object SealedTraitSubtypeAnalyzer {
           case TypeRef(isb.Type.Empty, symbol, tArgs) if symbol == parentSymbol =>
             tArgs.zipWithIndex.flatMap {
               case (tpe, idx) => tpe.typeSymbol.map(_ -> idx)
-
             }
         }
         .flatten
@@ -105,7 +104,7 @@ object SealedTraitSubtypeAnalyzer {
       classSignature.typeParamSymbols.map { typeParamSymbol =>
         typeArgumentsForParent.get(typeParamSymbol) match {
           case Some(idx) => SubtypeArg.Parent(idx)
-          case None      => SubtypeArg.Private
+          case None      => SubtypeArg.Unrelated(unionMemberName, typeParamSymbol)
         }
       }
 
@@ -143,13 +142,36 @@ object SealedTraitSubtypeAnalyzer {
     }
   }
 
+  // represent a type argument of a subtype of a sealed trait
+  // two kinds of type arguments are distinguished:
+
+  /**
+    * Represents a type argument for a subtype of a sealed trait that is part of a union.
+    *
+    * Two kinds of type arguments are distinguished:
+    *
+    *  1. Type arguments that are passed through to the parent type (e.g. type X in Some[X] extends Option[X])
+    *  1. Type arguments that are unrelated to the parent type
+    */
   sealed trait SubtypeArg
 
   object SubtypeArg {
-    case class Parent(idx: Int) extends SubtypeArg
-    case object Private         extends SubtypeArg
 
-    def split(allTypeArgs: Seq[SubtypeArg]): (Seq[Parent], Seq[Private.type]) = {
+    /**
+      * A type argument that is passed through to the parent type
+      *
+      * @param idx index of the corresponding parent type parameter
+      */
+    case class Parent(idx: Int) extends SubtypeArg
+
+    /**
+     * A type argument that is unrelated to the parent type
+     *
+     * @param sym symbol of the type parameter
+     */
+    case class Unrelated(unionMemberName: FullName, sym: Symbol) extends SubtypeArg
+
+    def split(allTypeArgs: Seq[SubtypeArg]): (Seq[Parent], Seq[Unrelated]) = {
       val parentArgsSet = allTypeArgs.collect {
         case p @ Parent(_) => p
       }.toSet
@@ -157,7 +179,7 @@ object SealedTraitSubtypeAnalyzer {
       val parentArgs = parentArgsSet.toList.sortBy(_.idx)
 
       val privateArgs = allTypeArgs.collect {
-        case Private => Private
+        case u: Unrelated => u
       }
       (parentArgs, privateArgs)
     }

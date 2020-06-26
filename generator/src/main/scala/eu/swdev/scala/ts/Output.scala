@@ -47,7 +47,7 @@ object Output {
 
   //
 
-  case class Interface private (fullName: FullName, typeParams: Seq[String], parents: Seq[ParentType], members: List[Input]) extends Type
+  case class Interface private (fullName: FullName, typeParamSyms: Seq[Symbol], parents: Seq[ParentType], members: List[Input]) extends Type
 
   object Interface {
 
@@ -60,7 +60,7 @@ object Output {
     def apply(si: SymbolInformation, fullName: FullName, member: List[Input], symTab: SymbolTable): Interface = {
       new Interface(
         fullName,
-        si.typeParamDisplayNames(symTab),
+        si.typeParamSymbols,
         ParentType.parentTypes(si, symTab),
         member
       )
@@ -79,7 +79,6 @@ object Output {
 
   case class Union private (sealedTrait: Input.Trait, members: Seq[UnionMember]) extends Type {
     def fullName: FullName = FullName(sealedTrait.si).withUnionSuffix
-    def typeParamDisplayNames(symTab: SymbolTable): Seq[String] = sealedTrait.classSignature.typeParamDisplayNames(symTab)
   }
 
   object Union {
