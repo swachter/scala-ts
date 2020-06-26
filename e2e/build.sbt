@@ -5,7 +5,7 @@ scalaTsFastOpt / logLevel := Level.Info
 val npmReinstallAndTest = taskKey[Unit]("Reinstalls node modules and executes tests")
 
 lazy val root = (project in file("."))
-  .enablePlugins(ScalaTsPlugin)
+  .enablePlugins(ScalaTsPlugin, ScalablyTypedConverterExternalNpmPlugin)
   .settings(
     scalaVersion := "2.13.2",
     version := "0.0.1-SNAPSHOT",
@@ -14,6 +14,7 @@ lazy val root = (project in file("."))
     scalaTsModuleName := "scala-ts-mod",
     (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
+    // scalaTsChangeForkOptions := withDebugForkOptions(5005),
     test := {
       // tests depend on ScalaTs output
       scalaTsFastOpt.value
@@ -38,5 +39,9 @@ lazy val root = (project in file("."))
       if (r != 0) {
         throw new MessageOnlyException("e2e tests failed")
       }
+    },
+    externalNpm := {
+      Process(Seq("npm", "i"), baseDirectory.value).!
+      baseDirectory.value
     },
   )

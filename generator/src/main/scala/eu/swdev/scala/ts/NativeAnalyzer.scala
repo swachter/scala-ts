@@ -2,17 +2,34 @@ package eu.swdev.scala.ts
 
 import scala.reflect.runtime.{universe => ru}
 import ru._
+import scala.meta.internal.semanticdb.{ClassSignature, TypeSignature}
+import scala.meta.internal.symtab.SymbolTable
+import scala.reflect.NameTransformer
 
 class NativeAnalyzer(cl: ClassLoader) {
 
   val mirror = ru.runtimeMirror(cl)
 
+  def nativeness(sym: String, symTab: SymbolTable): Nativeness = {
+    symTab.typeSymInfo(sym) match {
+      case Some(si) => si.signature match {
+        case TypeSignature(typeParameters, lowerBound, upperBound) => upperBound.typeSymbol.map(s => nativeness(s, symTab)).getOrElse(Nativeness.none)
+        case ClassSignature(typeParameters, parents, self, declarations)  => nativeness(FullName(si))
+        case _ => Nativeness.None
+      }
+      case None => Nativeness.None
+    }
+  }
+
   def nativeness(fn: FullName): Nativeness = {
-    if (fn.str.endsWith("$")) {
-      val ms = mirror.staticModule(fn.str.dropRight(1))
+    // translate ScalaMeta symbol into corresponding scala-reflect fullName
+    val translated = fn.str.replace("`", "").split('.').map(NameTransformer.encode(_)).mkString(".")
+
+    if (translated.endsWith("$")) {
+      val ms = mirror.staticModule(translated.dropRight(1))
       nativeness(ms.moduleClass.asClass)
     } else {
-      val cs = mirror.staticClass(fn.str)
+      val cs = mirror.staticClass(translated)
       nativeness(cs)
     }
   }

@@ -15,8 +15,12 @@ object ScalaTsPlugin extends AutoPlugin {
     val scalaTsModuleName = settingKey[String]("Name of the generated node module (default: project name)")
     val scalaTsModuleVersion =
       settingKey[String => String]("Transforms the project version into a node module version (default: identity function with check)")
-    val scalaTsFastOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
-    val scalaTsFullOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
+    val scalaTsFastOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
+    val scalaTsFullOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
+    val scalaTsChangeForkOptions = settingKey[ForkOptions => ForkOptions]("Allows to change the fork options (default: identity function)")
+
+    def withDebugForkOptions(port: Int)(fo: ForkOptions) =
+      fo.withRunJVMOptions(Vector(s"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=$port"))
   }
 
   import autoImport._
@@ -24,6 +28,7 @@ object ScalaTsPlugin extends AutoPlugin {
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     scalaTsModuleName := name.value,
     scalaTsModuleVersion := semanticVersionCheck,
+    scalaTsChangeForkOptions := identity,
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
     scalacOptions += "-P:semanticdb:text:on",
@@ -45,6 +50,7 @@ object ScalaTsPlugin extends AutoPlugin {
           (classDirectory in Compile).value,
           (fullClasspath in Compile).value.map(_.data),
         ),
+        scalaTsChangeForkOptions.value,
         streams.value.log
       )
     },
@@ -58,6 +64,7 @@ object ScalaTsPlugin extends AutoPlugin {
           (classDirectory in Compile).value,
           (fullClasspath in Compile).value.map(_.data),
         ),
+        scalaTsChangeForkOptions.value,
         streams.value.log
       )
     }
@@ -75,14 +82,15 @@ object ScalaTsPlugin extends AutoPlugin {
 
   def forkGenerator(
       config: ForkedMain.Config,
+      changeForkOptions: ForkOptions => ForkOptions,
       log: ManagedLogger
   ): Unit = {
+    val options = ForkOptions()
+      .withBootJars((config.compileClassDir +: config.compileFullClasspath).toVector)
+      .withOutputStrategy(OutputStrategy.LoggedOutput(log))
+      .withEnvVars(config.asEnvVars)
     Fork.scala(
-      ForkOptions()
-        .withBootJars((config.compileClassDir +: config.compileFullClasspath).toVector)
-        .withOutputStrategy(OutputStrategy.LoggedOutput(log))
-        //.withRunJVMOptions(Vector("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"))
-        .withEnvVars(config.asEnvVars),
+      changeForkOptions(options),
       Seq(s"${classOf[ForkedMain].getName}")
     )
   }

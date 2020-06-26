@@ -57,9 +57,7 @@ object Namespace {
     val referencedOrAncestorTypes = allInputTypes.filter(i => apiRefs.contains(i.si.symbol) || ancestorRefs.contains(i.si.symbol))
 
     // maps type symbols of those types that are imported from global scope or from a module into their Global/Imported information
-    val globalOrImportedTypes = referencedOrAncestorTypes.collect {
-      case i: Input.ClsOrObj if !i.isTopLevelExport => i.si.symbol -> nativeAnalyzer.nativeness(FullName(i.si))
-    }.collect {
+    val globalOrImportedTypes = apiRefs.map(sym => sym -> nativeAnalyzer.nativeness(sym, symTab)).collect {
       case (s, n: Nativeness.Named) => s -> n
     }.toMap
 

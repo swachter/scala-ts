@@ -43,19 +43,6 @@ lazy val explore = project
     }
   ).enablePlugins(ScalaJSPlugin)
 
-// the e2e folder contains a project that uses the ScalaTsPlugin
-// -> the e2e project can not be part of this build because the ScalaTsPlugin is not available in this build
-// -> the e2e-mirror project includes the sources of the e2e project via symlinks
-// -> this allows to conveniently work on the e2e sources while this build is opened in an IDE
-// -> cf. the readme in the e2e folder for building and running the e2e tests
-lazy val e2e_mirror = project
-  .in(file("e2e-mirror"))
-  .settings(
-    name := "e2e-mirror",
-    scalaVersion := scala213,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-  ).enablePlugins(ScalaJSPlugin)
-
 lazy val plugin = project
   .in(file("sbt-scala-ts"))
   .enablePlugins(ScriptedPlugin)

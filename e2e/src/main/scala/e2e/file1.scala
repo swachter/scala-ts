@@ -1,10 +1,12 @@
 package e2e
 
-import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel, JSGlobal}
-import js.JSConverters._
+import typings.jsJoda.mod.{LocalDate, TemporalAmount}
+
 import scala.collection.mutable
-import scala.scalajs.js.{ThisFunction0, ThisFunction1, ThisFunction2, UndefOr, |}
+import scala.scalajs.js
+import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel, JSGlobal}
+import scala.scalajs.js.{ThisFunction1, UndefOr, |}
 
 @JSExportTopLevel("Simple")
 case class Simple(int: Int, string: String, boolean: Boolean, double: Double)
@@ -252,4 +254,13 @@ object GlobalTest {
 
   @JSExportTopLevel("setInWeakMap")
   def setInWeakMap[K <: js.Object, V <: js.Any](key: K, value: V, map: WeakMap[K, V]): Unit = map.set(key, value)
+}
+
+object ImportTest {
+
+  // LocalDate is imported from js-joda
+  // -> the Scalably typed plugin generates a corresponding ScalaJS facade
+
+  @JSExportTopLevel("addDays")
+  def addDays(ld: LocalDate, days: Int) = ld.plusDays(days)
 }
