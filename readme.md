@@ -78,19 +78,18 @@ Scala types that are referenced in exported definitions (i.e. vals, vars, or met
 1. Types that reference imported types (i.e. types that are annotated with `@JSImport`)
 1. Types that do not reference a global or an imported type
  
-Scala types that reference a global or an imported TypeScript type are represented by the corresponding global or imported symbol. This supports seamless interoperability for TypeScript types from external libraries or from global scope. In case of imported types a corresponding `import` statement is included in the generated declaration file. Default imports are supported.
+Scala types that reference a global or an imported TypeScript type (so called facade types) are represented by the corresponding global or imported symbol. This supports seamless interoperability for TypeScript types from external libraries or from global scope. In case of imported types a corresponding `import` statement is included in the generated declaration file. Default imports are supported.
 
 In order to keep type safety for opaque types that do not reference a global or imported type a corresponding marker interface is exported. Each marker interface contains a property with a name that is equal to the fully qualified type name and the value `never`. This simulates some kind of _nominal_ typing for these types instead of _structural_ typing. In order to avoid name clashes, interfaces of opaque types are included in namespaces that match their package structure. Example:
 
 | Referenced Type | TypeScript Declaration |
 | --- | --- |
-| `@JSGlobal`<br>`WeakMap<K <: js.Object, V>` | `WeakMap<K extends object, V>` |
-| `@JSImport('module', 'ImportedType')`<br>`SomeClass` | `import * as $module from 'module'`<br>`$module.ImportedType` | 
-| `@JSImport('module', JSImport.Default)`<br>`SomeClass` | `import $module_ from 'module'`<br>`$module_` | 
-| `scala.Option[X]` | `namespace scala { interface Option<X> { 'scala.Option': never } }`
+| `@JSGlobal`<br>`class WeakMap<K <: js.Object, V>` | `WeakMap<K extends object, V>` |
+| `@JSImport('module', 'ImportedType')`<br>`class SomeClass` | `import * as $module from 'module'`<br>`...`<br>`$module.ImportedType` |
+| `@JSImport('module', JSImport.Default)`<br>`class SomeClass` | `import $module_ from 'module'`<br>`...`<br>`$module_` |
+| `@JSImport('mod', JSImport.Namespace)` <br>`object o extends js.Object { class C }` | `import * as $mod from 'mod'`<br>`...`<br>`$mod.C` |
+| `scala.Option[X]` | `namespace scala { interface Option<X> { 'scala.Option': never } }` |
  
-Note: Namespace imports are not yet supported.
-
 ### Translation rules
 
 General rules:
@@ -190,3 +189,7 @@ Projects:
 1. [waveinch/sbt-scalajs-ts-export](https://github.com/waveinch/sbt-scalajs-ts-export); based on Scala Meta trees
 1. [davegurnell/bridges](https://github.com/davegurnell/bridges); based on `shapeless`
 1. [sherpal/scala-ts](https://github.com/sherpal/scala-ts); based on `semanticdb`
+
+### Acknowledgements:
+
+Thanks to Sébastien Doeraene and Ólafur Páll Geirsson for their work on `ScalaJS` and `Scalameta`, respectively. They helped alot by giving supportive answers.

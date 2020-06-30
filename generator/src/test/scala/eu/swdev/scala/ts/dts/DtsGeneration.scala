@@ -10,7 +10,7 @@ import scala.meta.internal.symtab.GlobalSymbolTable
 import scala.meta.io.{AbsolutePath, Classpath}
 import scala.meta.{Dialect, dialects}
 
-trait DtsGeneration {
+trait DtsGeneration extends WithGlobalSymbolTable {
 
   def dialect: Dialect = dialects.Scala213
 
@@ -72,7 +72,7 @@ trait DtsGeneration {
       case ucl: URLClassLoader => ucl.getURLs
     }.flatten
 
-    val paths       = urls.map(url => Paths.get(url.toURI).toAbsolutePath.toFile).map(AbsolutePath(_)).toList
+    val paths       = urls.map(url => Paths.get(url.toURI).toAbsolutePath.toFile).map(AbsolutePath(_))
     val cp          = Classpath(paths)
     val symTab      = GlobalSymbolTable(cp, true)
 

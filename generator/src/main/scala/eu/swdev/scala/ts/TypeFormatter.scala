@@ -41,24 +41,25 @@ class TypeFormatter(
 
   def isKnownOrBuiltIn(sym: Symbol): Boolean = knownOrBuiltInFormatter.isDefinedAt(TypeRef(isb.Type.Empty, sym, Seq.empty))
 
-  val namedNativeTypes = mutable.Map.empty[Symbol, Nativeness.Named]
+  val nativeSymbols = mutable.Map.empty[Symbol, NativeSymbol]
+
+  private def formatNativeSymbol(n: NativeSymbol): String = n match {
+    case NativeSymbol.Global(name, _)                    => name
+    case NativeSymbol.ImportedName(module, "default", _) => s"${moduleName2Id(module)}_"
+    case NativeSymbol.ImportedName(module, name, _)      => s"${moduleName2Id(module)}.$name"
+    case NativeSymbol.ImportedNamespace(module, _)       => s"${moduleName2Id(module)}"
+    case NativeSymbol.Inner(name, outer, _)              => s"${formatNativeSymbol(outer)}.$name"
+
+  }
 
   val builtInFormatterCreator: CTypeFormatter = formatType => {
     case TypeRef(isb.Type.Empty, symbol, targs) if simpleBuiltInTypeNames.contains(symbol) =>
       simpleBuiltInTypeNames(symbol)
-    case TypeRef(isb.Type.Empty, symbol, targs) if namedNativeTypes.contains(symbol) =>
+    case TypeRef(isb.Type.Empty, symbol, targs) if nativeSymbols.contains(symbol) =>
       val tas = formatTypes(targs)
-      namedNativeTypes(symbol) match {
-        case Nativeness.Global(name)                => s"$name$tas"
-        case Nativeness.Imported(module, "default") => s"${moduleName2Id(module)}_$tas"
-        case Nativeness.Imported(module, name)      => s"${moduleName2Id(module)}.$name$tas"
-      }
-    case SingleType(isb.Type.Empty, symbol) if namedNativeTypes.contains(symbol) =>
-      namedNativeTypes(symbol) match {
-        case Nativeness.Global(name)                => s"$name"
-        case Nativeness.Imported(module, "default") => s"${moduleName2Id(module)}_"
-        case Nativeness.Imported(module, name)      => s"${moduleName2Id(module)}.$name"
-      }
+      s"${formatNativeSymbol(nativeSymbols(symbol))}$tas"
+    case SingleType(isb.Type.Empty, symbol) if nativeSymbols.contains(symbol) =>
+      formatNativeSymbol(nativeSymbols(symbol))
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
       s"${formatType(targs(0))} | undefined"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>

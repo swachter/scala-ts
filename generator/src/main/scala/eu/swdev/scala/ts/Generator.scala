@@ -29,16 +29,16 @@ object Generator {
 
     import typeFormatter._
 
-    val nativeAnalyzer = new NativeAnalyzer(classLoader)
+    val nativeAnalyzer = new NativeSymbolAnalyzer(classLoader, symTab)
 
-    val (rootNamespace, globalOrImported) = Namespace.deriveInterfaces(
+    val (rootNamespace, nativeSymbols) = Namespace.deriveInterfaces(
       inputs,
       symTab,
       typeFormatter.isKnownOrBuiltIn,
       nativeAnalyzer
     )
 
-    globalOrImported.foreach(typeFormatter.namedNativeTypes += _)
+    nativeSymbols.foreach(typeFormatter.nativeSymbols += _)
 
     def formatNameAndType(name: String, tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${typeFormatter(targs(0))}"
@@ -211,13 +211,15 @@ object Generator {
       val exp   = if (indent == 0) "export " else ""
       val space = "  " * indent
 
-      val members = union.members.map { member =>
-        val tArgs = member.typeArgs.map {
-          case SubtypeArg.Parent(idx)    => parentTParams(idx).displayName
-          case SubtypeArg.Unrelated(unionMemberName, sym) => s"M${unionMemberIdx(unionMemberName)}$$${TParam(sym, symTab).displayName}"
+      val members = union.members
+        .map { member =>
+          val tArgs = member.typeArgs.map {
+            case SubtypeArg.Parent(idx)                     => parentTParams(idx).displayName
+            case SubtypeArg.Unrelated(unionMemberName, sym) => s"M${unionMemberIdx(unionMemberName)}$$${TParam(sym, symTab).displayName}"
+          }
+          s"${member.name}${formatTypeNames(tArgs)}"
         }
-        s"${member.name}${formatTypeNames(tArgs)}"
-      }.mkString(" | ")
+        .mkString(" | ")
 
       sb.append(s"$space${exp}type ${union.fullName.last}${formatTypeNames(unionTParams)} = $members\n")
     }
@@ -247,10 +249,16 @@ object Generator {
       }
     }
 
-    val mods2Names = typeFormatter.namedNativeTypes.toList
-      .collect {
-        case (_, Nativeness.Imported(module, name)) => module -> name
-      }
+    def nativeSymbolImport(ns: NativeSymbol): Seq[(String, String)] = ns match {
+      case NativeSymbol.ImportedName(module, name, _) => Seq(module -> name)
+      case NativeSymbol.ImportedNamespace(module, _)  => Seq(module -> "")
+      case NativeSymbol.Inner(_, outer, _)            => nativeSymbolImport(outer)
+      case _                                          => Seq()
+    }
+
+    val nativeSymbolImports = typeFormatter.nativeSymbols.values.flatMap(nativeSymbolImport)
+
+    val mods2Names = nativeSymbolImports
       .groupBy(_._1)
       .mapValues(l => l.map(_._2).toSet)
 

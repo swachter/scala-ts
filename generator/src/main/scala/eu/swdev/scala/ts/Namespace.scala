@@ -1,9 +1,7 @@
 package eu.swdev.scala.ts
 
 import scala.collection.mutable
-import scala.meta.internal.semanticdb.{ClassSignature, ConstantType, SingleType, SymbolInformation}
 import scala.meta.internal.symtab.SymbolTable
-import scala.meta.internal.{semanticdb => isb}
 
 class Namespace(val name: String) {
 
@@ -38,7 +36,7 @@ object Namespace {
   def deriveInterfaces(inputs: List[Input.Defn],
                        symTab: SymbolTable,
                        isKnownOrBuiltIn: Symbol => Boolean,
-                       nativeAnalyzer: NativeAnalyzer): (Namespace, Map[Symbol, Nativeness.Named]) = {
+                       nativeAnalyzer: NativeSymbolAnalyzer): (Namespace, Map[Symbol, NativeSymbol]) = {
 
     val rootNamespace = new Namespace("")
 
@@ -57,14 +55,14 @@ object Namespace {
     val referencedOrAncestorTypes = allInputTypes.filter(i => apiRefs.contains(i.si.symbol) || ancestorRefs.contains(i.si.symbol))
 
     // maps type symbols of those types that are imported from global scope or from a module into their Global/Imported information
-    val globalOrImportedTypes = apiRefs.map(sym => sym -> nativeAnalyzer.nativeness(sym, symTab)).collect {
-      case (s, n: Nativeness.Named) => s -> n
+    val nativeSymbols = apiRefs.map(sym => sym -> nativeAnalyzer.nativeSymbol(sym)).collect {
+      case (s, Some(n: NativeSymbol)) => s -> n
     }.toMap
 
     // no interfaces must be added for
     // - top level exports (their declarations are added later on in the generator)
     // - class / objects that are from global scope or imported
-    def mustAddInterface(i: Input.ClsOrObj) = !(i.isTopLevelExport || globalOrImportedTypes.contains(i.si.symbol))
+    def mustAddInterface(i: Input.ClsOrObj) = !(i.isTopLevelExport || nativeSymbols.contains(i.si.symbol))
 
     // add interfaces for all referenced or ancestor types that are not top level / global scope / imported
     // -> classes and object that are top level exports are not added here
@@ -85,7 +83,7 @@ object Namespace {
       case i: Input.Obj if i.isTopLevelExport => i.si.symbol
     }.toSet
 
-    def isExportedOrNamedNative(sym: Symbol) = topLevelSymbols.contains(sym) || rootNamespace.contains(FullName.fromSymbol(sym)) || globalOrImportedTypes.contains(sym)
+    def isExportedOrNamedNative(sym: Symbol) = topLevelSymbols.contains(sym) || rootNamespace.contains(FullName.fromSymbol(sym)) || nativeSymbols.contains(sym)
 
     def canBeAdded(sym: Symbol) = !(isExportedOrNamedNative(sym) || isKnownOrBuiltIn(sym))
 
@@ -105,7 +103,7 @@ object Namespace {
         rootNamespace += Output.Interface(si, symTab)
     }
 
-    (rootNamespace, globalOrImportedTypes)
+    (rootNamespace, nativeSymbols)
   }
 
 }

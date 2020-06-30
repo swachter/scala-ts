@@ -95,3 +95,7 @@ class JSGlobal extends scala.annotation.StaticAnnotation {
   def this(name: String) = this()
 }
 
+class JSName private () extends scala.annotation.StaticAnnotation {
+  def this(name: String) = this()
+  def this(symbol: scala.scalajs.js.Symbol) = this()
+}
