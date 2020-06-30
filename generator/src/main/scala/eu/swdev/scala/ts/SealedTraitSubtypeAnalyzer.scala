@@ -116,13 +116,13 @@ object SealedTraitSubtypeAnalyzer {
   object Subtype {
     case class Subclass(parent: Input.Trait, subcls: Input.Cls) extends Subtype {
       override def unionMemberName =
-        subcls.name.topLevelExportName.map(FullName.fromSimpleName(_)).getOrElse(FullName(subcls.si))
+        subcls.name.flatMap(_.topLevelExportName).map(FullName.fromSimpleName(_)).getOrElse(FullName(subcls.si))
       override def classSignature      = subcls.classSignature
       override def completeSubtypeArgs = localSubtypeArgs
     }
     case class Subobject(parent: Input.Trait, subobj: Input.Obj) extends Subtype {
       override def unionMemberName =
-        subobj.name.topLevelExportName.map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName(subobj.si))
+        subobj.name.flatMap(_.topLevelExportName).map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName(subobj.si))
       override def classSignature      = subobj.si.signature.asInstanceOf[ClassSignature]
       override def completeSubtypeArgs = localSubtypeArgs
     }

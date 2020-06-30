@@ -1,13 +1,11 @@
 import * as m from 'scala-ts-mod'
 
-describe('field export', function() {
+describe('ctor param export', function() {
 
   it('simple', function() {
-    const c = new m.FieldExport('abc', 'uvw')
-    /* Bug in ScalaJS?
+    const c = new m.CtorParamExport('abc', 'uvw')
     expect(c.x).toBe('abc')
     expect(c.y).toBe('uvw')
-    */
   })
 
 })

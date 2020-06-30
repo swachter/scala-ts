@@ -33,15 +33,23 @@ object Analyzer {
     def existsExportAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsExportSymbol)
     def existsExportAllAnnot(tree: Tree): Boolean      = existsSymbolReference(tree, jsExportAllSymbol)
 
-    def exportName(mods: List[Mod]): ExportAnnot =
-      mods
-        .collect {
-          case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => ExportAnnot.TopLevel(lit)
-          case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t)         => ExportAnnot.MemberWithName(lit)
-          case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                                 => ExportAnnot.MemberWithoutName
-        }
-        .headOption
-        .getOrElse(ExportAnnot.None)
+    val exportTopLevelAnnot: PartialFunction[Mod, ExportAnnot.TopLevel] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => ExportAnnot.TopLevel(lit)
+    }
+
+    val exportMemberAnnot: PartialFunction[Mod, ExportAnnot.Member] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t) => ExportAnnot.MemberWithName(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                         => ExportAnnot.MemberWithoutName
+    }
+
+    val exportAnnot = exportTopLevelAnnot orElse exportMemberAnnot
+
+    def exportName(mods: List[Mod]): Option[ExportAnnot] = mods.collect(exportAnnot).headOption
+
+    def fieldName(mods: List[Mod], default: String): String = mods.collect(exportMemberAnnot).map {
+      case ExportAnnot.MemberWithoutName => default
+      case ExportAnnot.MemberWithName(s) => s
+    } .headOption.getOrElse(default)
 
     def hasExportAllAnnot(mods: List[Mod]): Boolean = {
       mods.exists {
@@ -66,15 +74,15 @@ object Analyzer {
 
         def processDefValVar[D <: Defn](defn: D,
                                         mods: List[Mod],
-                                        ctor: (SemSource, D, ExportAnnot, SymbolInformation) => Input.Defn): Unit =
+                                        ctor: (SemSource, D, Option[ExportAnnot], SymbolInformation) => Input.Defn): Unit =
           if (!hasPrivateMod(mods)) {
             for {
               si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
             } {
               val en = exportName(mods)
               val export = en match {
-                case ExportAnnot.None => expAll
-                case _                => true
+                case Some(_) => true
+                case None    => expAll
               }
               if (export) {
                 builder += ctor(semSrc, defn, exportName(mods), si)
@@ -98,7 +106,7 @@ object Analyzer {
             val allMembersAreVisible = hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si)
 
             def isCtorParamVisibleAsField(termMods: List[Mod]): Boolean = {
-              !hasPrivateMod(termMods) && (allMembersAreVisible || fieldExportAnnot(termMods).isDefined)
+              !hasPrivateMod(termMods) && (allMembersAreVisible || termMods.exists(exportMemberAnnot.isDefinedAt(_)))
             }
 
             val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
@@ -212,7 +220,7 @@ object Analyzer {
 
   def topLevel(is: List[Input.Defn]): List[TopLevelExport] = {
     is.collect {
-      case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.name.topLevelExportName.get, i)
+      case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.name.get.topLevelExportName.get, i)
     }
   }
 
@@ -229,30 +237,6 @@ object Analyzer {
     is.foreach(go)
     b.result()
   }
-
-  /**
-    * Checks if there is a @JSExport annotation that has a @field meta annotation.
-    *
-    * Valid annotations are: `@(JSExport @field)` or `@(JSExport @field)("identifier")`
-    */
-  private def fieldExportAnnot(mods: List[Mod]): Option[ExportAnnot.Member] = {
-    val res = mods.collect {
-      case Mod.Annot(
-          Init(Type.Annotate(Type.Name("JSExport"), List(Mod.Annot(Init(Type.Name("field"), _, _)))), _, List(List(Lit.String(lit))))) =>
-        ExportAnnot.MemberWithName(lit)
-      case Mod.Annot(Init(Type.Annotate(Type.Name("JSExport"), List(Mod.Annot(Init(Type.Name("field"), _, _)))), _, _)) =>
-        ExportAnnot.MemberWithoutName
-    }.headOption
-    res
-  }
-
-  private def fieldName(mods: List[Mod], default: String): String =
-    fieldExportAnnot(mods)
-      .map {
-        case ExportAnnot.MemberWithoutName    => default
-        case ExportAnnot.MemberWithName(name) => name
-      }
-      .getOrElse(default)
 
   /**
     * @param is flattened list of all input definitions

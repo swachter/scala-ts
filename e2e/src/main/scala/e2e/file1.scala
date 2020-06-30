@@ -278,8 +278,8 @@ object AbstractTest {
 
 }
 
-object FieldExportTest {
+object CtorParamExportTest {
 
-  @JSExportTopLevel("FieldExport")
-  class FieldExport(@(JSExport @field)val x: String, @(JSExport @field)("y")var z: String)
+  @JSExportTopLevel("CtorParamExport")
+  class CtorParamExport(@JSExport val x: String, @JSExport("y")var z: String)
 }
