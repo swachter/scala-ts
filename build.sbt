@@ -51,6 +51,15 @@ lazy val plugin = project
   .settings(
     name := s"sbt-scala-ts",
     description := "SBT plugin for generating TypeScript declaration files for ScalaJS sources",
+    resourceGenerators.in(Compile) += Def.task {
+      // the ScalaTsPlugin must know its version during runtime
+      // -> it injects the generator artifact as a library dependency with the same version
+      val out = managedResourceDirectories.in(Compile).value.head / "scala-ts.properties"
+      val props = new java.util.Properties()
+      props.put("version", version.value)
+      IO.write(props, "scala-ts properties", out)
+      List(out)
+    },
     crossScalaVersions := List(scala212),
     sbtPlugin := true,
     publishMavenStyle := false,

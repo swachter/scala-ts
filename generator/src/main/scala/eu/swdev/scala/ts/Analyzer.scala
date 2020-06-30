@@ -7,7 +7,7 @@ import scala.meta.internal.semanticdb.{MethodSignature, SymbolInformation, Value
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 import scala.meta.transversers.Traverser
-import scala.meta.{Defn, Init, Lit, Mod, Term, Tree}
+import scala.meta.{Defn, Init, Lit, Mod, Name, Term, Tree, Type}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
 
@@ -20,8 +20,8 @@ object Analyzer {
   val jsExportAllSymbol      = classSymbol[JSExportAll]
 
   /**
-   * @return flattened list of all input definitions
-   */
+    * @return flattened list of all input definitions
+    */
   def analyze(semSrc: SemSource, symTab: SymbolTable): List[Input.Defn] = {
 
     def existsSymbolReference(tree: Tree, symbol: String): Boolean =
@@ -54,6 +54,7 @@ object Analyzer {
     def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
     def hasVarMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.VarParam])
     def hasPrivateMod(mods: List[Mod]): Boolean   = mods.exists(_.isInstanceOf[Mod.Private])
+    def hasAbstractMod(mods: List[Mod]): Boolean  = mods.exists(_.isInstanceOf[Mod.Abstract])
 
     def isSubtypeOfJsAny(si: SymbolInformation): Boolean = si.isSubtypeOf("scala/scalajs/js/Any#", symTab)
 
@@ -93,32 +94,36 @@ object Analyzer {
           } {
             val ctorParamTerms = defn.ctor.paramss.flatten
 
-            val isCaseClass = hasCaseClassMod(defn.mods)
+            val isCaseClass          = hasCaseClassMod(defn.mods)
+            val allMembersAreVisible = hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si)
+
+            def isCtorParamVisibleAsField(termMods: List[Mod]): Boolean = {
+              !hasPrivateMod(termMods) && (allMembersAreVisible || fieldExportAnnot(termMods).isDefined)
+            }
 
             val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
               case Some(ctorSi) =>
-                val ctorSig = ctorSi.signature.asInstanceOf[MethodSignature]
-                val ctorParamSymbolInfos = ctorSig.parameterLists
-                  .flatMap(_.symlinks.map(semSrc.symbolInfo(_)))
-
-                ctorParamSymbolInfos.flatMap { ctorParamSymbolInfo =>
+                val ctorSig              = ctorSi.signature.asInstanceOf[MethodSignature]
+                val ctorParamSymbolInfos = ctorSig.parameterLists.flatMap(_.symlinks.map(semSrc.symbolInfo(_)))
+                ctorParamSymbolInfos.flatMap { ctorParamSi =>
                   ctorParamTerms.collect {
-                    case tp @ Term.Param(termMods, termName, termType, defaultTerm)
-                        if termName.value == ctorParamSymbolInfo.displayName && !hasPrivateMod(termMods) && hasVarMod(termMods) =>
-                      Input.CtorParam(semSrc, tp, ctorParamSymbolInfo.displayName, ctorParamSymbolInfo, Input.CtorParamMod.Var)
-                    case tp @ Term.Param(termMods, termName, termType, defaultTerm)
-                        if termName.value == ctorParamSymbolInfo.displayName && !hasPrivateMod(termMods) && (isCaseClass || hasValMod(
-                          termMods)) =>
-                      Input.CtorParam(semSrc, tp, ctorParamSymbolInfo.displayName, ctorParamSymbolInfo, Input.CtorParamMod.Val)
-                    case tp @ Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSymbolInfo.displayName =>
-                      Input.CtorParam(semSrc, tp, ctorParamSymbolInfo.displayName, ctorParamSymbolInfo, Input.CtorParamMod.Prv)
+                    case tp @ Term.Param(termMods, termName @ Name(ctorParamSi.displayName), termType, defaultTerm)
+                        if isCtorParamVisibleAsField(termMods) && hasVarMod(termMods) =>
+                      val fldName = fieldName(termMods, termName.value)
+                      Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Var(fldName))
+                    case tp @ Term.Param(termMods, termName @ Name(ctorParamSi.displayName), termType, defaultTerm)
+                        if isCtorParamVisibleAsField(termMods) && (isCaseClass || hasValMod(termMods)) =>
+                      val fldName = fieldName(termMods, termName.value)
+                      Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Val(fldName))
+                    case tp @ Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSi.displayName =>
+                      Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Prv)
                   }
                 }.toList
               case None => Nil
             }
 
-            val members = recurse(hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si), visitChildren)
-            builder += Input.Cls(semSrc, defn, exportName(defn.mods), si, members, ctorParams)
+            val members = recurse(allMembersAreVisible, visitChildren)
+            builder += Input.Cls(semSrc, defn, exportName(defn.mods), si, members, ctorParams, hasAbstractMod(defn.mods))
           }
 
         }
@@ -226,8 +231,32 @@ object Analyzer {
   }
 
   /**
-   * @param is flattened list of all input definitions
-   */
+    * Checks if there is a @JSExport annotation that has a @field meta annotation.
+    *
+    * Valid annotations are: `@(JSExport @field)` or `@(JSExport @field)("identifier")`
+    */
+  private def fieldExportAnnot(mods: List[Mod]): Option[ExportAnnot.Member] = {
+    val res = mods.collect {
+      case Mod.Annot(
+          Init(Type.Annotate(Type.Name("JSExport"), List(Mod.Annot(Init(Type.Name("field"), _, _)))), _, List(List(Lit.String(lit))))) =>
+        ExportAnnot.MemberWithName(lit)
+      case Mod.Annot(Init(Type.Annotate(Type.Name("JSExport"), List(Mod.Annot(Init(Type.Name("field"), _, _)))), _, _)) =>
+        ExportAnnot.MemberWithoutName
+    }.headOption
+    res
+  }
+
+  private def fieldName(mods: List[Mod], default: String): String =
+    fieldExportAnnot(mods)
+      .map {
+        case ExportAnnot.MemberWithoutName    => default
+        case ExportAnnot.MemberWithName(name) => name
+      }
+      .getOrElse(default)
+
+  /**
+    * @param is flattened list of all input definitions
+    */
   def types(is: List[Input.Defn]): List[Input.Type] = is.collect {
     case i: Input.Type => i
   }

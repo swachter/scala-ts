@@ -2,6 +2,7 @@ package e2e
 
 import typings.jsJoda.mod.{LocalDate, TemporalAmount}
 
+import scala.annotation.meta.field
 import scala.collection.mutable
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
@@ -263,4 +264,22 @@ object ImportTest {
 
   @JSExportTopLevel("addDays")
   def addDays(ld: LocalDate, days: Int) = ld.plusDays(days)
+}
+
+object AbstractTest {
+
+  @JSExportAll
+  abstract class Base[X](val x: X)
+
+  @JSExportTopLevel("AbstractTestCase1")
+  class Case1(s: String) extends Base(s)
+  @JSExportTopLevel("AbstractTestCase2")
+  class Case2(i: Int) extends Base(i)
+
+}
+
+object FieldExportTest {
+
+  @JSExportTopLevel("FieldExport")
+  class FieldExport(@(JSExport @field)val x: String, @(JSExport @field)("y")var z: String)
 }

@@ -110,10 +110,10 @@ object Generator {
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
-      def member = formatNameAndType(i.name, i.valueSignature.tpe)
+      def member(name: String) = formatNameAndType(name, i.valueSignature.tpe)
       i.mod match {
-        case Input.CtorParamMod.Val => s"  readonly $member\n"
-        case Input.CtorParamMod.Var => s"  $member\n"
+        case Input.CtorParamMod.Val(name) => s"  readonly ${member(name)}\n"
+        case Input.CtorParamMod.Var(name) => s"  ${member(name)}\n"
         case Input.CtorParamMod.Prv => ""
       }
     }
@@ -147,11 +147,13 @@ object Generator {
         .find(p => p.typeSymbol.filter(exportedClassNames.contains(_)).map(symTab.isClass(_)).getOrElse(false))
         .fold("")(p => s" extends ${typeFormatter(p)}")
 
+      val abst = if (i.isAbstract) " abstract" else ""
+
       // an interface with the same name is included in the root namespace
       // -> that interface possibly extends base interfaces
       // -> the declaration of the interface and the declaration of the class are "merged"
       //    (cf. TypeScript declaration merging)
-      sb.append(s"export class $name$tps$ext {\n")
+      sb.append(s"export$abst class $name$tps$ext {\n")
 
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
       sb.append(s"  constructor($cParams)\n")

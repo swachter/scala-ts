@@ -39,7 +39,7 @@ object ScalaTsPlugin extends AutoPlugin {
     // -> fork a Scala process for the scala-ts generator for the required Scala version
     // -> add the scala-ts-generator jar as a dependency to the project in order to have it on the classpath
     // -> use (classDirectory +: fullClassPath) as the classpath for the forked process
-    libraryDependencies += "eu.swdev" %% "scala-ts-generator" % "0.6-SNAPSHOT",
+    libraryDependencies += "eu.swdev" %% "scala-ts-generator" % BuildInfo.version,
     scalaTsFastOpt := {
       (Compile / fastOptJS).value
       forkGenerator(

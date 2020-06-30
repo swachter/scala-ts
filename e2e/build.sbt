@@ -44,4 +44,5 @@ lazy val root = (project in file("."))
       Process(Seq("npm", "i"), baseDirectory.value).!
       baseDirectory.value
     },
+//    scalaTsChangeForkOptions := withDebugForkOptions(5005)
   )

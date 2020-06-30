@@ -119,7 +119,9 @@ object Input {
                  name: ExportAnnot,
                  si: SymbolInformation,
                  member: List[Defn],
-                 ctorParams: List[Input.CtorParam])
+                 ctorParams: List[Input.CtorParam],
+                 isAbstract: Boolean
+                )
       extends ClsOrObj
       with HasClassSignature
 
@@ -134,8 +136,8 @@ object Input {
   sealed trait CtorParamMod
 
   object CtorParamMod {
-    object Val extends CtorParamMod
-    object Var extends CtorParamMod
+    case class Val(name: String) extends CtorParamMod
+    case class Var(name: String) extends CtorParamMod
     // private constructor param
     object Prv extends CtorParamMod
   }
