@@ -8,7 +8,7 @@ lazy val supportedScalaVersions = List(scala212, scala213)
 
 lazy val commonSettings = Seq(
   organization := "eu.swdev",
-  version := "0.7",
+  version := "0.8-SNAPSHOT",
   bintrayPackageLabels := Seq("sbt","plugin"),
   bintrayVcsUrl := Some("""https://github.com/swachter/scala-ts.git"""),
   bintrayOrganization := None, // TODO: what is the organization for
