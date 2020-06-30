@@ -8,7 +8,7 @@ Add the following lines to `project/plugins.sbt`
 
 ```
 resolvers += Resolver.jcenterRepo
-addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.6"
+addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.7"
 ```
 
 and enable the `ScalaTsPlugin` in `build.sbt`
