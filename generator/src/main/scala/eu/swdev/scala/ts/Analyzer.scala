@@ -18,6 +18,7 @@ object Analyzer {
   val jsExportTopLevelSymbol = classSymbol[JSExportTopLevel]
   val jsExportSymbol         = classSymbol[JSExport]
   val jsExportAllSymbol      = classSymbol[JSExportAll]
+  val jsExportStaticSymbol   = "scala/scalajs/js/annotation/JSExportStatic#"
 
   /**
     * @return flattened list of all input definitions
@@ -32,6 +33,7 @@ object Analyzer {
     def existsTopLevelExportAnnot(tree: Tree): Boolean = existsSymbolReference(tree, jsExportTopLevelSymbol)
     def existsExportAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsExportSymbol)
     def existsExportAllAnnot(tree: Tree): Boolean      = existsSymbolReference(tree, jsExportAllSymbol)
+    def existsExportStaticAnnot(tree: Tree): Boolean   = existsSymbolReference(tree, jsExportStaticSymbol)
 
     val exportTopLevelAnnot: PartialFunction[Mod, ExportAnnot.TopLevel] = {
       case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => ExportAnnot.TopLevel(lit)
@@ -42,14 +44,25 @@ object Analyzer {
       case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                         => ExportAnnot.MemberWithoutName
     }
 
-    val exportAnnot = exportTopLevelAnnot orElse exportMemberAnnot
+    val exportStaticAnnot: PartialFunction[Mod, ExportAnnot.Static] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportStaticAnnot(t) => ExportAnnot.StaticWithName(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportStaticAnnot(t)                         => ExportAnnot.StaticWithoutName
+
+    }
+
+    val exportAnnot = exportTopLevelAnnot orElse exportMemberAnnot orElse exportStaticAnnot
 
     def exportName(mods: List[Mod]): Option[ExportAnnot] = mods.collect(exportAnnot).headOption
 
-    def fieldName(mods: List[Mod], default: String): String = mods.collect(exportMemberAnnot).map {
-      case ExportAnnot.MemberWithoutName => default
-      case ExportAnnot.MemberWithName(s) => s
-    } .headOption.getOrElse(default)
+    def fieldName(mods: List[Mod], default: String): String =
+      mods
+        .collect(exportMemberAnnot)
+        .map {
+          case ExportAnnot.MemberWithoutName => default
+          case ExportAnnot.MemberWithName(s) => s
+        }
+        .headOption
+        .getOrElse(default)
 
     def hasExportAllAnnot(mods: List[Mod]): Boolean = {
       mods.exists {

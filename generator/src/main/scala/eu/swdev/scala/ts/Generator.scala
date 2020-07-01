@@ -40,6 +40,14 @@ object Generator {
 
     nativeSymbols.foreach(typeFormatter.nativeSymbols += _)
 
+    // maps object symbols to exported static definitions
+    val statics = inputs.collect {
+      case i: Input.Obj =>
+        i.si.symbol -> i.member.collect {
+          case i: Input.DefOrValOrVar if i.name.map(_.isStatic).getOrElse(false) => i
+        }
+    }.toMap
+
     def formatNameAndType(name: String, tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${typeFormatter(targs(0))}"
       case RepeatedType(tpe)                                                   => s"...$name: ${typeFormatter(tpe)}[]"
@@ -88,33 +96,33 @@ object Generator {
       val returnType = typeFormatter(i.methodSignature.returnType)
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
-        s"  get ${i.memberName}(): $returnType\n"
+        s"get ${i.memberName}(): $returnType\n"
       } else {
         val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
         val params  = strings.mkString(", ")
         if (i.memberName.endsWith("_=")) {
           // name ends with _= -> it's a setter
-          s"  set ${i.memberName.dropRight(2)}($params)\n"
+          s"set ${i.memberName.dropRight(2)}($params)\n"
         } else {
-          s"  ${i.memberName}$tps($params): $returnType\n"
+          s"${i.memberName}$tps($params): $returnType\n"
         }
       }
     }
 
     def memberVal(i: Input.Val): String = {
-      s"  readonly ${formatNameAndType(i.memberName, i.methodSignature.returnType)}\n"
+      s"readonly ${formatNameAndType(i.memberName, i.methodSignature.returnType)}\n"
     }
 
     def memberVar(i: Input.Var): String = {
-      s"  ${formatNameAndType(i.memberName, i.methodSignature.returnType)}\n"
+      s"${formatNameAndType(i.memberName, i.methodSignature.returnType)}\n"
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
       def member(name: String) = formatNameAndType(name, i.valueSignature.tpe)
       i.mod match {
-        case Input.CtorParamMod.Val(name) => s"  readonly ${member(name)}\n"
-        case Input.CtorParamMod.Var(name) => s"  ${member(name)}\n"
-        case Input.CtorParamMod.Prv => ""
+        case Input.CtorParamMod.Val(name) => s"readonly ${member(name)}\n"
+        case Input.CtorParamMod.Var(name) => s"${member(name)}\n"
+        case Input.CtorParamMod.Prv       => ""
       }
     }
 
@@ -155,16 +163,24 @@ object Generator {
       //    (cf. TypeScript declaration merging)
       sb.append(s"export$abst class $name$tps$ext {\n")
 
+      val objSymbol = s"${i.si.symbol.dropRight(1)}."
+      statics.get(objSymbol).foreach {
+        _.map {
+          case e: Input.Def => memberDef(e)
+          case e: Input.Val => memberVal(e)
+          case e: Input.Var => memberVar(e)
+        }.foreach(m => sb.append(s"  static $m"))
+      }
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
       sb.append(s"  constructor($cParams)\n")
 
-      (i.ctorParams ++ i.member).foreach {
-        case e: Input.Def       => sb.append(memberDef(e))
-        case e: Input.Val       => sb.append(memberVal(e))
-        case e: Input.Var       => sb.append(memberVar(e))
-        case e: Input.CtorParam => sb.append(memberCtorParam(e))
-        case e: Input.Type      =>
-      }
+      (i.ctorParams ++ i.member).map {
+        case e: Input.Def       => memberDef(e)
+        case e: Input.Val       => memberVal(e)
+        case e: Input.Var       => memberVar(e)
+        case e: Input.CtorParam => memberCtorParam(e)
+        case e: Input.Type      => ""
+      }.filter(_.nonEmpty).foreach(m => sb.append(s"  $m"))
       sb.append("}\n")
     }
 
@@ -190,8 +206,8 @@ object Generator {
           case i: Input.Obj if i.isMember => memberObj(i)
           case i: Input.Type              => ""
         }
-        .filter(!_.isEmpty)
-        .foreach(m => sb.append(s"$space$m"))
+        .filter(_.nonEmpty)
+        .foreach(m => sb.append(s"$space  $m"))
 
       sb.append(s"$space  '${itf.fullName}': never\n")
       sb.append(s"$space}\n")

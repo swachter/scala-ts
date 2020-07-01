@@ -6,7 +6,7 @@ import scala.annotation.meta.field
 import scala.collection.mutable
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel, JSGlobal}
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel, JSGlobal}
 import scala.scalajs.js.{ThisFunction1, UndefOr, |}
 
 @JSExportTopLevel("Simple")
@@ -282,4 +282,24 @@ object CtorParamExportTest {
 
   @JSExportTopLevel("CtorParamExport")
   class CtorParamExport(@JSExport val x: String, @JSExport("y")var z: String)
+}
+
+@JSExportTopLevel("ClassWitStatics")
+class ClassWitStatics extends js.Object
+
+object ClassWitStatics {
+
+  @JSExportStatic
+  def twice(x: Int) = 2 * x
+  @JSExportStatic
+  val str = "abc"
+  @JSExportStatic("numero")
+  var num = 55
+  @JSExportStatic
+  def x = _x
+  @JSExportStatic
+  def x_=(i: Int) = _x = i
+
+  var _x = 0
+
 }

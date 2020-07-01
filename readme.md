@@ -97,7 +97,7 @@ General rules:
 - Multiple argument lists are flattened into a single argument list.
 - Generics including upper bounds are supported.
 
-Translation rules for top-level definitions (names given in `@JSExportTopLevel` and `@JSExport` annotations are respected):
+Translation rules for top-level definitions (definitions must be annotated according to ScalaJS rules; names given in `@JSExportTopLevel`, `@JSExport`, and `@JSExportStatic` annotations are respected):
 
 | Scala Definition | TypeScript Definition | Note |
 | --- | --- | --- |
@@ -106,7 +106,8 @@ Translation rules for top-level definitions (names given in `@JSExportTopLevel` 
 | `def x(...): tpe` | `function x(...): tpe` |
 | `class X { ...member... }` | `class X { ...member... }`<br>`interface X extends ... {}` | interface generated iff the class extends exported interfaces |
 | `object X { ...member... }` | `interface X$ { ...member... }`<br>`const X: X$` |
-| `trait X { ...member... }` | `interface X { ...member... }` | generated iff the trait is referenced in the exported API | 
+| `trait X { ...member... }` | `interface X { ...member... }` | generated iff the trait is referenced in the exported API |
+| `class X`<br>`object X { ...static... }` | `class X { ...static... }` | definitions in companion objects that are annotated by `@JSExportStatic` are exported as static class members  |
 | `type X = ...` | `type X = ...` | generated iff the type alias is referenced in the exported API | 
 
 

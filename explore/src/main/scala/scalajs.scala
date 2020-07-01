@@ -1,10 +1,10 @@
-import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel, JSName}
-import scala.util.{Failure, Random, Success}
-import js.JSConverters._
 import scala.collection.mutable
 import scala.concurrent.Promise
+import scala.scalajs.js
+import scala.scalajs.js.JSConverters._
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel}
 import scala.scalajs.js.{Dictionary, UndefOr}
+import scala.util.{Failure, Random, Success}
 
 object TopLevelDefsAndVals {
 

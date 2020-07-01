@@ -33,21 +33,30 @@ object FullName {
 
 sealed trait ExportAnnot {
   def isMember: Boolean
+  def isStatic: Boolean
   def topLevelExportName: Option[String]
 }
 
 object ExportAnnot {
   sealed trait Member extends ExportAnnot {
-    override def isMember: Boolean = true
+    override def isMember: Boolean                  = true
+    override def isStatic: Boolean                  = false
+    override def topLevelExportName: Option[String] = None
   }
-  case object MemberWithoutName extends Member {
-    override def topLevelExportName: Option[String] = scala.None
+  sealed trait Static extends ExportAnnot {
+    override def isMember: Boolean                  = false
+    override def isStatic: Boolean                  = true
+    override def topLevelExportName: Option[String] = None
   }
+  case object MemberWithoutName extends Member
   case class MemberWithName(s: String) extends Member {
-    override def topLevelExportName: Option[String] = scala.None
+    override def topLevelExportName: Option[String] = None
   }
+  case class StaticWithName(s: String) extends Static
+  case object StaticWithoutName        extends Static
   case class TopLevel(s: String) extends ExportAnnot {
     override def isMember: Boolean                  = false
+    override def isStatic: Boolean                  = false
     override def topLevelExportName: Option[String] = Some(s)
   }
 }
@@ -79,6 +88,7 @@ object Input {
     def name: Option[ExportAnnot]
     def memberName: String = name match {
       case Some(ExportAnnot.MemberWithName(n)) => n
+      case Some(ExportAnnot.StaticWithName(n)) => n
       case _                                   => si.displayName
     }
     def isTopLevelExport: Boolean = name match {
