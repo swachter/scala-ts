@@ -1,21 +1,19 @@
 package dts
 
-import eu.swdev.scala.ts.dts.DtsFunSuite
+import eu.swdev.scala.ts.DtsFunSuite
 
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 class AccessorTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export interface AccessorTest$ {
-      |  get property(): number
-      |  set property(v: number)
-      |  'AccessorTest$': never
-      |}
-      |export const AccessorTest: AccessorTest$
-      |""".check()
-  }
+  """
+    |export interface AccessorTest$ {
+    |  get property(): number
+    |  set property(v: number)
+    |  'AccessorTest$': never
+    |}
+    |export const AccessorTest: AccessorTest$
+    |""".check()
 
 }
 
@@ -25,10 +23,7 @@ object AccessorTest {
 
   private var x = 1
 
-  def property = x
+  def property                 = x
   def property_=(v: Int): Unit = x = v
 
 }
-
-
-

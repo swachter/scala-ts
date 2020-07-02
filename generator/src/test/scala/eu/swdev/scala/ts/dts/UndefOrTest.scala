@@ -1,22 +1,22 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.UndefOr
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 class UndefOrTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export function undefOrInt(u?: number): number | undefined
-      |export function undefOrGeneric<X>(u?: X): X | undefined
-      |export class UndefOrClass<X> {
-      |  constructor(x?: X, y?: X)
-      |  readonly x?: X
-      |  y?: X
-      |  method(p?: X): X | undefined
-      |}
-      |""".check()
-  }
+  """
+    |export function undefOrInt(u?: number): number | undefined
+    |export function undefOrGeneric<X>(u?: X): X | undefined
+    |export class UndefOrClass<X> {
+    |  constructor(x?: X, y?: X)
+    |  readonly x?: X
+    |  y?: X
+    |  method(p?: X): X | undefined
+    |}
+    |""".check()
 
 }
 

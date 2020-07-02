@@ -1,21 +1,21 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 class ClassInheritanceTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export class A {
-      |  constructor(n: number)
-      |  readonly n: number
-      |}
-      |export class B extends A {
-      |  constructor(n: number, s: string)
-      |  readonly s: string
-      |}
-      |""".check()
-  }
+  """
+    |export class A {
+    |  constructor(n: number)
+    |  readonly n: number
+    |}
+    |export class B extends A {
+    |  constructor(n: number, s: string)
+    |  readonly s: string
+    |}
+    |""".check()
 
 }
 

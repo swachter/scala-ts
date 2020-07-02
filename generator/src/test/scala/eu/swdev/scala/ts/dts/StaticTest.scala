@@ -1,22 +1,22 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExportStatic, JSExportTopLevel}
 
 class StaticTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export class ClassWitStatics {
-      |  static twice(x: number): number
-      |  static readonly str: string
-      |  static numero: number
-      |  static get x(): number
-      |  static set x(i: number)
-      |  constructor()
-      |}
-      |""".check()
-  }
+  """
+    |export class ClassWitStatics {
+    |  static twice(x: number): number
+    |  static readonly str: string
+    |  static numero: number
+    |  static get x(): number
+    |  static set x(i: number)
+    |  constructor()
+    |}
+    |""".check()
 
 }
 

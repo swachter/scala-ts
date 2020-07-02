@@ -1,15 +1,15 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.JSExportTopLevel
 import scala.scalajs.js.|
 
 class UnionTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export const stringOrBooleanOrInt: string | boolean | number
-      |""".check()
-  }
+  """
+    |export const stringOrBooleanOrInt: string | boolean | number
+    |""".check()
 
 }
 

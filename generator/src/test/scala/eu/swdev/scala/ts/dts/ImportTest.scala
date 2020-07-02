@@ -1,18 +1,18 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExportTopLevel, JSGlobal, JSImport}
 
 class ImportTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |import $random_ from 'random'
-      |import * as $rxjs from 'rxjs'
-      |export const observable: $rxjs.Observable<string>
-      |export const random: $random_
-      |""".check()
-  }
+  """
+    |import $random_ from 'random'
+    |import * as $rxjs from 'rxjs'
+    |export const observable: $rxjs.Observable<string>
+    |export const random: $random_
+    |""".check()
 
 }
 

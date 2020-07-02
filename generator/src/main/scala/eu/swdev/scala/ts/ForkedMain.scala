@@ -72,9 +72,9 @@ object ForkedMain {
     val cp     = config.compileFullClasspath.map(AbsolutePath(_)).toList
     val symTab = GlobalSymbolTable(Classpath(cp), true)
 
-    val semSrcs = SemSource.from(config.compileClassDir, dialect)
+    val semSrcs = SemSource.locate(config.compileClassDir, dialect)
 
-    val inputs = semSrcs.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
+    val inputs = semSrcs.flatMap(Analyzer.analyze(_, symTab))
 
     def inputInfo =
       inputs

@@ -1,19 +1,17 @@
 package dts
 
-import eu.swdev.scala.ts.dts.DtsFunSuite
+import eu.swdev.scala.ts.DtsFunSuite
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExportTopLevel, JSImport, JSName}
 
 class ImportNamespaceTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |import * as $module from 'module'
-      |export const namespaceImported: $module.ImportedClass
-      |export const renamedNamespaceImported: $module.Renamed
-      |""".check()
-  }
+  """
+    |import * as $module from 'module'
+    |export const namespaceImported: $module.ImportedClass
+    |export const renamedNamespaceImported: $module.Renamed
+    |""".check()
 
 }
 

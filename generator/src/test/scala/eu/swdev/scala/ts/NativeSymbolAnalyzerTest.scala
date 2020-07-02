@@ -1,13 +1,12 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts.dts.WithGlobalSymbolTable
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.must.Matchers
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExportTopLevel, JSGlobal, JSImport}
 
-class NativeSymbolAnalyzerTest extends AnyFunSuite with Matchers with WithGlobalSymbolTable {
+class NativeSymbolAnalyzerTest extends AnyFunSuite with Matchers with ScalaMetaHelper {
 
   val na = new NativeSymbolAnalyzer(getClass.getClassLoader, symTab)
 

@@ -1,24 +1,24 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class TopLevelDefValVarTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export const topLevelDefValVar_valString: string
-      |export const topLevelDefValVar_valBoolean: boolean
-      |export const topLevelDefValVar_valInt: number
-      |export const topLevelDefValVar_valDouble: number
-      |export let topLevelDefValVar_varString: string
-      |export let topLevelDefValVar_varBoolean: boolean
-      |export let topLevelDefValVar_varInt: number
-      |export let topLevelDefValVar_varDouble: number
-      |export function topLevelDefValVar_defUnit(): void
-      |export function topLevelDefValVar_defNothing(): never
-      |export function topLevelDefValVar_defDouble(n: number): number
-      |""".check()
-  }
+  """
+    |export const topLevelDefValVar_valString: string
+    |export const topLevelDefValVar_valBoolean: boolean
+    |export const topLevelDefValVar_valInt: number
+    |export const topLevelDefValVar_valDouble: number
+    |export let topLevelDefValVar_varString: string
+    |export let topLevelDefValVar_varBoolean: boolean
+    |export let topLevelDefValVar_varInt: number
+    |export let topLevelDefValVar_varDouble: number
+    |export function topLevelDefValVar_defUnit(): void
+    |export function topLevelDefValVar_defNothing(): never
+    |export function topLevelDefValVar_defDouble(n: number): number
+    |""".check()
 
 }
 

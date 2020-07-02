@@ -1,18 +1,18 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class ArrayTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export function vector(v: number[]): number[]
-      |export function vectorGen<X>(v: X[]): X[]
-      |export function matrix(v: number[][]): number[][]
-      |export function matrixGen<X>(v: X[][]): X[][]
-      |""".check()
-  }
+  """
+    |export function vector(v: number[]): number[]
+    |export function vectorGen<X>(v: X[]): X[]
+    |export function matrix(v: number[][]): number[][]
+    |export function matrixGen<X>(v: X[][]): X[][]
+    |""".check()
 
 }
 
@@ -28,4 +28,3 @@ object ArrayTest {
   def matrixGen[X](v: js.Array[js.Array[X]]) = v
 
 }
-

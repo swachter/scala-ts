@@ -1,16 +1,16 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class IteratorTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export const iterator: Iterator<string>
-      |export const iterable: Iterable<number>
-      |""".check()
-  }
+  """
+    |export const iterator: Iterator<string>
+    |export const iterable: Iterable<number>
+    |""".check()
 
 }
 

@@ -1,17 +1,17 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.{ThisFunction1, ThisFunction2}
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class ThisFunctionTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export const thisFunction1: (this: void, p1: string) => number
-      |export const thisFunction2: (this: void, p1: string, p2: boolean) => number
-      |export function thisMethod(this: void, i: number): number
-      |""".check()
-  }
+  """
+    |export const thisFunction1: (this: void, p1: string) => number
+    |export const thisFunction2: (this: void, p1: string, p2: boolean) => number
+    |export function thisMethod(this: void, i: number): number
+    |""".check()
 
 }
 

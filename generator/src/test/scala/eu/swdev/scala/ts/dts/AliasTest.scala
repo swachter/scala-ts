@@ -1,22 +1,20 @@
 package dts
 
-import eu.swdev.scala.ts.dts.DtsFunSuite
+import eu.swdev.scala.ts.DtsFunSuite
 
 import scala.scalajs.js.annotation.JSExportTopLevel
 import scala.scalajs.js.|
 
 class AliasTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export function invert(v: dts.AliasTest.U): dts.AliasTest.U
-      |export namespace dts {
-      |    namespace AliasTest {
-      |        type U = number | string | boolean
-      |    }
-      |}
-      |""".check()
-  }
+  """
+    |export function invert(v: dts.AliasTest.U): dts.AliasTest.U
+    |export namespace dts {
+    |  namespace AliasTest {
+    |    type U = number | string | boolean
+    |  }
+    |}
+    |""".check()
 
 }
 

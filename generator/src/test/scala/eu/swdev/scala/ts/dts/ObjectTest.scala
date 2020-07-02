@@ -1,20 +1,20 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 class ObjectTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export interface SomeObject$ {
-      |  doIt(): void
-      |  readonly x: number
-      |  y: number
-      |  'SomeObject$': never
-      |}
-      |export const SomeObject: SomeObject$
-      |""".check()
-  }
+  """
+    |export interface SomeObject$ {
+    |  doIt(): void
+    |  readonly x: number
+    |  y: number
+    |  'SomeObject$': never
+    |}
+    |export const SomeObject: SomeObject$
+    |""".check()
 
 }
 

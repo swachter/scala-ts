@@ -1,18 +1,18 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class FunctionTest extends DtsFunSuite {
 
-  test("simple") {
-    """
-      |export function fun0<R>(f: () => R): void
-      |export function fun1<T1,R>(f: (p1: T1) => R): void
-      |export function fun2<T1,T2,R>(f: (p1: T1, p2: T2) => R): void
-      |export function fun3<T1,R>(f: (p1: () => R, p2: (p1: T1) => R) => R): void
-      |""".check()
-  }
+  """
+    |export function fun0<R>(f: () => R): void
+    |export function fun1<T1,R>(f: (p1: T1) => R): void
+    |export function fun2<T1,T2,R>(f: (p1: T1, p2: T2) => R): void
+    |export function fun3<T1,R>(f: (p1: () => R, p2: (p1: T1) => R) => R): void
+    |""".check()
 }
 
 object FunctionTest {

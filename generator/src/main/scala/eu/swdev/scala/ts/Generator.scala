@@ -257,11 +257,11 @@ object Generator {
         sb.append(s"$space${exp}namespace ${ns.name} {\n")
       }
       ns.types.values.foreach {
-        case i: Output.Alias     => exportAlias(i, indent + 2)
-        case i: Output.Interface => exportItf(i, indent + 2)
-        case i: Output.Union     => exportUnion(i, indent + 2)
+        case i: Output.Alias     => exportAlias(i, indent + 1)
+        case i: Output.Interface => exportItf(i, indent + 1)
+        case i: Output.Union     => exportUnion(i, indent + 1)
       }
-      ns.nested.values.foreach(exportNs(_, indent + 2))
+      ns.nested.values.foreach(exportNs(_, indent + 1))
       if (indent >= 0) {
         sb.append(s"$space}\n")
       }
@@ -299,7 +299,7 @@ object Generator {
     val unions = Output.unions(inputs)
     unions.foreach(rootNamespace += _)
 
-    exportNs(rootNamespace, -2)
+    exportNs(rootNamespace, -1)
 
     sb.toString
   }

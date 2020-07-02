@@ -1,14 +1,16 @@
 package eu.swdev.scala.ts
 
 import java.io.File
+import java.nio.file.Path
 
 import scala.meta.inputs.Position
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
 import scala.meta.internal.semanticdb.SymbolOccurrence.Role
-import scala.meta.{Dialect, Source, Tree}
+import scala.meta.{Dialect, Source}
 import scala.meta.internal.semanticdb.{Locator, SymbolInformation, SymbolOccurrence, TextDocument}
+import scala.meta.tokens.Tokens
 
-case class SemSource(td: TextDocument, source: Source) {
+case class SemSource(td: TextDocument, source: Source, dialect: Dialect) {
 
   def symbolInfo(symbol: String): SymbolInformation = td.symbols.find(_.symbol == symbol).get
 
@@ -28,25 +30,38 @@ case class SemSource(td: TextDocument, source: Source) {
     td.occurrences.filter(so => so.range.map(pos.includes(_)).getOrElse(false) && so.role == role)
   }
 
+  def tokens: Tokens = source.tokens(dialect)
+
 }
 
 object SemSource {
 
   def apply(td: TextDocument, dialect: Dialect): SemSource = {
     val source = dialect(td.text).parse[Source].get
-    SemSource(td, source)
+    SemSource(td, source, dialect)
   }
 
-  def from(file: File, dialect: Dialect): List[SemSource] = {
-    val path = file.toPath
+  /**
+   * Locates SemSources in the given directory.
+   *
+   * The returned SemSources are sorted by the uri of their contained text document.
+   */
+  def locate(dir: File, dialect: Dialect): List[SemSource] = locate(dir.toPath, dialect)
+
+  /**
+   * Locates SemSources in the given directory.
+   *
+   * The returned SemSources are sorted by the uri of their contained text document.
+   */
+  def locate(dir: Path, dialect: Dialect): List[SemSource] = {
     val builder = List.newBuilder[SemSource]
-    Locator(path) { (_, tds) =>
+    Locator(dir) { (_, tds) =>
       tds.documents.foreach { td =>
         val semSource = SemSource(td, dialect)
         builder += semSource
       }
     }
-    builder.result()
+    builder.result().sortBy(_.td.uri)
   }
 
 }

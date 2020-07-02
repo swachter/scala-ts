@@ -1,16 +1,16 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class LiteralTypeTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export const litString: 'a'
-      |export const litNumber: 1
-      |export const litBoolean: true
-      |""".check()
-  }
+  """
+    |export const litString: 'a'
+    |export const litNumber: 1
+    |export const litBoolean: true
+    |""".check()
 
 }
 

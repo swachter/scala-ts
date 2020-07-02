@@ -1,6 +1,6 @@
 package dts
 
-import eu.swdev.scala.ts.dts.DtsFunSuite
+import eu.swdev.scala.ts.DtsFunSuite
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
@@ -8,34 +8,33 @@ import scala.scalajs.js.|
 
 class ApiReferenceTest extends DtsFunSuite {
 
-  test("simple") {
-    """
-      |export function someExportedMethod(in: dts.ApiReferenceTest.Input): dts.ApiReferenceTest.Output
-      |export namespace dts {
-      |    namespace ApiReferenceTest {
-      |        interface In1 {
-      |          readonly i: number
-      |          'dts.ApiReferenceTest.In1': never
-      |        }
-      |        type In2 = dts.ApiReferenceTest.In2$
-      |        interface In2$ {
-      |          readonly s: string
-      |          'dts.ApiReferenceTest.In2$': never
-      |        }
-      |        type Input = dts.ApiReferenceTest.In1 | dts.ApiReferenceTest.In2
-      |        interface Out1 {
-      |          readonly i: number
-      |          'dts.ApiReferenceTest.Out1': never
-      |        }
-      |        interface Out2$ {
-      |          readonly s: string
-      |          'dts.ApiReferenceTest.Out2$': never
-      |        }
-      |        type Output = dts.ApiReferenceTest.Out1 | dts.ApiReferenceTest.Out2$
-      |    }
-      |}
-      |""".check()
-  }
+  """
+    |export function someExportedMethod(in: dts.ApiReferenceTest.Input): dts.ApiReferenceTest.Output
+    |export namespace dts {
+    |  namespace ApiReferenceTest {
+    |    interface In1 {
+    |      readonly i: number
+    |      'dts.ApiReferenceTest.In1': never
+    |    }
+    |    type In2 = dts.ApiReferenceTest.In2$
+    |    interface In2$ {
+    |      readonly s: string
+    |      'dts.ApiReferenceTest.In2$': never
+    |    }
+    |    type Input = dts.ApiReferenceTest.In1 | dts.ApiReferenceTest.In2
+    |    interface Out1 {
+    |      readonly i: number
+    |      'dts.ApiReferenceTest.Out1': never
+    |    }
+    |    interface Out2$ {
+    |      readonly s: string
+    |      'dts.ApiReferenceTest.Out2$': never
+    |    }
+    |    type Output = dts.ApiReferenceTest.Out1 | dts.ApiReferenceTest.Out2$
+    |  }
+    |}
+    |""".check()
+
 }
 
 object ApiReferenceTest {

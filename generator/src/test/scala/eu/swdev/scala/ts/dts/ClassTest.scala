@@ -1,20 +1,19 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
 
 import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 
 class ClassTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export class SomeClass {
-      |  constructor(s: string, i: number, b: boolean)
-      |  readonly s: string
-      |  i: number
-      |  doIt(): void
-      |}
-      |""".check()
-  }
+  """
+    |export class SomeClass {
+    |  constructor(s: string, i: number, b: boolean)
+    |  readonly s: string
+    |  i: number
+    |  doIt(): void
+    |}
+    |""".check()
 
 }
 
@@ -25,7 +24,7 @@ case class SomeClass(s: String, var i: Int, private val b: Boolean) {
   def doIt() = ()
 
   private def privateDef() = ()
-  private val privateVal = 1
-  private var privateVar = 2
+  private val privateVal   = 1
+  private var privateVar   = 2
 
 }

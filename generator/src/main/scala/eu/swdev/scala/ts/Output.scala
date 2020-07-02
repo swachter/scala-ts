@@ -14,17 +14,17 @@ object Output {
     opaqueTypes.flatMap(_.typeSymbol).flatMap(symTab.info(_)).map(Interface(_, symTab))
   }
 
-  def unions(exports: List[Input]): List[Union] = {
+  def unions(inputs: List[Input]): List[Union] = {
 
-    val exportedClasses = exports.collect {
+    val exportedClasses = inputs.collect {
       case e: Input.Cls => e.si.symbol -> e
     }.toMap
 
-    val exportedObjects = exports.collect {
+    val exportedObjects = inputs.collect {
       case e: Input.Obj => e.si.symbol -> e
     }.toMap
 
-    val sealedTraitExports = exports.collect {
+    val sealedTraitExports = inputs.collect {
       case e: Input.Trait if e.tree.mods.exists(_.isInstanceOf[Mod.Sealed]) => e
     }
 

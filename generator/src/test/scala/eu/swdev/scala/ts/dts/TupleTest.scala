@@ -1,16 +1,16 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class TupleTest extends DtsFunSuite {
 
-  test("simple") {
-    """
-      |export const tuple2: [string, number]
-      |export const tuple3: [string, number, boolean]
-      |""".check()
-  }
+  """
+    |export const tuple2: [string, number]
+    |export const tuple3: [string, number, boolean]
+    |""".check()
 }
 
 object TupleTest {

@@ -1,19 +1,19 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 
 class JSExportTest extends DtsFunSuite {
 
-  test("jsExport") {
-    """
-      |export interface jsExportTest$ {
-      |  readonly x: number
-      |  readonly y: number
-      |  'jsExportTest$': never
-      |}
-      |export const jsExportTest: jsExportTest$
-      |""".check()
-  }
+  """
+    |export interface jsExportTest$ {
+    |  readonly x: number
+    |  readonly y: number
+    |  'jsExportTest$': never
+    |}
+    |export const jsExportTest: jsExportTest$
+    |""".check()
 
 }
 

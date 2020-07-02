@@ -1,15 +1,15 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class PromiseTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export const promise: Promise<string>
-      |""".check()
-  }
+  """
+    |export const promise: Promise<string>
+    |""".check()
 
 }
 

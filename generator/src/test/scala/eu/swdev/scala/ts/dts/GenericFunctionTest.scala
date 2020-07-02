@@ -1,27 +1,27 @@
 package eu.swdev.scala.ts.dts
 
+import eu.swdev.scala.ts.DtsFunSuite
+
 import scala.scalajs.js.annotation.JSExportTopLevel
 
 class GenericFunctionTest extends DtsFunSuite {
 
-  test("dts") {
-    """
-      |export function some<T>(t: T): scala.Some<T>
-      |export function option<T>(t: T): scala.Option<T>
-      |export const none: scala.None$
-      |export namespace scala {
-      |    interface None$ extends scala.Option<never> {
-      |      'scala.None$': never
-      |    }
-      |    interface Option<A> {
-      |      'scala.Option': never
-      |    }
-      |    interface Some<A> extends scala.Option<A> {
-      |      'scala.Some': never
-      |    }
-      |}
-      |""".check()
-  }
+  """
+    |export function some<T>(t: T): scala.Some<T>
+    |export function option<T>(t: T): scala.Option<T>
+    |export const none: scala.None$
+    |export namespace scala {
+    |  interface None$ extends scala.Option<never> {
+    |    'scala.None$': never
+    |  }
+    |  interface Option<A> {
+    |    'scala.Option': never
+    |  }
+    |  interface Some<A> extends scala.Option<A> {
+    |    'scala.Some': never
+    |  }
+    |}
+    |""".check()
 
 }
 
