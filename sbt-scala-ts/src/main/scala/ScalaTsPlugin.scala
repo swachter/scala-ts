@@ -17,6 +17,7 @@ object ScalaTsPlugin extends AutoPlugin {
       settingKey[String => String]("Transforms the project version into a node module version (default: identity function with check)")
     val scalaTsFastOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
     val scalaTsFullOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
+    val scalaTsValidate          = settingKey[Boolean]("Determines if generation results are compared given expected results")
     val scalaTsChangeForkOptions = settingKey[ForkOptions => ForkOptions]("Allows to change the fork options (default: identity function)")
 
     def withDebugForkOptions(port: Int)(fo: ForkOptions) =
@@ -29,6 +30,7 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaTsModuleName := name.value,
     scalaTsModuleVersion := semanticVersionCheck,
     scalaTsChangeForkOptions := identity,
+    scalaTsValidate := false,
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
     scalacOptions += "-P:semanticdb:text:on",
@@ -49,6 +51,7 @@ object ScalaTsPlugin extends AutoPlugin {
           scalaTsModuleVersion.value.apply(version.value),
           (classDirectory in Compile).value,
           (fullClasspath in Compile).value.map(_.data),
+          scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,
         streams.value.log
@@ -63,6 +66,7 @@ object ScalaTsPlugin extends AutoPlugin {
           scalaTsModuleVersion.value.apply(version.value),
           (classDirectory in Compile).value,
           (fullClasspath in Compile).value.map(_.data),
+          scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,
         streams.value.log

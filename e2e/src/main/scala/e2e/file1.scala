@@ -1,6 +1,6 @@
 package e2e
 
-import typings.jsJoda.mod.{LocalDate, TemporalAmount}
+import typings.jsJoda.mod.{LocalDate}
 
 import scala.annotation.meta.field
 import scala.collection.mutable
@@ -282,24 +282,4 @@ object CtorParamExportTest {
 
   @JSExportTopLevel("CtorParamExport")
   class CtorParamExport(@JSExport val x: String, @JSExport("y")var z: String)
-}
-
-@JSExportTopLevel("ClassWitStatics")
-class ClassWitStatics extends js.Object
-
-object ClassWitStatics {
-
-  @JSExportStatic
-  def twice(x: Int) = 2 * x
-  @JSExportStatic
-  val str = "abc"
-  @JSExportStatic("numero")
-  var num = 55
-  @JSExportStatic
-  def x = _x
-  @JSExportStatic
-  def x_=(i: Int) = _x = i
-
-  var _x = 0
-
 }

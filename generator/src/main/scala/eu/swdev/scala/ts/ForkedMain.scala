@@ -8,12 +8,12 @@ import scala.meta.{Dialect, dialects}
 import scala.meta.internal.symtab.GlobalSymbolTable
 import scala.meta.io.{AbsolutePath, Classpath}
 
-// this trait is referenced in the ScalaTsPlugin when the generator is forked
-trait ForkedMain
+// this class is referenced in the ScalaTsPlugin when the generator is forked
+class ForkedMain
 
 /**
- * Main class that is started when the generator is forked by the ScalaTsPlugin
- */
+  * Main class that is started when the generator is forked by the ScalaTsPlugin
+  */
 object ForkedMain {
 
   case class Config(
@@ -21,7 +21,8 @@ object ForkedMain {
       moduleName: String,
       moduleVersion: String,
       compileClassDir: File,
-      compileFullClasspath: Seq[File]
+      compileFullClasspath: Seq[File],
+      validate: Boolean,
   ) {
     import Config._
 
@@ -30,7 +31,8 @@ object ForkedMain {
       kModuleName           -> moduleName,
       kModuleVersion        -> moduleVersion,
       kCompileClassDir      -> compileClassDir.toString,
-      kCompileFullClassPath -> compileFullClasspath.mkString(File.pathSeparator)
+      kCompileFullClassPath -> compileFullClasspath.mkString(File.pathSeparator),
+      kValidate             -> String.valueOf(validate),
     )
   }
 
@@ -43,13 +45,15 @@ object ForkedMain {
     val kModuleVersion        = "MODULE_VERSION"
     val kCompileClassDir      = "COMPILE_CLASS_DIR"
     val kCompileFullClassPath = "COMPILE_FULL_CLASS_PATH"
+    val kValidate             = "VALIDATE"
 
     def fromEnvVars = Config(
       jsFile = new File(System.getenv(kJsFile)),
       moduleName = System.getenv(kModuleName),
       moduleVersion = System.getenv(kModuleVersion),
       compileClassDir = new File(System.getenv(kCompileClassDir)),
-      compileFullClasspath = System.getenv(kCompileFullClassPath).split(File.pathSeparatorChar).map(new File(_)).toSeq
+      compileFullClasspath = System.getenv(kCompileFullClassPath).split(File.pathSeparatorChar).map(new File(_)).toSeq,
+      validate = System.getenv(kValidate).toBoolean,
     )
 
   }
@@ -86,11 +90,11 @@ object ForkedMain {
         }
         .mkString("{", ", ", "}")
 
-    println(s"ScalaTs input : $inputInfo")
+    System.out.println(s"ScalaTs input : $inputInfo")
 
     val output = Generator.generate(inputs, symTab, Seq.empty, getClass.getClassLoader)
 
-    println(s"ScalaTs output: $dtsPath")
+    System.out.println(s"ScalaTs output: $dtsPath")
 
     Files.write(dtsPath, output.getBytes(StandardCharsets.UTF_8))
 
@@ -107,6 +111,41 @@ object ForkedMain {
          |""".stripMargin
 
     Files.write(packageJsonPath, content.getBytes(StandardCharsets.UTF_8))
+
+    if (config.validate) {
+      val infos  = semSrcs.map(s => s -> DtsInfo(s)).collect { case (semSource, Some(dtsInfo)) => semSource -> dtsInfo }
+      var failed = false
+      def check(name: String, inputs: List[Input.Defn], expected: String): Unit = {
+        val actual = Generator.generate(inputs, symTab, Seq.empty, getClass.getClassLoader).trim
+        if (actual != expected) {
+          System.err.println(s"$name: failed\n====== expected:\n$expected\n==== actual:\n$actual\n====")
+          failed = true
+        } else {
+          System.out.println(s"$name: passed")
+        }
+      }
+      infos.foreach {
+        case (semSrc, DtsInfo.Dts(expectedDts)) =>
+          val inputs = Analyzer.analyze(semSrc, symTab)
+          check(s"file: ${semSrc.td.uri}", inputs, expectedDts)
+
+        case (_, DtsInfo.DtsAndGroup(expectedDts, group)) =>
+          val inputs = infos
+            .collect {
+              case (semSrc, DtsInfo.Group(`group`))          => semSrc
+              case (semSrc, DtsInfo.DtsAndGroup(_, `group`)) => semSrc
+            }
+            .flatMap(Analyzer.analyze(_, symTab))
+          check(s"group: $group", inputs, expectedDts)
+
+        case _ =>
+      }
+
+      if (failed) {
+        System.exit(1)
+      }
+
+    }
 
   }
 

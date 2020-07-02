@@ -1,6 +1,9 @@
 import scala.sys.process.Process
 
 val scalaMetaVersion = "4.3.10"
+// the ScalaJS version the ScalaTsPlugin depends upon
+// (this build also uses the ScalaJS plugin; that version is configure in project/plugins.sbt)
+val scalaJsVersion = "1.1.1"
 
 lazy val scala212 = "2.12.11"
 lazy val scala213 = "2.13.2"
@@ -70,7 +73,9 @@ lazy val plugin = project
       a => Seq("-Xmx", "-Xms", "-XX", "-Dsbt.log.noformat").exists(a.startsWith)
     ),
     scriptedBufferLog := false,
-    addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.0.1"),
+    // adds libraryDependency to the ScalaJS sbt plugin
+    // -> the ScalaTsPlugin references the ScalaJS plugin
+    addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJsVersion),
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "test"
   )
 

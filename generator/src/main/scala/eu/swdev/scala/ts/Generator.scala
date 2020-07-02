@@ -127,7 +127,7 @@ object Generator {
     }
 
     def memberObj(i: Input.Obj): String = {
-      s"readonly ${i.memberName}: ${FullName(i.si)}"
+      s"readonly ${i.memberName}: ${FullName(i.si)}\n"
     }
 
     def exportObj(name: String, i: Input.Obj): Unit = {
@@ -174,13 +174,16 @@ object Generator {
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
       sb.append(s"  constructor($cParams)\n")
 
-      (i.ctorParams ++ i.member).map {
-        case e: Input.Def       => memberDef(e)
-        case e: Input.Val       => memberVal(e)
-        case e: Input.Var       => memberVar(e)
-        case e: Input.CtorParam => memberCtorParam(e)
-        case e: Input.Type      => ""
-      }.filter(_.nonEmpty).foreach(m => sb.append(s"  $m"))
+      (i.ctorParams ++ i.member)
+        .map {
+          case e: Input.Def       => memberDef(e)
+          case e: Input.Val       => memberVal(e)
+          case e: Input.Var       => memberVar(e)
+          case e: Input.CtorParam => memberCtorParam(e)
+          case e: Input.Type      => ""
+        }
+        .filter(_.nonEmpty)
+        .foreach(m => sb.append(s"  $m"))
       sb.append("}\n")
     }
 
@@ -199,12 +202,12 @@ object Generator {
 
       itf.members
         .map {
-          case i: Input.Def               => memberDef(i)
-          case i: Input.Val               => memberVal(i)
-          case i: Input.Var               => memberVar(i)
-          case i: Input.CtorParam         => memberCtorParam(i)
-          case i: Input.Obj if i.isMember => memberObj(i)
-          case i: Input.Type              => ""
+          case i: Input.Def                       => memberDef(i)
+          case i: Input.Val                       => memberVal(i)
+          case i: Input.Var                       => memberVar(i)
+          case i: Input.CtorParam                 => memberCtorParam(i)
+          case i: Input.Obj if i.isExportedMember => memberObj(i)
+          case i: Input.Type                      => ""
         }
         .filter(_.nonEmpty)
         .foreach(m => sb.append(s"$space  $m"))

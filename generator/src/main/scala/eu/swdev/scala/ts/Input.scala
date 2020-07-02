@@ -122,7 +122,8 @@ object Input {
                  member: List[Defn],
                  expAll: Boolean)
       extends ClsOrObj {
-    def isMember = expAll || name.map(_.isMember).getOrElse(false)
+    // indicates if this object is an exported member
+    def isExportedMember = expAll || name.map(_.isMember).getOrElse(false)
   }
 
   case class Cls(semSrc: SemSource,
