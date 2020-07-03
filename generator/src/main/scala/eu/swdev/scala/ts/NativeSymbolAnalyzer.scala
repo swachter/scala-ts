@@ -1,5 +1,7 @@
 package eu.swdev.scala.ts
 
+import java.util.StringTokenizer
+
 import scala.reflect.runtime.{universe => ru}
 import ru._
 import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeSignature}
@@ -7,7 +9,7 @@ import scala.meta.internal.symtab.SymbolTable
 import scala.reflect.NameTransformer
 
 /**
-  * Analyzes if symbols can be accessed from JavaScript.
+  * Analyzes if symbols are native, i.e. if they are imported or from global scope.
   *
   * Annotation values are not stored in semantic db. Therefore scala-reflect is used to access these.
   */
@@ -29,15 +31,62 @@ class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
     outerNativeSymbol(si).orElse(innerNativeSymbol(si))
   }
 
+//  private def symbolInformation2TypeSymbolApi(si: SymbolInformation): TypeSymbolApi = {
+//    val fn = FullName(si)
+//    // translate ScalaMeta symbol into corresponding scala-reflect fullName
+//    val translated = fn.str.replace("`", "").split('.').map(NameTransformer.encode(_)).mkString(".")
+//    if (translated.endsWith("$")) {
+//      mirror.staticModule(translated.dropRight(1)).moduleClass.asClass
+//    } else {
+//      mirror.staticClass(translated)
+//    }
+//  }
+
+  // transforms a Scalameta symbol into a scala-reflect symbol
+  def transform(sym: String): String = NameTransformer.encode(sym.replace("`", ""))
+
   private def symbolInformation2TypeSymbolApi(si: SymbolInformation): TypeSymbolApi = {
-    val fn = FullName(si)
-    // translate ScalaMeta symbol into corresponding scala-reflect fullName
-    val translated = fn.str.replace("`", "").split('.').map(NameTransformer.encode(_)).mkString(".")
-    if (translated.endsWith("$")) {
-      mirror.staticModule(translated.dropRight(1)).moduleClass.asClass
-    } else {
-      mirror.staticClass(translated)
+    import scala.collection.JavaConverters._
+
+    val splitted = si.symbol.split('/')
+    val pckg     = splitted.dropRight(1).mkString(".")
+    val nested   = new StringTokenizer(splitted.last, ".#", true).asScala.grouped(2).map(_.mkString("")).toList
+
+    val objPrefix = nested.takeWhile(_.endsWith("."))
+    val clsSuffix = nested.dropWhile(_.endsWith("."))
+
+    // the first class from the clsSufix is accessible statically
+    // -> append it to the prefix and remove it from the suffix
+    val (prefix, suffix) = clsSuffix match {
+      case head :: tail => (objPrefix :+ head, tail)
+      case _            => (objPrefix, Nil)
     }
+
+    // calculate the outer name of the statically accessible prefix
+    val outerName     = prefix.map(s => transform(s.dropRight(1))).mkString(".")
+    val fullOuterName = s"$pckg.$outerName"
+    var tsa: TypeSymbolApi = if (prefix.last.endsWith(".")) {
+      mirror.staticModule(fullOuterName).moduleClass.asClass
+    } else {
+      mirror.staticClass(fullOuterName)
+    }
+
+    // iteratively handle the suffix by navigating into nested classes and objects
+    var tail = suffix
+    while (tail.nonEmpty) {
+      val head      = tail.head
+      val innerName = transform(head.dropRight(1))
+      if (head.endsWith(".")) {
+        val o = tsa.toType.decls.find(sym => sym.isModule && sym.name.decoded == innerName)
+        tsa = o.get.asModule.moduleClass.asClass
+      } else {
+        val o = tsa.toType.decls.find(sym => sym.isClass && sym.name.decoded == innerName)
+        tsa = o.get.asClass
+      }
+      tail = tail.tail
+    }
+
+    tsa
   }
 
   private def innerNativeSymbol(si: SymbolInformation): Option[NativeSymbol.Inner] = {

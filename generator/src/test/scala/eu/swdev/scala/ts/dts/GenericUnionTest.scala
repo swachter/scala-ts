@@ -8,19 +8,19 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 class GenericUnionTest extends DtsFunSuite {
 
   """
-    |export interface GenUnionCase1<T extends object> extends eu.swdev.scala.ts.dts.GenericUnionTest.Base<T> {
+    |export interface GenUnionCase1<T extends object> extends eu.swdev.scala.ts.dts.GenericUnionTest$.Base<T> {
     |  'GenUnionCase1': never
     |}
     |export class GenUnionCase1<T extends object> {
     |  constructor()
     |}
-    |export interface GenUnionCase2<T extends object,X> extends eu.swdev.scala.ts.dts.GenericUnionTest.Base<T> {
+    |export interface GenUnionCase2<T extends object,X> extends eu.swdev.scala.ts.dts.GenericUnionTest$.Base<T> {
     |  'GenUnionCase2': never
     |}
     |export class GenUnionCase2<T extends object,X> {
     |  constructor()
     |}
-    |export interface GenUnionCase3<Y,T extends object> extends eu.swdev.scala.ts.dts.GenericUnionTest.Base<T> {
+    |export interface GenUnionCase3<Y,T extends object> extends eu.swdev.scala.ts.dts.GenericUnionTest$.Base<T> {
     |  'GenUnionCase3': never
     |}
     |export class GenUnionCase3<Y,T extends object> {
@@ -31,9 +31,9 @@ class GenericUnionTest extends DtsFunSuite {
     |    namespace scala {
     |      namespace ts {
     |        namespace dts {
-    |          namespace GenericUnionTest {
+    |          namespace GenericUnionTest$ {
     |            interface Base<T extends object> {
-    |              'eu.swdev.scala.ts.dts.GenericUnionTest.Base': never
+    |              'eu.swdev.scala.ts.dts.GenericUnionTest$.Base': never
     |            }
     |            type Base$u<T extends object,M1$X,M2$Y> = GenUnionCase1<T> | GenUnionCase2<T,M1$X> | GenUnionCase3<M2$Y,T>
     |          }

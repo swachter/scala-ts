@@ -2,7 +2,7 @@ import * as m from 'scala-ts-mod'
 
 describe('union', function() {
 
-  function invert(u: m.e2e.UnionTest.U) {
+  function invert(u: m.e2e.UnionTest$.U) {
      return m.invert(u)
   }
 

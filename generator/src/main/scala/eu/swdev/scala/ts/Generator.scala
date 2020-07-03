@@ -176,11 +176,12 @@ object Generator {
 
       (i.ctorParams ++ i.member)
         .map {
-          case e: Input.Def       => memberDef(e)
-          case e: Input.Val       => memberVal(e)
-          case e: Input.Var       => memberVar(e)
-          case e: Input.CtorParam => memberCtorParam(e)
-          case e: Input.Type      => ""
+          case e: Input.Def                       => memberDef(e)
+          case e: Input.Val                       => memberVal(e)
+          case e: Input.Var                       => memberVar(e)
+          case e: Input.CtorParam                 => memberCtorParam(e)
+          case i: Input.Obj if i.isExportedMember => memberObj(i)
+          case e: Input.Type                      => ""
         }
         .filter(_.nonEmpty)
         .foreach(m => sb.append(s"  $m"))

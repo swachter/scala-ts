@@ -7,13 +7,13 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 class Adt1Test extends DtsFunSuite {
 
   """
-    |export interface Adt1Case1 extends eu.swdev.scala.ts.dts.Adt1Test.Base {
+    |export interface Adt1Case1 extends eu.swdev.scala.ts.dts.Adt1Test$.Base {
     |  'Adt1Case1': never
     |}
     |export class Adt1Case1 {
     |  constructor()
     |}
-    |export interface Adt1Case2 extends eu.swdev.scala.ts.dts.Adt1Test.Base {
+    |export interface Adt1Case2 extends eu.swdev.scala.ts.dts.Adt1Test$.Base {
     |  'Adt1Case2': never
     |}
     |export class Adt1Case2 {
@@ -24,9 +24,9 @@ class Adt1Test extends DtsFunSuite {
     |    namespace scala {
     |      namespace ts {
     |        namespace dts {
-    |          namespace Adt1Test {
+    |          namespace Adt1Test$ {
     |            interface Base {
-    |              'eu.swdev.scala.ts.dts.Adt1Test.Base': never
+    |              'eu.swdev.scala.ts.dts.Adt1Test$.Base': never
     |            }
     |            type Base$u = Adt1Case1 | Adt1Case2
     |          }

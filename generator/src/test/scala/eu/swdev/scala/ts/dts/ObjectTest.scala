@@ -12,7 +12,7 @@ class ObjectTest extends DtsFunSuite {
     |  doIt(): void
     |  readonly x: number
     |  y: number
-    |  readonly o: eu.swdev.scala.ts.dts.ObjectTest.o$
+    |  readonly o: eu.swdev.scala.ts.dts.ObjectTest$.o$
     |  'SomeObject$': never
     |}
     |export const SomeObject: SomeObject$
@@ -21,10 +21,10 @@ class ObjectTest extends DtsFunSuite {
     |    namespace scala {
     |      namespace ts {
     |        namespace dts {
-    |          namespace ObjectTest {
+    |          namespace ObjectTest$ {
     |            interface o$ {
     |              readonly a: string
-    |              'eu.swdev.scala.ts.dts.ObjectTest.o$': never
+    |              'eu.swdev.scala.ts.dts.ObjectTest$.o$': never
     |            }
     |          }
     |        }

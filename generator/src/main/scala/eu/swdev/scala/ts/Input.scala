@@ -21,7 +21,11 @@ object FullName {
     } else {
       ""
     }
-    val s = sym.substring(0, sym.length - 1).replace('/', '.').replace(".package.", ".")
+    val s = sym.substring(0, sym.length - 1)
+      .replace(".package.", ".")
+      .replace(".", "$.") // objects have a '.' suffix -> mark objects by a '$'
+      .replace('/', '.')  // path steps to packages
+      .replace('#', '.')  // classes have a '#' suffix -> replace by '.' separator
     s"$s$suffix"
   }
   def apply(si: SymbolInformation): FullName       = fromSymbol(si.symbol)
