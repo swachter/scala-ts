@@ -19,6 +19,7 @@ object Analyzer {
   val jsExportSymbol         = classSymbol[JSExport]
   val jsExportAllSymbol      = classSymbol[JSExportAll]
   val jsExportStaticSymbol   = "scala/scalajs/js/annotation/JSExportStatic#"
+  val jsNameSymbol           = "scala/scalajs/js/annotation/JSName#"
 
   /**
     * @return flattened list of all input definitions
@@ -34,32 +35,47 @@ object Analyzer {
     def existsExportAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsExportSymbol)
     def existsExportAllAnnot(tree: Tree): Boolean      = existsSymbolReference(tree, jsExportAllSymbol)
     def existsExportStaticAnnot(tree: Tree): Boolean   = existsSymbolReference(tree, jsExportStaticSymbol)
+    def existsJsNameAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsNameSymbol)
 
-    val exportTopLevelAnnot: PartialFunction[Mod, ExportAnnot.TopLevel] = {
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => ExportAnnot.TopLevel(lit)
+    val exportTopLevelAnnot: PartialFunction[Mod, NameAnnot.TopLevel] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => NameAnnot.TopLevel(lit)
     }
 
-    val exportMemberAnnot: PartialFunction[Mod, ExportAnnot.Member] = {
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t) => ExportAnnot.MemberWithName(lit)
-      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                         => ExportAnnot.MemberWithoutName
+    def referencedSymbol(term: Term): Symbol = {
+      // the term must reference a static, stable field (cf. https://www.scala-js.org/doc/interoperability/facade-types.html)
+      // of type js.Symbol
+      // -> find the symbol occurrence in the range of the given term
+      // -> there might be several indexes; e.g.: `js`, `js.Symbol`, and `js.Symbol.iterator`
+      // -> use the symbol occurrence with the greatest endCharacter index
+      val seq = semSrc.symbolOccurrences(term.pos, Role.REFERENCE)
+      seq.sortBy(_.range.get.endCharacter).last.symbol
     }
 
-    val exportStaticAnnot: PartialFunction[Mod, ExportAnnot.Static] = {
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportStaticAnnot(t) => ExportAnnot.StaticWithName(lit)
-      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportStaticAnnot(t)                         => ExportAnnot.StaticWithoutName
+    val exportMemberAnnot: PartialFunction[Mod, NameAnnot.Member] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t) => NameAnnot.MemberWithName(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                         => NameAnnot.MemberWithoutName
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsJsNameAnnot(t) => NameAnnot.JsNameWithString(lit)
+      case Mod.Annot(t @ Init(_, _, List(List(ref)))) if existsJsNameAnnot(t)             => NameAnnot.JsNameWithSymbol(referencedSymbol(ref))
+    }
 
+    val exportStaticAnnot: PartialFunction[Mod, NameAnnot.Static] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportStaticAnnot(t) => NameAnnot.StaticWithName(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportStaticAnnot(t)                         => NameAnnot.StaticWithoutName
     }
 
     val exportAnnot = exportTopLevelAnnot orElse exportMemberAnnot orElse exportStaticAnnot
 
-    def exportName(mods: List[Mod]): Option[ExportAnnot] = mods.collect(exportAnnot).headOption
+    def exportName(mods: List[Mod]): Option[NameAnnot] = mods.collect(exportAnnot).headOption
 
     def fieldName(mods: List[Mod], default: String): String =
       mods
         .collect(exportMemberAnnot)
         .map {
-          case ExportAnnot.MemberWithoutName => default
-          case ExportAnnot.MemberWithName(s) => s
+          case NameAnnot.MemberWithoutName   => default
+          case NameAnnot.MemberWithName(s)   => s
+          case NameAnnot.JsNameWithString(s) => s
+          case NameAnnot.JsNameWithSymbol(s) =>
+            throw new NotImplementedError("constructor parameters can not be annotated with @JSName with a symbol")
         }
         .headOption
         .getOrElse(default)
@@ -87,7 +103,7 @@ object Analyzer {
 
         def processDefValVar[D <: Defn](defn: D,
                                         mods: List[Mod],
-                                        ctor: (SemSource, D, Option[ExportAnnot], SymbolInformation) => Input.Defn): Unit =
+                                        ctor: (SemSource, D, Option[NameAnnot], SymbolInformation) => Input.Defn): Unit =
           if (!hasPrivateMod(mods)) {
             for {
               si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
@@ -144,7 +160,14 @@ object Analyzer {
             }
 
             val members = recurse(allMembersAreVisible, visitChildren)
-            builder += Input.Cls(semSrc, defn, exportName(defn.mods), si, members, ctorParams, hasAbstractMod(defn.mods))
+            builder += Input.Cls(semSrc,
+                                 defn,
+                                 exportName(defn.mods),
+                                 si,
+                                 members,
+                                 allMembersAreVisible,
+                                 ctorParams,
+                                 hasAbstractMod(defn.mods))
           }
 
         }
@@ -153,8 +176,9 @@ object Analyzer {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
-            val members = recurse(hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si), visitChildren)
-            builder += Input.Obj(semSrc, defn, exportName(defn.mods), si, members, expAll)
+            val allMembersAreVisible = hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si)
+            val members              = recurse(allMembersAreVisible, visitChildren)
+            builder += Input.Obj(semSrc, defn, exportName(defn.mods), si, members, allMembersAreVisible)
           }
 
         }

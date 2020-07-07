@@ -4,51 +4,99 @@ import java.util.StringTokenizer
 
 import scala.reflect.runtime.{universe => ru}
 import ru._
-import scala.meta.internal.semanticdb.{ClassSignature, SymbolInformation, TypeSignature}
+import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.reflect.NameTransformer
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
-  * Analyzes if symbols are native, i.e. if they are imported or from global scope.
+  * Analyzes if symbols are native, i.e. if they are from global scope, imported, or exported.
   *
   * Annotation values are not stored in semantic db. Therefore scala-reflect is used to access these.
   */
-class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
+class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], cl: ClassLoader, symTab: SymbolTable) {
 
-  val mirror = ru.runtimeMirror(cl)
+  private val mirror = ru.runtimeMirror(cl)
 
-  def nativeSymbol(sym: String): Option[NativeSymbol] = {
-    symTab.typeSymInfo(sym).flatMap { si =>
-      si.signature match {
-        case TypeSignature(_, _, upperBound) => upperBound.typeSymbol.flatMap(s => nativeSymbol(s))
-        case ClassSignature(_, _, _, _)      => nativeSymbol(si)
-        case _                               => None
+  private val nativeSymbols = mutable.Map.empty[String, Option[NativeSymbol]]
+
+  nativeSymbols ++= topLevelExports.mapValues(Option(_))
+
+  def nativeSymbol(sym: String): Option[NativeSymbol] = synchronized {
+    nativeSymbols.getOrElseUpdate(
+      sym,
+      if (sym == "scala/AnyRef#") {
+        None
+      } else {
+        symTab.info(sym).flatMap { si =>
+          si.signature match {
+            case TypeSignature(_, _, upperBound) => upperBound.typeSymbol.flatMap(s => nativeSymbol(s)) // follow type aliases
+            case ClassSignature(_, _, _, _)      => nativeClassSymbol(si)
+            case MethodSignature(_, _, _)        => nativeMethodSymbol(si) // defs, vals, and vars
+            case _                               => None
+          }
+        }
+      }
+    )
+  }
+
+  def nativeSymbolImports: Iterable[(String, String)] = synchronized {
+    nativeSymbols.values
+      .collect {
+        case Some(s) => s
+      }
+      .flatMap(nativeSymbolImport)
+  }
+
+  private def nativeSymbolImport(ns: NativeSymbol): Seq[(String, String)] = ns match {
+    case NativeSymbol.ImportedName(module, name, _) => Seq(module -> name)
+    case NativeSymbol.ImportedNamespace(module, _)  => Seq(module -> "")
+    case NativeSymbol.Inner(_, outer, _)            => nativeSymbolImport(outer)
+    case _                                          => Seq()
+  }
+
+  private def nativeClassSymbol(si: SymbolInformation): Option[NativeSymbol] = {
+    outerNativeClassSymbol(si).orElse(innerNativeClassSymbol(si))
+  }
+
+  private def nativeMethodSymbol(si: SymbolInformation): Option[NativeSymbol] = {
+    val splitted      = si.symbol.split('/')
+    val pckg          = splitted.dropRight(1).mkString("/")
+    val nested        = new StringTokenizer(splitted.last, ".#", true).asScala.grouped(2).map(_.mkString("")).toList
+    val owner         = nested.dropRight(1).mkString("")
+    val ownerFullName = s"$pckg/$owner"
+    val tApi          = symbolInformation2TypeSymbolApi(ownerFullName)
+
+    val last      = nested.last
+    val innerName = transform(last.dropRight(1))
+
+    val mApi = tApi.toType.decls.collectFirst {
+      case m: MethodSymbolApi if m.name.toString == innerName => m
+    }.get
+
+    val defaultName = mApi.name.toString
+    val as          = mApi.annotations
+
+    val outerNativeMethodSymbol = checkGlobal(si, as, defaultName).orElse(checkImported(si, as)).orElse(checkExported(si))
+
+    outerNativeMethodSymbol.orElse {
+      symTab.info(ownerFullName).flatMap(nativeClassSymbol).map { ownerNativeSymbol =>
+        val in = checkName(as).orElse(checkExport(as)).getOrElse(innerName)
+        NativeSymbol.Inner(in, ownerNativeSymbol, false)
       }
     }
-  }
 
-  private def nativeSymbol(si: SymbolInformation): Option[NativeSymbol] = {
-    outerNativeSymbol(si).orElse(innerNativeSymbol(si))
   }
-
-//  private def symbolInformation2TypeSymbolApi(si: SymbolInformation): TypeSymbolApi = {
-//    val fn = FullName(si)
-//    // translate ScalaMeta symbol into corresponding scala-reflect fullName
-//    val translated = fn.str.replace("`", "").split('.').map(NameTransformer.encode(_)).mkString(".")
-//    if (translated.endsWith("$")) {
-//      mirror.staticModule(translated.dropRight(1)).moduleClass.asClass
-//    } else {
-//      mirror.staticClass(translated)
-//    }
-//  }
 
   // transforms a Scalameta symbol into a scala-reflect symbol
-  def transform(sym: String): String = NameTransformer.encode(sym.replace("`", ""))
+  private def transform(sym: String): String = NameTransformer.encode(sym.replace("`", ""))
 
-  private def symbolInformation2TypeSymbolApi(si: SymbolInformation): TypeSymbolApi = {
-    import scala.collection.JavaConverters._
+  private def symbolInformation2TypeSymbolApi(si: SymbolInformation): TypeSymbolApi = symbolInformation2TypeSymbolApi(si.symbol)
 
-    val splitted = si.symbol.split('/')
+  private def symbolInformation2TypeSymbolApi(sym: String): TypeSymbolApi = {
+
+    val splitted = sym.split('/')
     val pckg     = splitted.dropRight(1).mkString(".")
     val nested   = new StringTokenizer(splitted.last, ".#", true).asScala.grouped(2).map(_.mkString("")).toList
 
@@ -65,7 +113,7 @@ class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
     // calculate the outer name of the statically accessible prefix
     val outerName     = prefix.map(s => transform(s.dropRight(1))).mkString(".")
     val fullOuterName = s"$pckg.$outerName"
-    var tsa: TypeSymbolApi = if (prefix.last.endsWith(".")) {
+    var tApi: TypeSymbolApi = if (prefix.last.endsWith(".")) {
       mirror.staticModule(fullOuterName).moduleClass.asClass
     } else {
       mirror.staticClass(fullOuterName)
@@ -77,19 +125,19 @@ class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
       val head      = tail.head
       val innerName = transform(head.dropRight(1))
       if (head.endsWith(".")) {
-        val o = tsa.toType.decls.find(sym => sym.isModule && sym.name.decoded == innerName)
-        tsa = o.get.asModule.moduleClass.asClass
+        val o = tApi.toType.decls.find(sym => sym.isModule && sym.name.decoded == innerName)
+        tApi = o.get.asModule.moduleClass.asClass
       } else {
-        val o = tsa.toType.decls.find(sym => sym.isClass && sym.name.decoded == innerName)
-        tsa = o.get.asClass
+        val o = tApi.toType.decls.find(sym => sym.isClass && sym.name.decoded == innerName)
+        tApi = o.get.asClass
       }
       tail = tail.tail
     }
 
-    tsa
+    tApi
   }
 
-  private def innerNativeSymbol(si: SymbolInformation): Option[NativeSymbol.Inner] = {
+  private def innerNativeClassSymbol(si: SymbolInformation): Option[NativeSymbol.Inner] = {
     val idx = if (si.symbol.endsWith(".")) si.symbol.lastIndexOf('.', si.symbol.length - 2) else si.symbol.lastIndexOf('.')
     if (idx >= 0) {
       nativeSymbol(si.symbol.substring(0, idx + 1)).flatMap { outerNativeSym =>
@@ -110,16 +158,16 @@ class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
   }
 
   private def innerName(si: SymbolInformation): String = {
-    val t  = symbolInformation2TypeSymbolApi(si)
-    val as = t.annotations
-    checkName(as).orElse(checkExport(as)).getOrElse(t.name.toString)
+    val tApi = symbolInformation2TypeSymbolApi(si)
+    val as   = tApi.annotations
+    checkName(as).orElse(checkExport(as)).getOrElse(tApi.name.toString)
   }
 
-  private def outerNativeSymbol(si: SymbolInformation): Option[NativeSymbol.Outer] = {
+  private def outerNativeClassSymbol(si: SymbolInformation): Option[NativeSymbol.Outer] = {
     val tApi        = symbolInformation2TypeSymbolApi(si)
     val defaultName = tApi.name.toString
     val as          = tApi.annotations
-    checkGlobal(si, as, defaultName).orElse(checkImport(si, as))
+    checkGlobal(si, as, defaultName).orElse(checkImported(si, as)).orElse(checkExported(si))
   }
 
   private def isAnnotationOfType(t: String)(a: Annotation): Boolean = a.tree.tpe.toString == t
@@ -156,7 +204,7 @@ class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
         NativeSymbol.Global(name, isSubTypeOfJsAny(si))
     }.headOption
 
-  private def checkImport(si: SymbolInformation, as: List[Annotation]): Option[NativeSymbol.Imported] =
+  private def checkImported(si: SymbolInformation, as: List[Annotation]): Option[NativeSymbol.Imported] =
     as.collect {
         case a if isAnnotationOfType("scala.scalajs.js.annotation.JSImport")(a) =>
           a.tree.children.tail match {
@@ -171,6 +219,20 @@ class NativeSymbolAnalyzer(cl: ClassLoader, symTab: SymbolTable) {
         case Some(s) => s
       }
       .headOption
+
+  private def checkExported(si: SymbolInformation): Option[NativeSymbol.Exported] = topLevelExports.get(si.symbol)
+
+}
+
+object NativeSymbolAnalyzer {
+
+  def apply(topLevelExports: List[TopLevelExport], cl: ClassLoader, symTab: SymbolTable): NativeSymbolAnalyzer = {
+    val map = topLevelExports.map {
+      case TopLevelExport(name, i: Input.ClsOrObj)      => i.si.symbol -> NativeSymbol.Exported(name, i.allMembersAreVisible)
+      case TopLevelExport(name, i: Input.DefOrValOrVar) => i.si.symbol -> NativeSymbol.Exported(name, false)
+    }.toMap
+    new NativeSymbolAnalyzer(map, cl, symTab)
+  }
 
 }
 
@@ -188,11 +250,35 @@ sealed trait NativeSymbol extends Product with Serializable {
 
 object NativeSymbol {
 
-  sealed trait Outer    extends NativeSymbol
+  /**
+    * Native symbols that are directly accessible.
+    */
+  sealed trait Outer extends NativeSymbol
+
   sealed trait Imported extends Outer
 
   case class Global(name: String, allMembersAreVisible: Boolean)                       extends Outer
+  case class Exported(name: String, allMembersAreVisible: Boolean)                     extends Outer
   case class ImportedName(module: String, name: String, allMembersAreVisible: Boolean) extends Imported
   case class ImportedNamespace(module: String, allMembersAreVisible: Boolean)          extends Imported
   case class Inner(name: String, outer: NativeSymbol, allMembersAreVisible: Boolean)   extends NativeSymbol
+
+  def moduleName2Id(moduleName: String) = {
+    val namePart = moduleName.map {
+      case c @ ('$' | '_')                                    => c
+      case c if Character.isLetter(c) || Character.isDigit(c) => c
+      case _                                                  => '_'
+    }
+    s"$$$namePart"
+  }
+
+  def formatNativeSymbol(n: NativeSymbol): String = n match {
+    case NativeSymbol.Global(name, _)                    => name
+    case NativeSymbol.ImportedName(module, "default", _) => s"${moduleName2Id(module)}_"
+    case NativeSymbol.ImportedName(module, name, _)      => s"${moduleName2Id(module)}.$name"
+    case NativeSymbol.ImportedNamespace(module, _)       => s"${moduleName2Id(module)}"
+    case NativeSymbol.Inner(name, outer, _)              => s"${formatNativeSymbol(outer)}.$name"
+    case NativeSymbol.Exported(name, _)                  => name
+  }
+
 }

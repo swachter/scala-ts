@@ -8,7 +8,7 @@ import scala.scalajs.js.annotation.{JSExportTopLevel, JSGlobal, JSImport}
 
 class NativeSymbolAnalyzerTest extends AnyFunSuite with Matchers with ScalaMetaHelper {
 
-  val na = new NativeSymbolAnalyzer(getClass.getClassLoader, symTab)
+  val na = new NativeSymbolAnalyzer(Map.empty, getClass.getClassLoader, symTab)
 
   def nativeSymbol(cls: Class[_]): Option[NativeSymbol] = {
     val sym = cls.getName.replace('.', '/').replace('$', '.') + "#"

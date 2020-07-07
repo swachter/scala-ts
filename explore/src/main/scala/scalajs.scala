@@ -2,7 +2,7 @@ import scala.collection.mutable
 import scala.concurrent.Promise
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel}
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel, JSName}
 import scala.scalajs.js.{Dictionary, UndefOr}
 import scala.util.{Failure, Random, Success}
 
@@ -291,7 +291,15 @@ object NonExportedJsAccess {
 // @JSExportTopLevel("outerObject")
 @JSExportTopLevel("obj1")
 object obj1 extends js.Object {
+
   object obj2 extends js.Object {
     val member = "m"
   }
+
+}
+
+@JSExportTopLevel("ToRange")
+class ToRange(from: Int, to: Int) extends js.Object {
+  @JSName(js.Symbol.iterator)
+  def iterator(): js.Iterator[Int] = (from to to).iterator.toJSIterator
 }

@@ -27,7 +27,7 @@ import scala.meta.internal.{semanticdb => isb}
   */
 class TypeFormatter(
     formatterCreatorsForKnownTypes: Seq[CTypeFormatter],
-    exportedTypeName: Symbol => Option[String],
+    nativeSymbolAnalyzer: NativeSymbolAnalyzer,
     symTab: SymbolTable
 ) extends (Type => String) {
 
@@ -41,25 +41,16 @@ class TypeFormatter(
 
   def isKnownOrBuiltIn(sym: Symbol): Boolean = knownOrBuiltInFormatter.isDefinedAt(TypeRef(isb.Type.Empty, sym, Seq.empty))
 
-  val nativeSymbols = mutable.Map.empty[Symbol, NativeSymbol]
-
-  private def formatNativeSymbol(n: NativeSymbol): String = n match {
-    case NativeSymbol.Global(name, _)                    => name
-    case NativeSymbol.ImportedName(module, "default", _) => s"${moduleName2Id(module)}_"
-    case NativeSymbol.ImportedName(module, name, _)      => s"${moduleName2Id(module)}.$name"
-    case NativeSymbol.ImportedNamespace(module, _)       => s"${moduleName2Id(module)}"
-    case NativeSymbol.Inner(name, outer, _)              => s"${formatNativeSymbol(outer)}.$name"
-
-  }
+  private def nativeSymbol(sym: Symbol): Option[NativeSymbol] = nativeSymbolAnalyzer.nativeSymbol(sym)
 
   val builtInFormatterCreator: CTypeFormatter = formatType => {
     case TypeRef(isb.Type.Empty, symbol, targs) if simpleBuiltInTypeNames.contains(symbol) =>
       simpleBuiltInTypeNames(symbol)
-    case TypeRef(isb.Type.Empty, symbol, targs) if nativeSymbols.contains(symbol) =>
+    case TypeRef(isb.Type.Empty, symbol, targs) if nativeSymbol(symbol).isDefined =>
       val tas = formatTypes(targs)
-      s"${formatNativeSymbol(nativeSymbols(symbol))}$tas"
-    case SingleType(isb.Type.Empty, symbol) if nativeSymbols.contains(symbol) =>
-      formatNativeSymbol(nativeSymbols(symbol))
+      s"${NativeSymbol.formatNativeSymbol(nativeSymbol(symbol).get)}$tas"
+    case SingleType(isb.Type.Empty, symbol) if nativeSymbol(symbol).isDefined =>
+      NativeSymbol.formatNativeSymbol(nativeSymbol(symbol).get)
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
       s"${formatType(targs(0))} | undefined"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
@@ -119,17 +110,11 @@ class TypeFormatter(
   val catchAllFormatterCreator: CTypeFormatter = formatType => {
 
     case TypeRef(isb.Type.Empty, symbol, tArgs) =>
-      def tas = formatTypeNames(tArgs.map(formatType))
-      exportedTypeName(symbol) match {
-        case Some(str) => s"$str$tas"
-        case None      => s"${nonExportedTypeName(symbol)}$tas"
-      }
+      val tas = formatTypeNames(tArgs.map(formatType))
+      s"${nonExportedTypeName(symbol)}$tas"
 
     case SingleType(isb.Type.Empty, symbol) =>
-      exportedTypeName(symbol) match {
-        case Some(str) => str
-        case None      => nonExportedTypeName(symbol)
-      }
+      nonExportedTypeName(symbol)
 
     case _ => "any"
   }
@@ -180,15 +165,6 @@ object TypeFormatter {
       case c if c >= ' ' && c <= 126 => c.toString
       case c                         => f"\\u$c%04x"
     }
-  }
-
-  def moduleName2Id(moduleName: String) = {
-    val namePart = moduleName.map {
-      case c @ ('$' | '_')                                    => c
-      case c if Character.isLetter(c) || Character.isDigit(c) => c
-      case _                                                  => '_'
-    }
-    s"$$$namePart"
   }
 
   def formatTypeNames(args: Seq[String]): String = if (args.isEmpty) "" else args.mkString("<", ",", ">")

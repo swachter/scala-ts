@@ -58,6 +58,8 @@ export class StdClass2 {
 
     get tuple(): [string, number];
 
+    [Symbol.iterator]<X>(x: number): Iterable<X>
+
 }
 
 export class ArrayAccess {
@@ -304,4 +306,9 @@ export const outerObject: {
   o2: {
     b: string
   }
+}
+
+export class ToRange {
+  constructor(from: number, to: number)
+  [Symbol.iterator]: () => Iterator<number>
 }

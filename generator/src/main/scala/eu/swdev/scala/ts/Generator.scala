@@ -2,7 +2,7 @@ package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
 
-import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, TypeSignature, ValueSignature}
+import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -12,33 +12,24 @@ object Generator {
 
   def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader): String = {
 
-    val topLevel = Analyzer.topLevel(inputs)
+    val topLevelExporets = Analyzer.topLevel(inputs)
 
-    val exportedClassNames = topLevel.collect {
+    val exportedClassNames = topLevelExporets.collect {
       case TopLevelExport(name, i: Input.Cls) => i.si.symbol -> name
     }.toMap
 
-    val exportedObjectNames = topLevel.collect {
-      case TopLevelExport(name, i: Input.Obj) => i.si.symbol -> name
-    }.toMap
+    val nativeSymbolAnalyzer = NativeSymbolAnalyzer(topLevelExporets, classLoader, symTab)
 
-    def exportedTypeName(symbol: Symbol): Option[String] =
-      exportedClassNames.get(symbol).orElse(exportedObjectNames.get(symbol))
-
-    val typeFormatter = new TypeFormatter(custom, exportedTypeName, symTab)
+    val typeFormatter = new TypeFormatter(custom, nativeSymbolAnalyzer, symTab)
 
     import typeFormatter._
 
-    val nativeAnalyzer = new NativeSymbolAnalyzer(classLoader, symTab)
-
-    val (rootNamespace, nativeSymbols) = Namespace.deriveInterfaces(
+    val rootNamespace = Namespace.deriveInterfaces(
       inputs,
       symTab,
       typeFormatter.isKnownOrBuiltIn,
-      nativeAnalyzer
+      nativeSymbolAnalyzer
     )
-
-    nativeSymbols.foreach(typeFormatter.nativeSymbols += _)
 
     // maps object symbols to exported static definitions
     val statics = inputs.collect {
@@ -47,6 +38,30 @@ object Generator {
           case i: Input.DefOrValOrVar if i.name.map(_.isStatic).getOrElse(false) => i
         }
     }.toMap
+
+    def memberName(i: Input.Exportable): String = {
+      def mn(s: String): String =
+        if (s.nonEmpty && Character.isJavaIdentifierStart(s(0)) && s.substring(1).forall(Character.isJavaIdentifierPart)) {
+          s
+        } else {
+          s"['$s']"
+        }
+      i.name match {
+        case Some(s) =>
+          s match {
+            case NameAnnot.MemberWithName(n)   => mn(n)
+            case NameAnnot.StaticWithName(n)   => mn(n)
+            case NameAnnot.JsNameWithString(n) => mn(n)
+            case NameAnnot.JsNameWithSymbol(s) =>
+              nativeSymbolAnalyzer.nativeSymbol(s) match {
+                case Some(s) => s"[${NativeSymbol.formatNativeSymbol(s)}]"
+                case None    => throw new RuntimeException(s"unknown native symbol: $s")
+              }
+            case _ => i.si.displayName
+          }
+        case None => i.si.displayName
+      }
+    }
 
     def formatNameAndType(name: String, tpe: isb.Type): String = tpe match {
       case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) => s"$name?: ${typeFormatter(targs(0))}"
@@ -96,25 +111,25 @@ object Generator {
       val returnType = typeFormatter(i.methodSignature.returnType)
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
-        s"get ${i.memberName}(): $returnType\n"
+        s"get ${memberName(i)}(): $returnType\n"
       } else {
         val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
         val params  = strings.mkString(", ")
-        if (i.memberName.endsWith("_=")) {
+        if (i.si.displayName.endsWith("_=")) {
           // name ends with _= -> it's a setter
-          s"set ${i.memberName.dropRight(2)}($params)\n"
+          s"set ${i.si.displayName.dropRight(2)}($params)\n"
         } else {
-          s"${i.memberName}$tps($params): $returnType\n"
+          s"${memberName(i)}$tps($params): $returnType\n"
         }
       }
     }
 
     def memberVal(i: Input.Val): String = {
-      s"readonly ${formatNameAndType(i.memberName, i.methodSignature.returnType)}\n"
+      s"readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
     }
 
     def memberVar(i: Input.Var): String = {
-      s"${formatNameAndType(i.memberName, i.methodSignature.returnType)}\n"
+      s"${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
@@ -127,7 +142,7 @@ object Generator {
     }
 
     def memberObj(i: Input.Obj): String = {
-      s"readonly ${i.memberName}: ${FullName(i.si)}\n"
+      s"readonly ${memberName(i)}: ${FullName(i.si)}\n"
     }
 
     def exportObj(name: String, i: Input.Obj): Unit = {
@@ -271,28 +286,19 @@ object Generator {
       }
     }
 
-    def nativeSymbolImport(ns: NativeSymbol): Seq[(String, String)] = ns match {
-      case NativeSymbol.ImportedName(module, name, _) => Seq(module -> name)
-      case NativeSymbol.ImportedNamespace(module, _)  => Seq(module -> "")
-      case NativeSymbol.Inner(_, outer, _)            => nativeSymbolImport(outer)
-      case _                                          => Seq()
-    }
-
-    val nativeSymbolImports = typeFormatter.nativeSymbols.values.flatMap(nativeSymbolImport)
-
-    val mods2Names = nativeSymbolImports
+    val mods2Names = nativeSymbolAnalyzer.nativeSymbolImports
       .groupBy(_._1)
       .mapValues(l => l.map(_._2).toSet)
 
     mods2Names.toList.sortBy(_._1).foreach {
       case (module, names) =>
-        val defImport       = if (names.contains("default")) Some(s"${moduleName2Id(module)}_") else None
-        val namespaceExport = if (names.exists(_ != "default")) Some(s"* as ${moduleName2Id(module)}") else None
+        val defImport       = if (names.contains("default")) Some(s"${NativeSymbol.moduleName2Id(module)}_") else None
+        val namespaceExport = if (names.exists(_ != "default")) Some(s"* as ${NativeSymbol.moduleName2Id(module)}") else None
         val str             = (defImport ++ namespaceExport.toSeq).mkString(", ")
         sb.append(s"import $str from '$module'\n")
     }
 
-    topLevel.foreach {
+    topLevelExporets.foreach {
       case TopLevelExport(n, i: Input.Def) => exportDef(n, i)
       case TopLevelExport(n, i: Input.Val) => exportVal(n, i)
       case TopLevelExport(n, i: Input.Var) => exportVar(n, i)

@@ -121,6 +121,14 @@ Translation rules for class and object members (constructor `val`/`var` paramete
 | `def x_=(v: tpe)` | `set x(v: tpe)` |
 | `def x(...): tpe` | `x(...): tpe` |
 
+If a member is annotated by `@JSExport` or `@JSName` and the given name is not a valid identifier then the member is defined using so called bracket notation. Bracket notation is also used if the member name is given by a symbol. For example:
+
+| Scala Definition | TypeScript Definition |
+| --- | --- |
+| `@JSName('???')`<br>`val x: tpe` | `readonly ['???']: tpe` |
+| `@JSName(js.Symbol.iterator)`<br>`def iter(): js.Iterator[X] = ???` | `[Symbol.iterator](): Iterator<X>` |
+
+
 Translation rule for repeated method parameters (varargs):
 
 | Scala Method Parameter | TypeScript Method Parameter |

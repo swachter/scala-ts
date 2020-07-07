@@ -21,11 +21,12 @@ object FullName {
     } else {
       ""
     }
-    val s = sym.substring(0, sym.length - 1)
+    val s = sym
+      .substring(0, sym.length - 1)
       .replace(".package.", ".")
       .replace(".", "$.") // objects have a '.' suffix -> mark objects by a '$'
-      .replace('/', '.')  // path steps to packages
-      .replace('#', '.')  // classes have a '#' suffix -> replace by '.' separator
+      .replace('/', '.') // path steps to packages
+      .replace('#', '.') // classes have a '#' suffix -> replace by '.' separator
     s"$s$suffix"
   }
   def apply(si: SymbolInformation): FullName       = fromSymbol(si.symbol)
@@ -35,19 +36,19 @@ object FullName {
   implicit val ord = implicitly[Ordering[String]].on[FullName](_.str)
 }
 
-sealed trait ExportAnnot {
+sealed trait NameAnnot {
   def isMember: Boolean
   def isStatic: Boolean
   def topLevelExportName: Option[String]
 }
 
-object ExportAnnot {
-  sealed trait Member extends ExportAnnot {
+object NameAnnot {
+  sealed trait Member extends NameAnnot {
     override def isMember: Boolean                  = true
     override def isStatic: Boolean                  = false
     override def topLevelExportName: Option[String] = None
   }
-  sealed trait Static extends ExportAnnot {
+  sealed trait Static extends NameAnnot {
     override def isMember: Boolean                  = false
     override def isStatic: Boolean                  = true
     override def topLevelExportName: Option[String] = None
@@ -58,11 +59,13 @@ object ExportAnnot {
   }
   case class StaticWithName(s: String) extends Static
   case object StaticWithoutName        extends Static
-  case class TopLevel(s: String) extends ExportAnnot {
+  case class TopLevel(s: String) extends NameAnnot {
     override def isMember: Boolean                  = false
     override def isStatic: Boolean                  = false
     override def topLevelExportName: Option[String] = Some(s)
   }
+  case class JsNameWithString(s: String) extends Member
+  case class JsNameWithSymbol(s: Symbol) extends Member
 }
 
 sealed trait Input {
@@ -89,15 +92,10 @@ object Input {
   }
 
   sealed trait Exportable extends Input {
-    def name: Option[ExportAnnot]
-    def memberName: String = name match {
-      case Some(ExportAnnot.MemberWithName(n)) => n
-      case Some(ExportAnnot.StaticWithName(n)) => n
-      case _                                   => si.displayName
-    }
+    def name: Option[NameAnnot]
     def isTopLevelExport: Boolean = name match {
-      case Some(ExportAnnot.TopLevel(_)) => true
-      case _                             => false
+      case Some(NameAnnot.TopLevel(_)) => true
+      case _                           => false
     }
   }
 
@@ -108,6 +106,7 @@ object Input {
   sealed trait DefOrValOrVar extends Defn with Exportable with HasMethodSignature
 
   sealed trait ClsOrObj extends Type with Exportable {
+    def allMembersAreVisible: Boolean
     def member: List[Defn]
   }
 
@@ -115,26 +114,27 @@ object Input {
   //
   //
 
-  case class Def(semSrc: SemSource, tree: Defn.Def, name: Option[ExportAnnot], si: SymbolInformation) extends DefOrValOrVar
-  case class Val(semSrc: SemSource, tree: Defn.Val, name: Option[ExportAnnot], si: SymbolInformation) extends DefOrValOrVar
-  case class Var(semSrc: SemSource, tree: Defn.Var, name: Option[ExportAnnot], si: SymbolInformation) extends DefOrValOrVar
+  case class Def(semSrc: SemSource, tree: Defn.Def, name: Option[NameAnnot], si: SymbolInformation) extends DefOrValOrVar
+  case class Val(semSrc: SemSource, tree: Defn.Val, name: Option[NameAnnot], si: SymbolInformation) extends DefOrValOrVar
+  case class Var(semSrc: SemSource, tree: Defn.Var, name: Option[NameAnnot], si: SymbolInformation) extends DefOrValOrVar
 
   case class Obj(semSrc: SemSource,
                  tree: Defn.Object,
-                 name: Option[ExportAnnot],
+                 name: Option[NameAnnot],
                  si: SymbolInformation,
                  member: List[Defn],
-                 expAll: Boolean)
-      extends ClsOrObj {
+                 allMembersAreVisible: Boolean,
+  ) extends ClsOrObj {
     // indicates if this object is an exported member
-    def isExportedMember = expAll || name.map(_.isMember).getOrElse(false)
+    def isExportedMember = allMembersAreVisible || name.map(_.isMember).getOrElse(false)
   }
 
   case class Cls(semSrc: SemSource,
                  tree: Defn.Class,
-                 name: Option[ExportAnnot],
+                 name: Option[NameAnnot],
                  si: SymbolInformation,
                  member: List[Defn],
+                 allMembersAreVisible: Boolean,
                  ctorParams: List[Input.CtorParam],
                  isAbstract: Boolean)
       extends ClsOrObj
