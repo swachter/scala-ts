@@ -7,7 +7,7 @@ import scala.meta.internal.semanticdb.{MethodSignature, SymbolInformation, Value
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 import scala.meta.transversers.Traverser
-import scala.meta.{Defn, Init, Lit, Mod, Name, Term, Tree, Type}
+import scala.meta.{Decl, Defn, Init, Lit, Mod, Name, Stat, Term, Tree, Type}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
 
@@ -101,9 +101,10 @@ object Analyzer {
 
         val builder = List.newBuilder[Input.Defn]
 
-        def processDefValVar[D <: Defn](defn: D,
+        def processDefValVar[D <: Stat](defn: D,
                                         mods: List[Mod],
-                                        ctor: (SemSource, D, Option[NameAnnot], SymbolInformation) => Input.Defn): Unit =
+                                        isAbstract: Boolean,
+                                        ctor: (SemSource, D, Option[NameAnnot], SymbolInformation, Boolean) => Input.Defn): Unit =
           if (!hasPrivateMod(mods)) {
             for {
               si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
@@ -114,7 +115,7 @@ object Analyzer {
                 case None    => expAll
               }
               if (export) {
-                builder += ctor(semSrc, defn, exportName(mods), si)
+                builder += ctor(semSrc, defn, exportName(mods), si, isAbstract)
               }
             }
           }
@@ -205,13 +206,16 @@ object Analyzer {
         }
 
         def process(tree: Tree, visitChildren: => Unit): Unit = tree match {
-          case t: Defn.Def    => processDefValVar(t, t.mods, Input.Def)
-          case t: Defn.Val    => processDefValVar(t, t.mods, Input.Val)
-          case t: Defn.Var    => processDefValVar(t, t.mods, Input.Var)
+          case t: Defn.Def    => processDefValVar(t, t.mods, false, Input.Def)
+          case t: Defn.Val    => processDefValVar(t, t.mods, false, Input.Val)
+          case t: Defn.Var    => processDefValVar(t, t.mods, false, Input.Var)
           case t: Defn.Class  => processCls(t, visitChildren)
           case t: Defn.Object => processObj(t, visitChildren)
           case t: Defn.Trait  => processTrait(t, visitChildren)
           case t: Defn.Type   => processType(t)
+          case t: Decl.Def    => processDefValVar(t, t.mods, true, Input.Def)
+          case t: Decl.Val    => processDefValVar(t, t.mods, true, Input.Val)
+          case t: Decl.Var    => processDefValVar(t, t.mods, true, Input.Var)
           case _              => visitChildren
         }
       }

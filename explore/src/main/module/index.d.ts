@@ -312,3 +312,9 @@ export class ToRange {
   constructor(from: number, to: number)
   [Symbol.iterator]: () => Iterator<number>
 }
+
+export class ClassWithMethodsFromTraits {
+  constructor()
+  base(n: number): number
+  middle(n: number): number
+}

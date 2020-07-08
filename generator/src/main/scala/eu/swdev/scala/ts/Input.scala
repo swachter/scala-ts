@@ -1,7 +1,7 @@
 package eu.swdev.scala.ts
 
 import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
-import scala.meta.{Defn, Term}
+import scala.meta.{Defn, Stat, Term}
 
 case class FullName private (str: String) extends AnyVal {
   override def toString: String = str
@@ -114,9 +114,9 @@ object Input {
   //
   //
 
-  case class Def(semSrc: SemSource, tree: Defn.Def, name: Option[NameAnnot], si: SymbolInformation) extends DefOrValOrVar
-  case class Val(semSrc: SemSource, tree: Defn.Val, name: Option[NameAnnot], si: SymbolInformation) extends DefOrValOrVar
-  case class Var(semSrc: SemSource, tree: Defn.Var, name: Option[NameAnnot], si: SymbolInformation) extends DefOrValOrVar
+  case class Def(semSrc: SemSource, tree: Stat, name: Option[NameAnnot], si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
+  case class Val(semSrc: SemSource, tree: Stat, name: Option[NameAnnot], si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
+  case class Var(semSrc: SemSource, tree: Stat, name: Option[NameAnnot], si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
 
   case class Obj(semSrc: SemSource,
                  tree: Defn.Object,

@@ -17,7 +17,7 @@ and enable the `ScalaTsPlugin` in `build.sbt`
 enablePlugins(ScalaTsPlugin)
 ```
  
-No further configuration is required. 
+No further configuration is required. In particular, no additional annotations or other kind of information must be provided.
 
 ### How does it work?
 

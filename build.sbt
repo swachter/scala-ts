@@ -1,3 +1,22 @@
+/*
+  Release process:
+
+    - set release version in build.sbt and in readme.md
+
+    sbt> reload
+    sbt> +publishLocal
+    sbt> +test
+    sbt> scripted
+
+    > git commit -am "v..."
+    > git tag -a "v..."
+    > git push --follow-tags
+
+    sbt> +publish
+
+    - set next snapshot version in build.sbt and in e2e/project/plugins.sbt
+ */
+
 import scala.sys.process.Process
 
 val scalaMetaVersion = "4.3.10"

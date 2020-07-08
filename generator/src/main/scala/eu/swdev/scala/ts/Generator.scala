@@ -106,30 +106,33 @@ object Generator {
       sb.append(s"export let $name: $returnType\n")
     }
 
-    def memberDef(i: Input.Def): String = {
+    def memberDef(i: Input.Def, isMemberOfAbstractClass: Boolean): String = {
       val tps        = formatTParamSyms(i.methodSignature.typeParamSymbols)
       val returnType = typeFormatter(i.methodSignature.returnType)
+      val abs = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
-        s"get ${memberName(i)}(): $returnType\n"
+        s"${abs}get ${memberName(i)}(): $returnType\n"
       } else {
         val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
         val params  = strings.mkString(", ")
         if (i.si.displayName.endsWith("_=")) {
           // name ends with _= -> it's a setter
-          s"set ${i.si.displayName.dropRight(2)}($params)\n"
+          s"${abs}set ${i.si.displayName.dropRight(2)}($params)\n"
         } else {
-          s"${memberName(i)}$tps($params): $returnType\n"
+          s"${abs}${memberName(i)}$tps($params): $returnType\n"
         }
       }
     }
 
-    def memberVal(i: Input.Val): String = {
-      s"readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
+    def memberVal(i: Input.Val, isMemberOfAbstractClass: Boolean): String = {
+      val abs = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
+      s"${abs}readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
     }
 
-    def memberVar(i: Input.Var): String = {
-      s"${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
+    def memberVar(i: Input.Var, isMemberOfAbstractClass: Boolean): String = {
+      val abs = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
+      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
@@ -181,9 +184,9 @@ object Generator {
       val objSymbol = s"${i.si.symbol.dropRight(1)}."
       statics.get(objSymbol).foreach {
         _.map {
-          case e: Input.Def => memberDef(e)
-          case e: Input.Val => memberVal(e)
-          case e: Input.Var => memberVar(e)
+          case e: Input.Def => memberDef(e, false)
+          case e: Input.Val => memberVal(e, false)
+          case e: Input.Var => memberVar(e, false)
         }.foreach(m => sb.append(s"  static $m"))
       }
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
@@ -191,9 +194,9 @@ object Generator {
 
       (i.ctorParams ++ i.member)
         .map {
-          case e: Input.Def                       => memberDef(e)
-          case e: Input.Val                       => memberVal(e)
-          case e: Input.Var                       => memberVar(e)
+          case e: Input.Def                       => memberDef(e, i.isAbstract)
+          case e: Input.Val                       => memberVal(e, i.isAbstract)
+          case e: Input.Var                       => memberVar(e, i.isAbstract)
           case e: Input.CtorParam                 => memberCtorParam(e)
           case i: Input.Obj if i.isExportedMember => memberObj(i)
           case e: Input.Type                      => ""
@@ -218,9 +221,9 @@ object Generator {
 
       itf.members
         .map {
-          case i: Input.Def                       => memberDef(i)
-          case i: Input.Val                       => memberVal(i)
-          case i: Input.Var                       => memberVar(i)
+          case i: Input.Def                       => memberDef(i, false)
+          case i: Input.Val                       => memberVal(i, false)
+          case i: Input.Var                       => memberVar(i, false)
           case i: Input.CtorParam                 => memberCtorParam(i)
           case i: Input.Obj if i.isExportedMember => memberObj(i)
           case i: Input.Type                      => ""

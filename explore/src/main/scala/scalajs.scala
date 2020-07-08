@@ -303,3 +303,18 @@ class ToRange(from: Int, to: Int) extends js.Object {
   @JSName(js.Symbol.iterator)
   def iterator(): js.Iterator[Int] = (from to to).iterator.toJSIterator
 }
+
+trait BaseTrait extends js.Object {
+  def base(n: Int): Int
+}
+
+trait MiddleTrait extends BaseTrait {
+  def middle(n: Int): Int
+}
+
+@JSExportTopLevel("ClassWithMethodsFromTraits")
+class ClassWithMethodsFromTraits extends MiddleTrait {
+  override def middle(n: Int): Int = 3*n
+
+  override def base(n: Int): Int = 2*n
+}
