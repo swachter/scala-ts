@@ -25,12 +25,12 @@ The implementation is based on [Scalameta](https://scalameta.org/). Information 
 
 The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it to emit an ECMAScript module.
 
-### Configuration
+### SBT settings and tasks
 
 | Key | Description |
 | --- | --- |
-| `scalaTsModuleName` | Name of the generated node module (default: project name) |
-| `scalaTsModuleVersion` | Transforms the project version into the node module version (default: identity function with check);<br> **the node module version must be a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)**  |
+| `scalaTsModuleName` | Setting: Name of the generated node module (default: project name) |
+| `scalaTsModuleVersion` | Setting: Function that transforms the project version into a node module version (default: identity function that checks if the result is a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)) |
 | `scalaTsFastOpt` | Task: Generate node module including typescript declaration file based on the fastOptJS output |
 | `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |
 
@@ -201,4 +201,4 @@ Projects:
 
 ### Acknowledgements:
 
-Thanks to Sébastien Doeraene and Ólafur Páll Geirsson for their work on `ScalaJS` and `Scalameta`, respectively. They helped alot by giving supportive answers.
+Thanks to Sébastien Doeraene and Ólafur Páll Geirsson for their work and support regarding `ScalaJS` and `Scalameta`, respectively.
