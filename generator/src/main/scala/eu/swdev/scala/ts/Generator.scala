@@ -1,6 +1,6 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeArg
+import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeParam
 
 import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
@@ -109,7 +109,7 @@ object Generator {
     def memberDef(i: Input.Def, isMemberOfAbstractClass: Boolean): String = {
       val tps        = formatTParamSyms(i.methodSignature.typeParamSymbols)
       val returnType = typeFormatter(i.methodSignature.returnType)
-      val abs = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
+      val abs        = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
         s"${abs}get ${memberName(i)}(): $returnType\n"
@@ -236,16 +236,14 @@ object Generator {
     }
 
     def exportUnion(union: Output.Union, indent: Int): Unit = {
-      val allTypeArgs               = union.members.flatMap(_.typeArgs)
-      val (parentArgs, privateArgs) = SubtypeArg.split(allTypeArgs)
+      val allTypeArgs               = union.members.flatMap(_.typeParams)
+      val (parentArgs, privateArgs) = SubtypeParam.removeDuplicatesAndSplit(allTypeArgs)
 
       val parentTParams = union.sealedTrait.classSignature.typeParamSymbols.map(TParam(_, symTab)).zipWithIndex.map(_.swap).toMap
 
-      val unionMemberIdx = union.members.map(_.name).zipWithIndex.toMap
-
       val unionTParams = (parentArgs ++ privateArgs).map {
-        case SubtypeArg.Parent(idx)                     => formatTParam(parentTParams(idx))
-        case SubtypeArg.Unrelated(unionMemberName, sym) => s"M${unionMemberIdx(unionMemberName)}$$${formatTParamSym(sym)}"
+        case SubtypeParam.Parent(idx)            => formatTParam(parentTParams(idx))
+        case SubtypeParam.Unrelated(prefix, sym) => s"$$M$prefix${formatTParamSym(sym)}"
       }
 
       val exp   = if (indent == 0) "export " else ""
@@ -253,9 +251,9 @@ object Generator {
 
       val members = union.members
         .map { member =>
-          val tArgs = member.typeArgs.map {
-            case SubtypeArg.Parent(idx)                     => parentTParams(idx).displayName
-            case SubtypeArg.Unrelated(unionMemberName, sym) => s"M${unionMemberIdx(unionMemberName)}$$${TParam(sym, symTab).displayName}"
+          val tArgs = member.typeParams.map {
+            case SubtypeParam.Parent(idx)            => parentTParams(idx).displayName
+            case SubtypeParam.Unrelated(prefix, sym) => s"$$M$prefix${TParam(sym, symTab).displayName}"
           }
           s"${member.name}${formatTypeNames(tArgs)}"
         }
@@ -309,7 +307,7 @@ object Generator {
       case TopLevelExport(n, i: Input.Cls) => exportCls(n, i)
     }
 
-    val unions = Output.unions(inputs)
+    val unions = Output.unions(inputs, symTab)
     unions.foreach(rootNamespace += _)
 
     exportNs(rootNamespace, -1)

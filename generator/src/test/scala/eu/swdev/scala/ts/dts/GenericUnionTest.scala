@@ -35,7 +35,7 @@ class GenericUnionTest extends DtsFunSuite {
     |            interface Base<T extends object> {
     |              'eu.swdev.scala.ts.dts.GenericUnionTest$.Base': never
     |            }
-    |            type Base$u<T extends object,M1$X,M2$Y> = GenUnionCase1<T> | GenUnionCase2<T,M1$X> | GenUnionCase3<M2$Y,T>
+    |            type Base$u<T extends object,$M1_X,$M2_Y> = GenUnionCase1<T> | GenUnionCase2<T,$M1_X> | GenUnionCase3<$M2_Y,T>
     |          }
     |        }
     |      }
