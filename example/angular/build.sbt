@@ -9,6 +9,8 @@ val shared =
   ).jvmSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",
   ).jsSettings(
+    // the shared project contains classes (i.e. Counter and Increment) that are referenced in the exported API of the client project
+    // -> the semanticdb plugin must be added and appropriately configured in the shared js project
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
     scalacOptions += "-Yrangepos",
     scalacOptions += "-P:semanticdb:text:on",
@@ -21,6 +23,8 @@ val client =
   project.enablePlugins(ScalaTsPlugin).settings(
     scalaTsModuleName := "scala-client",
     scalaTsConsiderFullCompileClassPath := true,
+    // exclude the scala-ts-generator artifact
+    // -> this may be unnecessary in future after that artifact does no more contain semanticdb information
     scalaTsExclude := java.util.regex.Pattern.compile("scala-ts-generator"),
     libraryDependencies += "org.endpoints4s" %%% "xhr-client" % "1.0.0+sjs1",
   ).dependsOn(sharedJS)
