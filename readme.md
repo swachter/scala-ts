@@ -27,12 +27,24 @@ The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it 
 
 ### SBT settings and tasks
 
+Main settings and tasks are:
+
 | Key | Description |
 | --- | --- |
 | `scalaTsModuleName` | Setting: Name of the generated node module (default: project name) |
 | `scalaTsModuleVersion` | Setting: Function that transforms the project version into a node module version (default: identity function that checks if the result is a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)) |
 | `scalaTsFastOpt` | Task: Generate node module including typescript declaration file based on the fastOptJS output |
 | `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |
+
+In its default configuration the `ScalaTsPlugin` considers only the sources of the project where it is enabled. If library dependencies should also be considered then the setting `scalaTsConsiderFullCompileClassPath` must be set to `true`. In that case all SemanticDB information available on the compile classpath can be used. Parts of the compile class path can be filtered by specifying regular expressions for the `scalaTsInclude` and `scalaTsExclude` settings. In order for a class path part to be considered it must match the regular expression for inclusion and not match the regular expression for exclusion. The relevant settings are:
+
+| Key | Description |
+| --- | --- |
+| `scalaTsConsiderFullCompileClassPath` | Determines if the full compile class path or only the classes of the current project are considered (default: false) |
+| `scalaTsInclude` | RegEx that filters entries from the full compile class path (default: `.`) |
+| `scalaTsExclude` | RegEx that filters entries from the full compile class path (default: `(?!.).`) |
+
+A common situation for a library dependency that must be considered is a cross project with shared sources for client and server: In that case often there is a specific `client` project on which the `ScalaTsPlugin` is enabled and that depends on the `shared.js` project. The [example/angular](example/angular) folder shows this setup.    
 
 The output directory of the generated node module can be configured by the `crossTarget` setting for the `fastOptJS` or `fullOptJS` tasks, respectively. E.g.:
 

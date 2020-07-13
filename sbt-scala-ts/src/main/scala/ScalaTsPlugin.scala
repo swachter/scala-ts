@@ -19,7 +19,7 @@ object ScalaTsPlugin extends AutoPlugin {
       settingKey[String => String]("Maps the project version into a node module version (default: identity function with check)")
 
     val scalaTsConsiderFullCompileClassPath = settingKey[Boolean](
-      "Determines if the full compile classes or only the classes of the current project are considered (default: false)")
+      "Determines if the full compile class path or only the classes of the current project are considered (default: false)")
     val scalaTsInclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: .)")
     val scalaTsExclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: (?!.).)")
 
