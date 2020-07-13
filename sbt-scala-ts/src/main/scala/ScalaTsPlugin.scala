@@ -1,5 +1,7 @@
 package eu.swdev.scala.ts
 
+import java.util.regex.Pattern
+
 import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import sbt.Keys._
@@ -14,7 +16,13 @@ object ScalaTsPlugin extends AutoPlugin {
   object autoImport {
     val scalaTsModuleName = settingKey[String]("Name of the generated node module (default: project name)")
     val scalaTsModuleVersion =
-      settingKey[String => String]("Transforms the project version into a node module version (default: identity function with check)")
+      settingKey[String => String]("Maps the project version into a node module version (default: identity function with check)")
+
+    val scalaTsConsiderFullCompileClassPath = settingKey[Boolean](
+      "Determines if the full compile classes or only the classes of the current project are considered (default: false)")
+    val scalaTsInclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: .)")
+    val scalaTsExclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: (?!.).)")
+
     val scalaTsFastOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
     val scalaTsFullOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
     val scalaTsValidate          = settingKey[Boolean]("Determines if generation results are compared given expected results")
@@ -29,6 +37,11 @@ object ScalaTsPlugin extends AutoPlugin {
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     scalaTsModuleName := name.value,
     scalaTsModuleVersion := semanticVersionCheck,
+
+    scalaTsConsiderFullCompileClassPath := false,
+    scalaTsInclude := Pattern.compile("."),
+    scalaTsExclude := Pattern.compile("(?!.)."),
+
     scalaTsChangeForkOptions := identity,
     scalaTsValidate := false,
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
@@ -51,8 +64,11 @@ object ScalaTsPlugin extends AutoPlugin {
           (artifactPath in fastOptJS in Compile).value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
+          scalaTsConsiderFullCompileClassPath.value,
+          scalaTsInclude.value,
+          scalaTsExclude.value,
           (classDirectory in Compile).value,
-          (fullClasspath in Compile).value.map(_.data),
+          (fullClasspath in Compile).value.map(_.data).toList,
           scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,
@@ -66,8 +82,11 @@ object ScalaTsPlugin extends AutoPlugin {
           (artifactPath in fullOptJS in Compile).value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
+          scalaTsConsiderFullCompileClassPath.value,
+          scalaTsInclude.value,
+          scalaTsExclude.value,
           (classDirectory in Compile).value,
-          (fullClasspath in Compile).value.map(_.data),
+          (fullClasspath in Compile).value.map(_.data).toList,
           scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,

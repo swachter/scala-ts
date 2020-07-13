@@ -3,12 +3,13 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json --open",
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"
   },
+  "type": "module",
   "private": true,
   "dependencies": {
     "@angular/animations": "~9.1.12",
@@ -20,6 +21,7 @@
     "@angular/platform-browser-dynamic": "~9.1.12",
     "@angular/router": "~9.1.12",
     "rxjs": "~6.5.4",
+    "scala-client": "file:../client/target/scala-2.13",
     "tslib": "^1.10.0",
     "zone.js": "~0.10.2"
   },
