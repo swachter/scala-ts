@@ -13,7 +13,7 @@ Generate the Node module that is used in the Angular application to access the s
 Start the server via SBT:
 
 ```
-> sbt server / run
+> sbt server/run
 ```
 
 In the webapp folder run:

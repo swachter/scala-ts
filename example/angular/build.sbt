@@ -23,9 +23,6 @@ val client =
   project.enablePlugins(ScalaTsPlugin).settings(
     scalaTsModuleName := "scala-client",
     scalaTsConsiderFullCompileClassPath := true,
-    // exclude the scala-ts-generator artifact
-    // -> this may be unnecessary in future after that artifact does no more contain semanticdb information
-    scalaTsExclude := java.util.regex.Pattern.compile("scala-ts-generator"),
     libraryDependencies += "org.endpoints4s" %%% "xhr-client" % "1.0.0+sjs1",
   ).dependsOn(sharedJS)
 

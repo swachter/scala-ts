@@ -17,6 +17,8 @@
     - set next snapshot version in build.sbt and in e2e/project/plugins.sbt
  */
 
+import sbt.internal.inc.ScalaInstance
+
 import scala.sys.process.Process
 
 val scalaMetaVersion = "4.3.10"
@@ -44,9 +46,16 @@ lazy val generator = project.in(file("generator"))
     crossScalaVersions := List(scala212, scala213),
     publishMavenStyle := true,
     bintrayRepository := "maven",
+    // activate the SemanticDB compiler plugin in the test configuraion only
+    // -> add the compiler plugin dependency
+    // -> set autoCompilerPlugins := false -> no "-Xplugin=..." Scalac option is added automatically
+    // -> add the necessary Scalac options manually in the test configuration
     addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
-    scalacOptions += "-Yrangepos",
-    scalacOptions += "-P:semanticdb:text:on",
+    autoCompilerPlugins := false,
+    ivyConfigurations += Configurations.CompilerPlugin,
+    scalacOptions in Test ++= Classpaths.autoPlugins(update.value, Seq(), ScalaInstance.isDotty(scalaVersion.value)),
+    scalacOptions in Test += "-Yrangepos",
+    scalacOptions in Test += "-P:semanticdb:text:on",
     libraryDependencies += "org.scalameta" %% "scalameta" % scalaMetaVersion,
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
