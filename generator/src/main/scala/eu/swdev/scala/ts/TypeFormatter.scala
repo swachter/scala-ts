@@ -57,6 +57,8 @@ class TypeFormatter(
       s"${formatType(targs(0))}[]"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Dictionary#", targs) =>
       s"{ [key: string]: ${formatType(targs(0))} }"
+    case TypeRef(isb.Type.Empty, "scala/scalajs/js/Thenable#", targs) =>
+      s"PromiseLike<${formatType(targs(0))}>"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Promise#", targs) =>
       s"Promise<${formatType(targs(0))}>"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterable#", targs) =>

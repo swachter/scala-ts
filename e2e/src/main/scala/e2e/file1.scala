@@ -142,6 +142,11 @@ object PromiseTest {
     p.toFuture.map(f).toJSPromise
   }
 
+  @JSExportTopLevel("mapPromiseLike")
+  def map[A, B](p: js.Thenable[A], f: js.Function1[A, B]): js.Thenable[B] = {
+    p.toFuture.map(f).toJSPromise
+  }
+
 }
 
 object DateTest {

@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { CounterClient } from 'scala-client';
+import { Component } from '@angular/core'
+import { CounterClient } from 'scala-client'
 
 @Component({
   selector: 'app-root',
@@ -7,8 +7,8 @@ import { CounterClient } from 'scala-client';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'webapp';
-  counterValue: number;
+  title = 'webapp'
+  counterValue: number
 
   constructor() {
     this.updateCurrentValue()

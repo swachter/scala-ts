@@ -34,6 +34,16 @@ sealed trait Dictionary[A] extends Any
 
 class Promise[+A] extends Object
 
+trait Thenable[+A] extends Object {
+  def `then`[B](
+                 onFulfilled: Function1[A, B | Thenable[B]],
+                 onRejected: UndefOr[Function1[scala.Any, B | Thenable[B]]]): Thenable[B]
+
+  def `then`[B >: A](
+                      onFulfilled: Unit,
+                      onRejected: UndefOr[Function1[scala.Any, B | Thenable[B]]]): Thenable[B]
+}
+
 class Date extends Object
 
 class RegExp(pattern: String, flags: String = "") extends Object
