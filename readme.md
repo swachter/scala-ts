@@ -44,13 +44,19 @@ In its default configuration the `ScalaTsPlugin` considers only the sources of t
 | `scalaTsInclude` | RegEx that filters entries from the full compile class path (default: `.`) |
 | `scalaTsExclude` | RegEx that filters entries from the full compile class path (default: `(?!.).`) |
 
-A common situation for a library dependency that must be considered is a cross project with shared sources for client and server: In that case often there is a specific `client` project on which the `ScalaTsPlugin` is enabled and that depends on the `shared.js` project. The [example/angular](example/angular) folder shows this setup.    
+A common situation for a library dependency that must be considered is a cross project (named `shared`) with shared sources for client and server. For the `shared.js` project the generation of `SemanticDB` information must be activated. This can be done by invoking `.jsSettings(ScalaTsPlugin.semanticDbSettings)` on the cross project. A dedicated `client` project depends on the `shared.js` project and has the `ScalaTsPlugin` enabled. The [example/angular](example/angular) folder shows this setup.    
 
 The output directory of the generated node module can be configured by the `crossTarget` setting for the `fastOptJS` or `fullOptJS` tasks, respectively. E.g.:
 
 ```
 (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
 (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
+```
+
+The `ScalaTsPlugin` uses SBT's built-in [SemanticDB support](https://www.scala-sbt.org/1.x/docs/sbt-1.3-Release-Notes.html#SemanticDB+support) for generating the required SemanticDB files. The `ScalaTsPlugin` uses a default `SemanticDB` version. In case that the corresponding `semanticdb-scalac` compiler plugin is not available for the used Scala version, a suitable SemanticDB version must be configured. E.g.:
+
+```
+semanticdbVersion := "4.3.18"
 ```
 
 ### Type mapping

@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.2"
+ThisBuild / scalaVersion := "2.13.3"
 
 val shared =
   crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure).settings(
@@ -11,7 +11,7 @@ val shared =
   ).jsSettings(
     // the shared project contains classes (i.e. Counter and Increment) that are referenced in the exported API of the client project
     // -> semantic db information is required for these classes
-    // -> activate and configure the semanticdb compiler plugin
+    // -> configure the semanticdb compiler plugin
     ScalaTsPlugin.semanticDbSettings
   )
 

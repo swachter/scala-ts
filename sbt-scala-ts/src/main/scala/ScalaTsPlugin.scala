@@ -45,6 +45,7 @@ object ScalaTsPlugin extends AutoPlugin {
 
   lazy val semanticDbSettings = Seq(
     semanticdbEnabled := true,
+    semanticdbIncludeInJar := true,
     semanticdbVersion := "4.3.18",
     semanticdbOptions := Seq("-P:semanticdb:text:on"),
     scalacOptions += "-Yrangepos",
