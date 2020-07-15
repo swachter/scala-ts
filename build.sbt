@@ -109,6 +109,7 @@ lazy val plugin = project
 lazy val root = project.in(file("."))
   .aggregate(generator, plugin)
   .settings (
+    name := "scala-ts",
     crossScalaVersions := Nil,
     publish / skip  := true,
   )

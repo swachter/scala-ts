@@ -34,21 +34,29 @@ object ScalaTsPlugin extends AutoPlugin {
 
   import autoImport._
 
-  override lazy val projectSettings: Seq[Setting[_]] = Seq(
-    scalaTsModuleName := name.value,
+  override lazy val globalSettings = Seq(
     scalaTsModuleVersion := semanticVersionCheck,
-
     scalaTsConsiderFullCompileClassPath := false,
     scalaTsInclude := Pattern.compile("."),
     scalaTsExclude := Pattern.compile("(?!.)."),
-
     scalaTsChangeForkOptions := identity,
     scalaTsValidate := false,
-    addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
+  )
+
+  lazy val semanticDbSettings = Seq(
+    semanticdbEnabled := true,
+    semanticdbVersion := "4.3.18",
+    semanticdbOptions := Seq("-P:semanticdb:text:on"),
     scalacOptions += "-Yrangepos",
-    scalacOptions += "-P:semanticdb:text:on",
+  )
+
+  lazy val scalaJsSettings = Seq(
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalaJSUseMainModuleInitializer := false,
+  )
+
+  override lazy val projectSettings: Seq[Setting[_]] = semanticDbSettings ++ scalaJsSettings ++ Seq(
+    scalaTsModuleName := name.value,
     // the scala-ts generator uses scala-reflect in order to access the compiled classes of the current project
     // -> the Scala version of the scala-reflect jar must match the Scala version of the compiled classes (e.g. 2.12 or 2.13)
     // -> fork a Scala process for the scala-ts generator for the required Scala version

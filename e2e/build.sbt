@@ -7,7 +7,7 @@ val npmReinstallAndTest = taskKey[Unit]("Reinstalls node modules and executes te
 lazy val root = (project in file("."))
   .enablePlugins(ScalaTsPlugin, ScalablyTypedConverterExternalNpmPlugin)
   .settings(
-    scalaVersion := "2.13.2",
+    scalaVersion := "2.13.3",
     version := "0.0.1-SNAPSHOT",
     name := "scala-ts-e2e",
     organization := "eu.swdev",

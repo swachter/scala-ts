@@ -10,10 +10,9 @@ val shared =
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",
   ).jsSettings(
     // the shared project contains classes (i.e. Counter and Increment) that are referenced in the exported API of the client project
-    // -> the semanticdb plugin must be added and appropriately configured in the shared js project
-    addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
-    scalacOptions += "-Yrangepos",
-    scalacOptions += "-P:semanticdb:text:on",
+    // -> semantic db information is required for these classes
+    // -> activate and configure the semanticdb compiler plugin
+    ScalaTsPlugin.semanticDbSettings
   )
 
 val sharedJS = shared.js
