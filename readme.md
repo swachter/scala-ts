@@ -163,13 +163,21 @@ Translation rule for repeated method parameters (varargs):
 | --- | --- |
 | `x: X*` | `...x: X[]` |
 
-For each sealed trait a union type is created that contains all direct subtypes (classes or traits) as alternatives. The name of the union type is equal to the name of the sealed trait with '$u' appended.
+For each sealed trait that is referenced in the exported API a union type is created that contains all direct subtypes (classes, objects, or traits) as alternatives. The name of the union type is equal to the name of the sealed trait with '$u' appended.
 
 | Scala Definition | TypeScript Definition |
 | --- | --- |
 | `sealed trait T` | `type T$u = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...`
 
 If the sealed trait belongs to a package then the union type is defined in the corresponding namespace. Sealed trait hierarchies and generics are supported.
+
+Note that the type parameters of a union type must not match the type parameters of the corresponding sealed trait. They are derived from the type parameters of their member types. For example a sealed trait may be generic whereas all its member types are not. Member types can pass-through a type parameter to their base trait or can introduce additional type parameters. Examples are:
+
+| Scala Definition | TypeScript Definition |
+| --- | --- |
+| `sealed trait Base[X]`<br>`class Case1 extends Base[String]`<br>`class Case2 extends Base[Int]` | `type Base$u = Case1 `<code>&#124;</code>` Case2` |
+| `sealed trait Base[X]`<br>`class Case1[X] extends Base[X]`<br>`class Case2[X] extends Base[X]` | `type Base$u<X> = Case1<X> `<code>&#124;</code>` Case2<X>` |
+| `sealed trait Base[X]`<br>`class Case1[X] extends Base[X]`<br>`class Case2[Y] extends Base[String]` | `type Base$u<X, $M1_Y> = Case1<X> `<code>&#124;</code>` Case2<$M1_Y>` |
 
 ### Discriminated Union Types
 
