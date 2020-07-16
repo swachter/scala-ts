@@ -1,12 +1,11 @@
 package e2e
 
-import typings.jsJoda.mod.{LocalDate}
+import typings.jsJoda.mod.LocalDate
 
-import scala.annotation.meta.field
 import scala.collection.mutable
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel, JSGlobal}
+import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel, JSGlobal}
 import scala.scalajs.js.{ThisFunction1, UndefOr, |}
 
 @JSExportTopLevel("Simple")

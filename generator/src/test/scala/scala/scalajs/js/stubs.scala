@@ -4,8 +4,10 @@ import scala.scalajs.js.annotation.JSGlobal
 
 trait Any extends scala.AnyRef
 
+@JSGlobal
 class Object extends Any
 
+@JSGlobal
 class Array[A]
 
 class Function extends Object
@@ -32,6 +34,7 @@ sealed trait |[A, B]
 
 sealed trait Dictionary[A] extends Any
 
+@JSGlobal
 class Promise[+A] extends Object
 
 trait Thenable[+A] extends Object {
@@ -44,8 +47,10 @@ trait Thenable[+A] extends Object {
                       onRejected: UndefOr[Function1[scala.Any, B | Thenable[B]]]): Thenable[B]
 }
 
+@JSGlobal
 class Date extends Object
 
+@JSGlobal
 class RegExp(pattern: String, flags: String = "") extends Object
 
 sealed trait Symbol extends Any
@@ -149,6 +154,8 @@ object Symbol extends Object {
   val unscopables: Symbol = null
 }
 
+@JSGlobal
+final class BigInt private[this] () extends Object
 
 trait Iterator[+A] extends Object
 

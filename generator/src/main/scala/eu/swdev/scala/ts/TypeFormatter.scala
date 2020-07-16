@@ -44,6 +44,11 @@ class TypeFormatter(
   private def nativeSymbol(sym: Symbol): Option[NativeSymbol] = nativeSymbolAnalyzer.nativeSymbol(sym)
 
   val builtInFormatterCreator: CTypeFormatter = formatType => {
+    case TypeRef(isb.Type.Empty, symbol, tArgs) if symTab.typeParamSymInfo(symbol).isDefined =>
+      // it is a type parameter -> use its display name
+      symTab.typeParamSymInfo(symbol).get.displayName
+    case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
+      s"${formatType(targs(0))}[]"
     case TypeRef(isb.Type.Empty, symbol, targs) if simpleBuiltInTypeNames.contains(symbol) =>
       simpleBuiltInTypeNames(symbol)
     case TypeRef(isb.Type.Empty, symbol, targs) if nativeSymbol(symbol).isDefined =>
@@ -53,14 +58,10 @@ class TypeFormatter(
       NativeSymbol.formatNativeSymbol(nativeSymbol(symbol).get)
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/package.UndefOr#", targs) =>
       s"${formatType(targs(0))} | undefined"
-    case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
-      s"${formatType(targs(0))}[]"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Dictionary#", targs) =>
       s"{ [key: string]: ${formatType(targs(0))} }"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Thenable#", targs) =>
       s"PromiseLike<${formatType(targs(0))}>"
-    case TypeRef(isb.Type.Empty, "scala/scalajs/js/Promise#", targs) =>
-      s"Promise<${formatType(targs(0))}>"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterable#", targs) =>
       s"Iterable<${formatType(targs(0))}>"
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Iterator#", targs) =>
@@ -90,10 +91,6 @@ class TypeFormatter(
       s"$args => $returnType"
     case TypeRef(isb.Type.Empty, symbol, targs) if symbol matches "scala/scalajs/js/Tuple\\d+#" =>
       targs.map(formatType).mkString("[", ", ", "]")
-
-    case TypeRef(isb.Type.Empty, symbol, tArgs) if symTab.typeParamSymInfo(symbol).isDefined =>
-      // it is a type parameter -> use its display name
-      symTab.typeParamSymInfo(symbol).get.displayName
 
     case ConstantType(BooleanConstant(value)) => String.valueOf(value)
     case ConstantType(ByteConstant(value))    => String.valueOf(value)
@@ -128,15 +125,17 @@ class TypeFormatter(
   val simpleBuiltInTypeNames: Map[Symbol, String] = Map(
     "java/lang/String#"        -> "string",
     "scala/Boolean#"           -> "boolean",
+    "scala/Byte#"              -> "number",
     "scala/Double#"            -> "number",
+    "scala/Float#"             -> "number",
     "scala/Int#"               -> "number",
     "scala/Nothing#"           -> "never",
     "scala/Predef.String#"     -> "string",
+    "scala/Short#"             -> "number",
     "scala/Unit#"              -> "void",
     "scala/scalajs/js/Any#"    -> "any",
-    "scala/scalajs/js/Date#"   -> "Date",
+    "scala/scalajs/js/BigInt#" -> "bigint",
     "scala/scalajs/js/Object#" -> "object",
-    "scala/scalajs/js/RegExp#" -> "RegExp",
     "scala/scalajs/js/Symbol#" -> "symbol"
   )
 

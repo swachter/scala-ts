@@ -76,7 +76,7 @@ Primitive types
 | --- | --- |
 | `String` | `string` |
 | `Boolean` | `boolean` |
-| `Int`, `Double` | `number` |
+| `Byte`, `Double`, `Float`, `Int`, `Short` | `number` |
 | `literal type` | `literal type` |
 
 Supported ScalaJS Interoperability Types
@@ -99,6 +99,7 @@ Supported ScalaJS Interoperability Types
 | `js.Date` | `Date` |
 | `js.RegExp` | `RegExp` |
 | `js.Symbol` | `symbol` |
+| `js.BigInt` | `bigint` |
 
 Scala types that are referenced in exported definitions (i.e. vals, vars, or methods) but are not exported themselves are called _opaque_ types. Three kinds of opaque types are distinguished:
 
