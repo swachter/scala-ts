@@ -16,10 +16,19 @@ object SealedTraitSubtypeAnalyzer {
     */
   def subtypes(
       sealedTraits: List[Trait],
-      exportedClasses: Map[Symbol, Input.Cls],
-      exportedObjects: Map[Symbol, Input.Obj],
+      inputs: List[Input.Defn],
       symTab: SymbolTable,
   ): Map[Symbol, List[Subtype]] = {
+
+    val topLevel = Analyzer.topLevel(inputs)
+
+    val exportedClasses = topLevel.collect {
+      case TopLevelExport(_, e: Input.Cls) => e.si.symbol -> e
+    }.toMap
+
+    val exportedObjects = topLevel.collect {
+      case TopLevelExport(_, e: Input.Obj) => e.si.symbol -> e
+    }.toMap
 
     val result = mutable.Map.empty[Symbol, List[Subtype]]
 

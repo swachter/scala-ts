@@ -12,13 +12,13 @@ object Generator {
 
   def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader): String = {
 
-    val topLevelExporets = Analyzer.topLevel(inputs)
+    val topLevelExports = Analyzer.topLevel(inputs)
 
-    val exportedClassNames = topLevelExporets.collect {
+    val exportedClassNames = topLevelExports.collect {
       case TopLevelExport(name, i: Input.Cls) => i.si.symbol -> name
     }.toMap
 
-    val nativeSymbolAnalyzer = NativeSymbolAnalyzer(topLevelExporets, classLoader, symTab)
+    val nativeSymbolAnalyzer = NativeSymbolAnalyzer(topLevelExports, classLoader, symTab)
 
     val typeFormatter = new TypeFormatter(custom, nativeSymbolAnalyzer, symTab)
 
@@ -299,7 +299,7 @@ object Generator {
         sb.append(s"import $str from '$module'\n")
     }
 
-    topLevelExporets.foreach {
+    topLevelExports.foreach {
       case TopLevelExport(n, i: Input.Def) => exportDef(n, i)
       case TopLevelExport(n, i: Input.Val) => exportVal(n, i)
       case TopLevelExport(n, i: Input.Var) => exportVar(n, i)
@@ -307,8 +307,9 @@ object Generator {
       case TopLevelExport(n, i: Input.Cls) => exportCls(n, i)
     }
 
-    val unions = Output.unions(inputs, symTab)
+    val (unions, missingInterfaces) = Output.unions(inputs, rootNamespace, symTab)
     unions.foreach(rootNamespace += _)
+    missingInterfaces.foreach(rootNamespace += _)
 
     exportNs(rootNamespace, -1)
 

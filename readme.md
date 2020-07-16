@@ -53,10 +53,19 @@ The output directory of the generated node module can be configured by the `cros
 (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
 ```
 
-The `ScalaTsPlugin` uses SBT's built-in [SemanticDB support](https://www.scala-sbt.org/1.x/docs/sbt-1.3-Release-Notes.html#SemanticDB+support) for generating the required SemanticDB files. The `ScalaTsPlugin` uses a default `SemanticDB` version. In case that the corresponding `semanticdb-scalac` compiler plugin is not available for the used Scala version, a suitable SemanticDB version must be configured. E.g.:
+The `ScalaTsPlugin` uses SBT's built-in [SemanticDB support](https://www.scala-sbt.org/1.x/docs/sbt-1.3-Release-Notes.html#SemanticDB+support) for generating the required SemanticDB files. The `ScalaTsPlugin` uses a default SemanticDB version. In case that the corresponding `semanticdb-scalac` compiler plugin is not available for the used Scala version, an available SemanticDB version must be configured. The `complete` command of the [Coursier](https://github.com/coursier/coursier) commandline client can be used to determine available versions. The following example shows the available versions for Scala 2.13.3 at the time of this writing:
 
 ```
-semanticdbVersion := "4.3.18"
+> cs complete org.scalameta:semanticdb-scalac_2.13.3:
+...
+4.3.19
+4.3.20
+```
+
+To use version `4.3.20` the following setting must be included:
+
+```
+semanticdbVersion := "4.3.20"
 ```
 
 ### Type mapping

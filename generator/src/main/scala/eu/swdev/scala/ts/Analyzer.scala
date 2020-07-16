@@ -235,30 +235,6 @@ object Analyzer {
     flatten(inputs)
   }
 
-  // determine all types that are referenced in the given export item
-  // -> type parameters are not considered
-  def referencedTypes(e: Input, symTab: SymbolTable): List[isb.Type] = referencedTypes(e).filter(!_.isTypeParam(symTab))
-
-  private def referencedTypes(e: Input): List[isb.Type] = e match {
-    case e: Input.Def       => e.methodSignature.returnType :: parameterTypes(e)
-    case e: Input.Val       => List(e.methodSignature.returnType)
-    case e: Input.Var       => List(e.methodSignature.returnType)
-    case e: Input.Cls       => e.member.flatMap(referencedTypes) ++ e.ctorParams.flatMap(referencedTypes)
-    case e: Input.Obj       => e.member.flatMap(referencedTypes)
-    case e: Input.Trait     => e.member.flatMap(referencedTypes)
-    case e: Input.Alias     => Nil
-    case e: Input.CtorParam => List(e.valueSignature.tpe)
-  }
-
-  private def parameterTypes(e: Input.Def): List[isb.Type] = {
-    def argType(symbol: String): isb.Type = {
-      val si = e.semSrc.symbolInfo(symbol)
-      val vs = si.signature.asInstanceOf[ValueSignature]
-      vs.tpe
-    }
-    e.methodSignature.parameterLists.flatMap(_.symlinks).map(argType).toList
-  }
-
   def topLevel(is: List[Input.Defn]): List[TopLevelExport] = {
     is.collect {
       case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.name.get.topLevelExportName.get, i)

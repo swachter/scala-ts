@@ -33,7 +33,7 @@ object ReferencedSymbolsAnalyzer {
   /**
     * Determine all type symbols that are referenced when recursively traversing the top level exported declarations.
     *
-    * The symbols of the top level exported items are also included.
+    * The symbols of the top level exported items themselves are also included.
     */
   def referencedTypeSymbols(inputs: List[Input.Defn], symTab: SymbolTable): Set[Symbol] = {
 
