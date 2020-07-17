@@ -1,21 +1,25 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.{Subtype, SubtypeParam}
+import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.Subtype
 
 import scala.collection.mutable
 import scala.meta.Mod
 import scala.meta.internal.semanticdb.SymbolInformation
 import scala.meta.internal.symtab.SymbolTable
-import scala.meta.internal.{semanticdb => isb}
 
 object Output {
 
-  // derive Interface instances for all opaque type
-  def interfaces(opaqueTypes: List[isb.Type], symTab: SymbolTable): List[Interface] = {
-    opaqueTypes.flatMap(_.typeSymbol).flatMap(symTab.info(_)).map(Interface(_, symTab))
-  }
-
-  def unions(inputs: List[Input.Defn], rootNamespace: Namespace, symTab: SymbolTable): (List[Union], List[Interface]) = {
+  /**
+   * Derives union types corresponding to sealed traits in the input.
+   *
+   * For each sealed trait that is included in the namespace, i.e. that is referenced in the exported API, a corresponding
+   * union type is created. If a union member has a type that needs to be declared (i.e. it does not correspond to a
+   * native symbol symbol* (global, imported, or exported) and there is not yet an interface for that type) then the
+   * a corresponding interface is also is returned.
+   *
+   * @return Returns the derived unions and missing interfaces for union members.
+   */
+  def unions(inputs: List[Input.Defn], namespace: Namespace, symTab: SymbolTable): (List[Union], List[Interface]) = {
 
     val sealedTraitExports = inputs.collect {
       case e: Input.Trait if e.tree.mods.exists(_.isInstanceOf[Mod.Sealed]) => e
@@ -36,7 +40,7 @@ object Output {
 
     us.sortBy(_.sealedTrait.si.ancestors(symTab).size).foreach { union =>
       val sealedTraitSymbol = union.sealedTrait.si.symbol
-      if (rootNamespace.contains(FullName.fromSymbol(sealedTraitSymbol)) || isExported.contains(sealedTraitSymbol)) {
+      if (namespace.contains(FullName.fromSymbol(sealedTraitSymbol)) || isExported.contains(sealedTraitSymbol)) {
         isExported += sealedTraitSymbol
         union.members.foreach {
           case UnionMember(s: Subtype.SealedTrait, _) => isExported += s.subtraitSymbolInfo.symbol
@@ -54,7 +58,7 @@ object Output {
         if (union.members.map(_.subtype).forall {
               case _: Subtype.ExportedCls => true
               case _: Subtype.ExportedObj => true
-              case s: Subtype.Opaque      => rootNamespace.contains(FullName.fromSymbol(s.subclsSymbolInfo.symbol))
+              case s: Subtype.Opaque      => namespace.contains(FullName.fromSymbol(s.subclsSymbolInfo.symbol))
               case s: Subtype.SealedTrait => isExported.contains(s.subtraitSymbolInfo.symbol)
             }) {
           isExported += sealedTraitSymbol
@@ -67,7 +71,7 @@ object Output {
     // add interfaces for all not yet exported union members
 
     val missingInterfaces = exportedUnions.flatMap(_.members.map(_.subtype)).collect {
-      case Subtype.Opaque(_, si) if !rootNamespace.contains(FullName(si)) => Interface(si, symTab)
+      case Subtype.Opaque(_, si) if !namespace.contains(FullName(si)) => Interface(si, symTab)
     }
 
     (exportedUnions, missingInterfaces)

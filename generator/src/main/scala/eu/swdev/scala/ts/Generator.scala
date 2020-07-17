@@ -24,7 +24,7 @@ object Generator {
 
     import typeFormatter._
 
-    val rootNamespace = Namespace.deriveInterfaces(
+    val rootNamespace = Namespace(
       inputs,
       symTab,
       typeFormatter.isKnownOrBuiltIn,

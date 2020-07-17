@@ -21,7 +21,7 @@ object Analyzer {
   val jsNameSymbol           = "scala/scalajs/js/annotation/JSName#"
 
   /**
-    * @return flattened list of all input definitions
+    * @return flattened list of all input definitions (nested input definitions are included in the list)
     */
   def analyze(semSrc: SemSource, symTab: SymbolTable): List[Input.Defn] = {
 
@@ -86,6 +86,8 @@ object Analyzer {
       }
     }
 
+    def areAllMembersVisible(mods: List[Mod], si: SymbolInformation): Boolean = hasExportAllAnnot(mods) || isSubtypeOfJsAny(si)
+
     def hasCaseClassMod(mods: List[Mod]): Boolean = mods.exists(_.isInstanceOf[Mod.Case])
     def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
     def hasVarMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.VarParam])
@@ -94,9 +96,16 @@ object Analyzer {
 
     def isSubtypeOfJsAny(si: SymbolInformation): Boolean = si.isSubtypeOf("scala/scalajs/js/Any#", symTab)
 
+    /**
+      * Recursively traverses source trees and collects input definitions.
+      *
+      * The traversal state is managed by a stack of State instances. For each container (i.e. class, object, or trait)
+      * a nested state is pushed on the stack. State instances build lists of input definitions. The initial state
+      * collects top level definitions whereas nested states collect container members.
+      */
     val traverser = new Traverser {
 
-      class State(expAll: Boolean) {
+      class State(includeAllDefValVars: Boolean) {
 
         val builder = List.newBuilder[Input.Defn]
 
@@ -109,18 +118,18 @@ object Analyzer {
               si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
             } {
               val en = exportName(mods)
-              val export = en match {
+              val include = en match {
                 case Some(_) => true
-                case None    => expAll
+                case None    => includeAllDefValVars
               }
-              if (export) {
-                builder += ctor(semSrc, defn, exportName(mods), si, isAbstract)
+              if (include) {
+                builder += ctor(semSrc, defn, en, si, isAbstract)
               }
             }
           }
 
-        def recurse(expAll: Boolean, visitChildren: => Unit): List[Input.Defn] = {
-          states.push(new State(expAll))
+        def recurse(allMembersAreVisible: Boolean, visitChildren: => Unit): List[Input.Defn] = {
+          states.push(new State(allMembersAreVisible))
           visitChildren
           states.pop().builder.result()
         }
@@ -132,7 +141,7 @@ object Analyzer {
             val ctorParamTerms = defn.ctor.paramss.flatten
 
             val isCaseClass          = hasCaseClassMod(defn.mods)
-            val allMembersAreVisible = hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si)
+            val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
 
             def isCtorParamVisibleAsField(termMods: List[Mod]): Boolean = {
               !hasPrivateMod(termMods) && (allMembersAreVisible || termMods.exists(exportMemberAnnot.isDefinedAt(_)))
@@ -176,7 +185,7 @@ object Analyzer {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
-            val allMembersAreVisible = hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si)
+            val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
             val members              = recurse(allMembersAreVisible, visitChildren)
             builder += Input.Obj(semSrc, defn, exportName(defn.mods), si, members, allMembersAreVisible)
           }
@@ -187,7 +196,7 @@ object Analyzer {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.TRAIT)
           } {
-            val members = recurse(hasExportAllAnnot(defn.mods) || isSubtypeOfJsAny(si), visitChildren)
+            val members = recurse(areAllMembersVisible(defn.mods, si), visitChildren)
             builder += Input.Trait(semSrc, defn, si, members)
           }
         }

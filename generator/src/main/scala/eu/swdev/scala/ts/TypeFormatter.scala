@@ -1,6 +1,5 @@
 package eu.swdev.scala.ts
 
-import scala.collection.mutable
 import scala.meta.internal.semanticdb.{
   BooleanConstant,
   ByteConstant,

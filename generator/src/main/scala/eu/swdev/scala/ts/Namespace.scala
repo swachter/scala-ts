@@ -33,7 +33,12 @@ class Namespace(val name: String) {
 
 object Namespace {
 
-  def deriveInterfaces(inputs: List[Input.Defn],
+  /**
+   * Constructs a namespace filled with interfaces and type aliases based in the given inputs.
+   *
+   * Interfaces for exported classes / objects are not included.
+   */
+  def apply(inputs: List[Input.Defn],
                        symTab: SymbolTable,
                        isKnownOrBuiltIn: Symbol => Boolean,
                        nativeAnalyzer: NativeSymbolAnalyzer): Namespace = {
@@ -67,7 +72,7 @@ object Namespace {
     // - class / objects that are from global scope or imported
     def mustAddInterface(i: Input.ClsOrObj) = !(i.isTopLevelExport || importedOrGlobalSymbols.contains(i.si.symbol))
 
-    // add interfaces for all referenced or ancestor types that are not top level / global scope / imported
+    // add interfaces and type aliases for all referenced types or ancestor types that are not top level / global scope / imported
     // -> classes and object that are top level exports are not added here
     // -> they are added right beside their class / const during code generation
     referencedOrAncestorTypes.foreach {
