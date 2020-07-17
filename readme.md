@@ -21,9 +21,9 @@ No further configuration is required. In particular, no additional annotations o
 
 ### How does it work?
 
-The implementation is based on [Scalameta](https://scalameta.org/). Information about the ScalaJS sources is collected by traversing source trees and retrieving symbol information from `SemanticDB`. Accordingly, ScalaJS sources must be compiled with the `SemanticDB` compiler plugin being added and the parameter `-Yrangepos` being set. The `ScalaTsPlugin` cares for this configuration.
+The implementation is based on [Scalameta](https://scalameta.org/). Information about ScalaJS sources is collected by traversing source trees and retrieving symbol information from `SemanticDB`. Accordingly, ScalaJS sources must be compiled with the `SemanticDB` compiler plugin being activated. In addition, the `ScalaJSPlugin` must be configured to emit an ECMAScript module. The `ScalaTsPlugin` takes care for all this configuration.
 
-The `ScalaTsPlugin` automatically enables the `ScalaJSPlugin` and configures it to emit an ECMAScript module.
+Side note: `ScalaJS` export annotations (e.g. `@JSExportTopLevel`) are available at compile time only. SemanticDB files do not include annotation values either. Therefore, the `ScalaTsPlugin` needs to process sources in order to access export information. The SemanticDB compiler plugin option `-P:semanticdb:text:on` is used to include sources in SemanticDB files. In addition, the Scala compiler option `-Yrangepos` must be set to allow matching source file locations with symbol information from SemanticDB.
 
 ### SBT settings and tasks
 
@@ -101,7 +101,7 @@ Supported ScalaJS Interoperability Types
 | `js.Symbol` | `symbol` |
 | `js.BigInt` | `bigint` |
 
-Scala types that are referenced in exported definitions (i.e. vals, vars, or methods) but are not exported themselves are called _opaque_ types. Three kinds of opaque types are distinguished:
+Scala types that are referenced in exported definitions (i.e. classes, objects, vals, vars, or methods) but are not exported themselves are called _opaque_ types. Three kinds of opaque types are distinguished:
 
 1. Types that reference global types (i.e. types that are annotated with `@JSGlobal`)
 1. Types that reference imported types (i.e. types that are annotated with `@JSImport`)
@@ -113,7 +113,7 @@ In order to keep type safety for opaque types that do not reference a global or 
 
 | Referenced Type | TypeScript Declaration |
 | --- | --- |
-| `@JSGlobal`<br>`class WeakMap<K <: js.Object, V>` | `WeakMap<K extends object, V>` |
+| `@JSGlobal`<br>`class WeakMap[K <: js.Object, V]` | `WeakMap<K extends object, V>` |
 | `@JSImport('module', 'ImportedType')`<br>`class SomeClass` | `import * as $module from 'module'`<br>`...`<br>`$module.ImportedType` |
 | `@JSImport('module', JSImport.Default)`<br>`class SomeClass` | `import $module_ from 'module'`<br>`...`<br>`$module_` |
 | `@JSImport('mod', JSImport.Namespace)` <br>`object o extends js.Object { class C }` | `import * as $mod from 'mod'`<br>`...`<br>`$mod.C` |

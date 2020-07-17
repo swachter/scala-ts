@@ -3,11 +3,10 @@ package eu.swdev.scala.ts
 import scala.collection.mutable
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
 import scala.meta.internal.semanticdb.SymbolOccurrence.Role
-import scala.meta.internal.semanticdb.{MethodSignature, SymbolInformation, ValueSignature}
+import scala.meta.internal.semanticdb.{MethodSignature, SymbolInformation}
 import scala.meta.internal.symtab.SymbolTable
-import scala.meta.internal.{semanticdb => isb}
 import scala.meta.transversers.Traverser
-import scala.meta.{Decl, Defn, Init, Lit, Mod, Name, Stat, Term, Tree, Type}
+import scala.meta.{Decl, Defn, Init, Lit, Mod, Name, Stat, Term, Tree}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
 
