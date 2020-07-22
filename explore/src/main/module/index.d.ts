@@ -1,3 +1,16 @@
+type ConvertParam<T> = 
+  T extends scala.Option<infer I> ? I | undefined :
+  T extends scala.collection.immutable.List<infer I> ? I[] :
+  T
+
+type ConvertParams<T> = T extends [...any[]] ? { [K in keyof T]: ConvertParam<T[K]>} : never
+type ConvertFunction<F> = F extends (...args: infer P) => infer R ? (...ps: ConvertParams<P>) => ConvertParam<R> : never
+
+type F1 = ConvertFunction<(l: scala.collection.immutable.List<number>) => scala.Option<boolean>>
+// F1 = (l: number[]) => boolean | undefined
+
+// export function convertFunction<F extends (...args: any[]) => any>(f: F): ConvertFunction<F>
+
 export function greet(str: string): void;
 export function random(): number;
 

@@ -222,6 +222,10 @@ In addition to the interfaces that are generated for _opaque_ types, interfaces 
 - `generator`: a library module that contains the code generator
 - `sbt-scala-ts`: contains the `ScalaTsPlugin`
 
+### Articles
+
+- [Writing Angular Services in Scala](https://medium.com/@antoine.doeraene/writing-angular-services-in-scala-e83fd308b7c3)
+
 ### Previous work on creating TypeScript Declaration Files
 
 Talks:
@@ -238,4 +242,4 @@ Projects:
 
 ### Acknowledgements:
 
-Thanks to Sébastien Doeraene and Ólafur Páll Geirsson for their work and support regarding `ScalaJS` and `Scalameta`, respectively.
+Thanks to Sébastien Doeraene and Ólafur Páll Geirsson for their work and support regarding `ScalaJS` and `Scalameta`.
