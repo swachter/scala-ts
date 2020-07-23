@@ -38,7 +38,26 @@ lazy val commonSettings = Seq(
   licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 )
 
+lazy val annotations = crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure)
+  .settings(commonSettings)
+  .settings(
+    name := "scala-ts-annotations",
+    description := "compile time only library including annotations for ScalaTs",
+    crossScalaVersions := List(scala212, scala213),
+  )
+
+lazy val runtime = project
+  .settings(commonSettings: _*)
+  .dependsOn(annotations.js)
+  .settings(
+    name := "scala-ts-runtime",
+    description := "runtime library that contains conversion logic when using adapters",
+    crossScalaVersions := List(scala212, scala213),
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % "test",
+  ).enablePlugins(ScalaJSPlugin)
+
 lazy val generator = project.in(file("generator"))
+  .dependsOn(annotations.jvm % Test)
   .settings(commonSettings: _*)
   .settings(
     name := "scala-ts-generator",
@@ -60,15 +79,6 @@ lazy val generator = project.in(file("generator"))
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
   )
-
-lazy val adapter = project
-  .in(file("adapter"))
-  .settings(
-    name := "adapter",
-    scalaVersion := scala213,
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % "test",
-    scalacOptions += "-Xlog-implicits",
-  ).enablePlugins(ScalaJSPlugin)
 
 lazy val explore = project
   .in(file("explore"))
@@ -116,7 +126,7 @@ lazy val plugin = project
   )
 
 lazy val root = project.in(file("."))
-  .aggregate(generator, plugin)
+  .aggregate(annotations.jvm, annotations.js, generator, plugin)
   .settings (
     name := "scala-ts",
     crossScalaVersions := Nil,

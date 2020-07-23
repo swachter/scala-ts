@@ -35,6 +35,7 @@ val server =
 lazy val root = project.in(file(".")).
   aggregate(client, server, sharedJS, sharedJVM).
   settings(
+    name := "scala-ts-angular",
     publish := {},
     publishLocal := {},
   )

@@ -1,6 +1,6 @@
 package eu.swdev.scala.ts
 
-package object adapter {
+package object converter {
 
   implicit class From[X](val x: X) extends AnyVal {
       def convert[Y](implicit ev: Converter[X, Y]): Y = ev(x)

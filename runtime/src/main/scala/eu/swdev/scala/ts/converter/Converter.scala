@@ -1,4 +1,4 @@
-package eu.swdev.scala.ts.adapter
+package eu.swdev.scala.ts.converter
 
 import scala.reflect.ClassTag
 import scala.scalajs.js
