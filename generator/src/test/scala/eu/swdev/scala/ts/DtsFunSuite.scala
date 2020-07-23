@@ -42,9 +42,17 @@ trait DtsFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { self 
           s"$n#"
         }
       }
+      .map { n =>
+        if (n.contains("/")) {
+          n
+        } else {
+          s"_empty_/$n"
+        }
+      }
       .toSet
 
-    val semSources = locateSemSources(metaInfPath, dialect).filter(_.td.symbols.map(_.symbol).exists(classSymbols.contains))
+    val allSemSources = locateSemSources(metaInfPath, dialect)
+    val semSources = allSemSources.filter(_.td.symbols.map(_.symbol).exists(classSymbols.contains))
 
     val inputs = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
 

@@ -97,7 +97,7 @@ class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], 
   private def symbolInformation2TypeSymbolApi(sym: String): TypeSymbolApi = {
 
     val splitted = sym.split('/')
-    val pckg     = splitted.dropRight(1).mkString(".")
+    val pckg     = splitted.dropRight(1).filter(_ != "_empty_")
     val nested   = new StringTokenizer(splitted.last, ".#", true).asScala.grouped(2).map(_.mkString("")).toList
 
     val objPrefix = nested.takeWhile(_.endsWith("."))
@@ -112,7 +112,7 @@ class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], 
 
     // calculate the outer name of the statically accessible prefix
     val outerName     = prefix.map(s => transform(s.dropRight(1))).mkString(".")
-    val fullOuterName = s"$pckg.$outerName"
+    val fullOuterName = (pckg :+ outerName).mkString(".")
     var tApi: TypeSymbolApi = if (prefix.last.endsWith(".")) {
       mirror.staticModule(fullOuterName).moduleClass.asClass
     } else {

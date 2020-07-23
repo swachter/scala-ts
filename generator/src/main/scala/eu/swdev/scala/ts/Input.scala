@@ -24,6 +24,7 @@ object FullName {
     val s = sym
       .substring(0, sym.length - 1)
       .replace(".package.", ".")
+      .replace("_empty_/", "")
       .replace(".", "$.") // objects have a '.' suffix -> mark objects by a '$'
       .replace('/', '.') // path steps to packages
       .replace('#', '.') // classes have a '#' suffix -> replace by '.' separator
