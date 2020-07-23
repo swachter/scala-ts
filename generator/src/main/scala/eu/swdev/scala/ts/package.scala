@@ -2,28 +2,7 @@ package eu.swdev.scala
 
 import scala.meta.inputs.Position
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
-import scala.meta.internal.semanticdb.{
-  AnnotatedType,
-  ByNameType,
-  ClassSignature,
-  ConstantType,
-  ExistentialType,
-  IntersectionType,
-  MethodSignature,
-  RepeatedType,
-  Scope,
-  SingleType,
-  StructuralType,
-  SuperType,
-  SymbolInformation,
-  ThisType,
-  TypeRef,
-  TypeSignature,
-  UnionType,
-  UniversalType,
-  WithType,
-  Range => SRange
-}
+import scala.meta.internal.semanticdb.{AnnotatedType, ByNameType, ClassSignature, ConstantType, ExistentialType, IntersectionType, MethodSignature, RepeatedType, Scope, SingleType, StructuralType, SuperType, SymbolInformation, ThisType, Type, TypeRef, TypeSignature, UnionType, UniversalType, WithType, Range => SRange}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -50,7 +29,7 @@ package object ts {
     }
   }
 
-  case class TParam(displayName: String, upperBound: Option[isb.Type])
+  case class TParam(displayName: String, upperBound: Option[isb.Type], lowerBound: Option[isb.Type])
 
   object TParam {
     def apply(sym: Symbol, symTab: SymbolTable): TParam = {
@@ -62,7 +41,12 @@ package object ts {
             case Some(_)            => Some(ts.upperBound)
             case None               => None
           }
-          TParam(si.displayName, upperBound)
+          val lowerBound = ts.lowerBound.typeSymbol match {
+            case Some("scala/Nothing#") => None
+            case Some(_)            => Some(ts.lowerBound)
+            case None               => None
+          }
+          TParam(si.displayName, upperBound, lowerBound)
         case None => throw new RuntimeException(s"missing symbol information for type parameter symbol: $sym")
       }
     }
@@ -239,6 +223,6 @@ package object ts {
 
   // creator for a partial type formatter
   // -> the creator can use the given type formatter to delegate formatting of nested types
-  type CTypeFormatter = TypeFormatter => PTypeFormatter
+  type CTypeFormatter = (Type => String) => PTypeFormatter
 
 }

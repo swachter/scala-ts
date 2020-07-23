@@ -61,6 +61,15 @@ lazy val generator = project.in(file("generator"))
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.2" % "test",
   )
 
+lazy val adapter = project
+  .in(file("adapter"))
+  .settings(
+    name := "adapter",
+    scalaVersion := scala213,
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % "test",
+    scalacOptions += "-Xlog-implicits",
+  ).enablePlugins(ScalaJSPlugin)
+
 lazy val explore = project
   .in(file("explore"))
   .settings(

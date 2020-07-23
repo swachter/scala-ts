@@ -100,7 +100,7 @@ class TypeFormatter(
     case ConstantType(LongConstant(value))    => "object" // ScalaJS represents long as object
     case ConstantType(NullConstant())         => "null"
     case ConstantType(ShortConstant(value))   => String.valueOf(value)
-    case ConstantType(StringConstant(value))  => s"'${escapeString(value)}'"
+    case ConstantType(StringConstant(value))  => s"'${escapeTypeScriptString(value)}'"
     case ConstantType(UnitConstant())         => "void"
 
   }
@@ -151,7 +151,7 @@ class TypeFormatter(
 
 object TypeFormatter {
 
-  def escapeString(str: String): String = {
+  def escapeTypeScriptString(str: String): String = {
     str.flatMap {
       case '\b'                      => "\\b"
       case '\f'                      => "\\f"
