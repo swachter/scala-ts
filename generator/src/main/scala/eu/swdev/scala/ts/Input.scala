@@ -37,36 +37,65 @@ object FullName {
   implicit val ord = implicitly[Ordering[String]].on[FullName](_.str)
 }
 
-sealed trait NameAnnot {
+/**
+ * Indicates the visibility of classes, objects, traits, defs, vals, and vars.
+ *
+ * The visibility is determined by various ScalaJS annotations or if a class, object, trait extends js.Any.
+ */
+sealed trait Visibility {
   def isMember: Boolean
   def isStatic: Boolean
+  def isTopLevel: Boolean = topLevelExportName.isDefined
   def topLevelExportName: Option[String]
 }
 
-object NameAnnot {
-  sealed trait Member extends NameAnnot {
+object Visibility {
+
+  sealed trait Member extends Visibility {
     override def isMember: Boolean                  = true
     override def isStatic: Boolean                  = false
     override def topLevelExportName: Option[String] = None
   }
-  sealed trait Static extends NameAnnot {
+
+  sealed trait Static extends Visibility {
     override def isMember: Boolean                  = false
     override def isStatic: Boolean                  = true
     override def topLevelExportName: Option[String] = None
   }
-  case object MemberWithoutName extends Member
-  case class MemberWithName(s: String) extends Member {
+
+  case object No extends Visibility {
+    override def isMember: Boolean = false
+    override def isStatic: Boolean = false
     override def topLevelExportName: Option[String] = None
   }
-  case class StaticWithName(s: String) extends Static
-  case object StaticWithoutName        extends Static
-  case class TopLevel(s: String) extends NameAnnot {
+
+  /**
+   * Used for members that have no annotation of their own but are visible because their owner is a subtype of
+   * js.Any or has an @JSExportAll annotation.
+   */
+  case object DisplayName extends Member
+
+  case object JSExportWithoutName extends Member
+  case class JSExportWithName(s: String) extends Member
+
+  case class JSExportStaticWithName(s: String) extends Static
+  case object JSExportStaticWithoutName        extends Static
+
+  case class TopLevel(s: String) extends Visibility {
     override def isMember: Boolean                  = false
     override def isStatic: Boolean                  = false
     override def topLevelExportName: Option[String] = Some(s)
   }
   case class JsNameWithString(s: String) extends Member
   case class JsNameWithSymbol(s: Symbol) extends Member
+}
+
+sealed trait Proxied
+
+object Proxied {
+  case object No                                            extends Proxied
+  case object WithDefaultInteropType                        extends Proxied
+  case class WithOverriddenInteropType(interopType: String) extends Proxied
 }
 
 sealed trait Input {
@@ -93,11 +122,8 @@ object Input {
   }
 
   sealed trait Exportable extends Input {
-    def name: Option[NameAnnot]
-    def isTopLevelExport: Boolean = name match {
-      case Some(NameAnnot.TopLevel(_)) => true
-      case _                           => false
-    }
+    def visibility: Visibility
+    def isTopLevelExport: Boolean = visibility.isTopLevel
   }
 
   sealed trait Defn extends Input
@@ -115,24 +141,23 @@ object Input {
   //
   //
 
-  case class Def(semSrc: SemSource, tree: Stat, name: Option[NameAnnot], si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
-  case class Val(semSrc: SemSource, tree: Stat, name: Option[NameAnnot], si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
-  case class Var(semSrc: SemSource, tree: Stat, name: Option[NameAnnot], si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
+  case class Def(semSrc: SemSource, tree: Stat, visibility: Visibility, si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
+  case class Val(semSrc: SemSource, tree: Stat, visibility: Visibility, si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
+  case class Var(semSrc: SemSource, tree: Stat, visibility: Visibility, si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
 
   case class Obj(semSrc: SemSource,
                  tree: Defn.Object,
-                 name: Option[NameAnnot],
+                 visibility: Visibility,
                  si: SymbolInformation,
                  member: List[Defn],
                  allMembersAreVisible: Boolean,
   ) extends ClsOrObj {
-    // indicates if this object is an exported member
-    def isExportedMember = allMembersAreVisible || name.map(_.isMember).getOrElse(false)
+    def isVisibleMember = visibility.isMember
   }
 
   case class Cls(semSrc: SemSource,
                  tree: Defn.Class,
-                 name: Option[NameAnnot],
+                 visibility: Visibility,
                  si: SymbolInformation,
                  member: List[Defn],
                  allMembersAreVisible: Boolean,

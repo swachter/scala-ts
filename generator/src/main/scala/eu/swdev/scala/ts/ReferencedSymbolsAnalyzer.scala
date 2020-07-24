@@ -70,13 +70,13 @@ object ReferencedSymbolsAnalyzer {
     }
 
     def collectExportedMember(i: Input.Defn): Unit = i match {
-      case i: Input.DefOrValOrVar             => collect(i.methodSignature) // all Input.DefOrValOrVar are exported
-      case i: Input.Obj if i.isExportedMember => collect(i.si) // only some Input.Obj are exported as members
-      case i: Input.Type                      => // nested type members are not considered; they do not appear as members in the output
+      case i: Input.DefOrValOrVar            => collect(i.methodSignature) // all Input.DefOrValOrVar are exported
+      case i: Input.Obj if i.isVisibleMember => collect(i.si) // only some Input.Obj are exported as members
+      case i: Input.Type                     => // nested type members are not considered; they do not appear as members in the output
     }
 
     def collect(sig: Signature): Unit = sig match {
-      case ValueSignature(tpe)                                   => collect(tpe)
+      case ValueSignature(tpe) => collect(tpe)
       case TypeSignature(typeParameters, lowerBound, upperBound) =>
         (lowerBound.typeSymbol, upperBound.typeSymbol) match {
           case (Some("scala/Nothing#"), Some("scala/Any#")) =>

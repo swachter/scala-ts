@@ -10,7 +10,7 @@ object AdapterGenerator {
     val topLevelExports = Analyzer.topLevel(inputs)
 
     val unchangedTypeFormatter = new UnchangedTypeFormatter(symTab)
-    val interopTypeFormatter = new InteropTypeFormatter(symTab)
+    val interopTypeFormatter   = new InteropTypeFormatter(symTab)
 
     def formatTParamSyms(symbols: Seq[Symbol]): String = if (symbols.isEmpty) "" else symbols.map(formatTParamSym).mkString("[", ",", "]")
 
@@ -46,9 +46,9 @@ object AdapterGenerator {
     }
 
     def memberDef(i: Input.Def): Unit = {
-      i.name.foreach {
-        case NameAnnot.JsNameWithString(s) => result.addLine(s"""@JSName("$s")""")
-        case _                             =>
+      i.visibility match {
+        case Visibility.JsNameWithString(s) => result.addLine(s"""@JSName("$s")""")
+        case _                              =>
       }
       val tparams = formatTParamSyms(i.methodSignature.typeParamSymbols)
       val (params, args) = if (i.methodSignature.parameterLists.isEmpty) {

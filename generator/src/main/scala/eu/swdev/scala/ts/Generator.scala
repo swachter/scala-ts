@@ -35,7 +35,7 @@ object Generator {
     val statics = inputs.collect {
       case i: Input.Obj =>
         i.si.symbol -> i.member.collect {
-          case i: Input.DefOrValOrVar if i.name.map(_.isStatic).getOrElse(false) => i
+          case i: Input.DefOrValOrVar if i.visibility.isStatic => i
         }
     }.toMap
 
@@ -46,20 +46,16 @@ object Generator {
         } else {
           s"['$s']"
         }
-      i.name match {
-        case Some(s) =>
-          s match {
-            case NameAnnot.MemberWithName(n)   => mn(n)
-            case NameAnnot.StaticWithName(n)   => mn(n)
-            case NameAnnot.JsNameWithString(n) => mn(n)
-            case NameAnnot.JsNameWithSymbol(s) =>
-              nativeSymbolAnalyzer.nativeSymbol(s) match {
-                case Some(s) => s"[${NativeSymbol.formatNativeSymbol(s)}]"
-                case None    => throw new RuntimeException(s"unknown native symbol: $s")
-              }
-            case _ => i.si.displayName
+      i.visibility match {
+        case Visibility.JSExportWithName(n)       => mn(n)
+        case Visibility.JSExportStaticWithName(n) => mn(n)
+        case Visibility.JsNameWithString(n)       => mn(n)
+        case Visibility.JsNameWithSymbol(s) =>
+          nativeSymbolAnalyzer.nativeSymbol(s) match {
+            case Some(s) => s"[${NativeSymbol.formatNativeSymbol(s)}]"
+            case None    => throw new RuntimeException(s"unknown native symbol: $s")
           }
-        case None => i.si.displayName
+        case _ => i.si.displayName
       }
     }
 
@@ -157,6 +153,18 @@ object Generator {
 
     def isParentTypeKnown(p: ParentType) = rootNamespace.contains(p.fullName)
 
+    def members(inputs: List[Input], canBeAbstract: Boolean): List[String] = {
+      inputs
+        .collect {
+          case i: Input.Def if i.visibility.isMember => memberDef(i, canBeAbstract && i.isAbstract)
+          case i: Input.Val if i.visibility.isMember => memberVal(i, canBeAbstract && i.isAbstract)
+          case i: Input.Var if i.visibility.isMember => memberVar(i, canBeAbstract && i.isAbstract)
+          case i: Input.CtorParam                    => memberCtorParam(i)
+          case i: Input.Obj if i.isVisibleMember     => memberObj(i)
+        }
+        .filter(_.nonEmpty)
+    }
+
     def exportCls(name: String, i: Input.Cls): Unit = {
 
       // export an interface with the same name as the exported class if the interface would extends some parent interfaces
@@ -192,17 +200,8 @@ object Generator {
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
       sb.append(s"  constructor($cParams)\n")
 
-      (i.ctorParams ++ i.member)
-        .map {
-          case e: Input.Def                       => memberDef(e, i.isAbstract)
-          case e: Input.Val                       => memberVal(e, i.isAbstract)
-          case e: Input.Var                       => memberVar(e, i.isAbstract)
-          case e: Input.CtorParam                 => memberCtorParam(e)
-          case i: Input.Obj if i.isExportedMember => memberObj(i)
-          case e: Input.Type                      => ""
-        }
-        .filter(_.nonEmpty)
-        .foreach(m => sb.append(s"  $m"))
+      val ms = members(i.ctorParams ++ i.member, true)
+      ms.foreach(m => sb.append(s"  $m"))
       sb.append("}\n")
     }
 
@@ -219,17 +218,7 @@ object Generator {
 
       sb.append(s"$space${exp}interface ${itf.simpleName}${formatTParamSyms(itf.typeParamSyms)}$ext {\n")
 
-      itf.members
-        .map {
-          case i: Input.Def                       => memberDef(i, false)
-          case i: Input.Val                       => memberVal(i, false)
-          case i: Input.Var                       => memberVar(i, false)
-          case i: Input.CtorParam                 => memberCtorParam(i)
-          case i: Input.Obj if i.isExportedMember => memberObj(i)
-          case i: Input.Type                      => ""
-        }
-        .filter(_.nonEmpty)
-        .foreach(m => sb.append(s"$space  $m"))
+      members(itf.members, false).foreach(m => sb.append(s"$space  $m"))
 
       sb.append(s"$space  '${itf.fullName}': never\n")
       sb.append(s"$space}\n")

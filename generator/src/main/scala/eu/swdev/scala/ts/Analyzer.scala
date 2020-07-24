@@ -36,10 +36,6 @@ object Analyzer {
     def existsExportStaticAnnot(tree: Tree): Boolean   = existsSymbolReference(tree, jsExportStaticSymbol)
     def existsJsNameAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsNameSymbol)
 
-    val exportTopLevelAnnot: PartialFunction[Mod, NameAnnot.TopLevel] = {
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => NameAnnot.TopLevel(lit)
-    }
-
     def referencedSymbol(term: Term): Symbol = {
       // the term must reference a static, stable field (cf. https://www.scala-js.org/doc/interoperability/facade-types.html)
       // of type js.Symbol
@@ -50,30 +46,35 @@ object Analyzer {
       seq.sortBy(_.range.get.endCharacter).last.symbol
     }
 
-    val exportMemberAnnot: PartialFunction[Mod, NameAnnot.Member] = {
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t) => NameAnnot.MemberWithName(lit)
-      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                         => NameAnnot.MemberWithoutName
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsJsNameAnnot(t) => NameAnnot.JsNameWithString(lit)
-      case Mod.Annot(t @ Init(_, _, List(List(ref)))) if existsJsNameAnnot(t)             => NameAnnot.JsNameWithSymbol(referencedSymbol(ref))
+    val topLevelVisibilityAnnot: PartialFunction[Mod, Visibility.TopLevel] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsTopLevelExportAnnot(t) => Visibility.TopLevel(lit)
     }
 
-    val exportStaticAnnot: PartialFunction[Mod, NameAnnot.Static] = {
-      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportStaticAnnot(t) => NameAnnot.StaticWithName(lit)
-      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportStaticAnnot(t)                         => NameAnnot.StaticWithoutName
+    val memberVisibiltyAnnot: PartialFunction[Mod, Visibility.Member] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportAnnot(t) => Visibility.JSExportWithName(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportAnnot(t)                         => Visibility.JSExportWithoutName
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsJsNameAnnot(t) => Visibility.JsNameWithString(lit)
+      case Mod.Annot(t @ Init(_, _, List(List(ref)))) if existsJsNameAnnot(t)             => Visibility.JsNameWithSymbol(referencedSymbol(ref))
     }
 
-    val exportAnnot = exportTopLevelAnnot orElse exportMemberAnnot orElse exportStaticAnnot
+    val staticVisibilityAnnot: PartialFunction[Mod, Visibility.Static] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsExportStaticAnnot(t) => Visibility.JSExportStaticWithName(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsExportStaticAnnot(t)                         => Visibility.JSExportStaticWithoutName
+    }
 
-    def exportName(mods: List[Mod]): Option[NameAnnot] = mods.collect(exportAnnot).headOption
+    val visibilityAnnot = topLevelVisibilityAnnot orElse memberVisibiltyAnnot orElse staticVisibilityAnnot
+
+    def visibility(mods: List[Mod]): Option[Visibility] = mods.collect(visibilityAnnot).headOption
 
     def fieldName(mods: List[Mod], default: String): String =
       mods
-        .collect(exportMemberAnnot)
+        .collect(memberVisibiltyAnnot)
         .map {
-          case NameAnnot.MemberWithoutName   => default
-          case NameAnnot.MemberWithName(s)   => s
-          case NameAnnot.JsNameWithString(s) => s
-          case NameAnnot.JsNameWithSymbol(s) =>
+          case Visibility.DisplayName         => default
+          case Visibility.JSExportWithoutName => default
+          case Visibility.JSExportWithName(s) => s
+          case Visibility.JsNameWithString(s) => s
+          case Visibility.JsNameWithSymbol(s) =>
             throw new NotImplementedError("constructor parameters can not be annotated with @JSName with a symbol")
         }
         .headOption
@@ -105,26 +106,21 @@ object Analyzer {
       */
     val traverser = new Traverser {
 
-      class State(includeAllDefValVars: Boolean) {
+      class State(allStateMembersAreVisible: Boolean) {
 
         val builder = List.newBuilder[Input.Defn]
+
+        val inheritedVisiblity = if (allStateMembersAreVisible) Visibility.DisplayName else Visibility.No
 
         def processDefValVar[D <: Stat](defn: D,
                                         mods: List[Mod],
                                         isAbstract: Boolean,
-                                        ctor: (SemSource, D, Option[NameAnnot], SymbolInformation, Boolean) => Input.Defn): Unit =
+                                        ctor: (SemSource, D, Visibility, SymbolInformation, Boolean) => Input.Defn): Unit =
           if (!hasPrivateMod(mods)) {
             for {
               si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
             } {
-              val en = exportName(mods)
-              val include = en match {
-                case Some(_) => true
-                case None    => includeAllDefValVars
-              }
-              if (include) {
-                builder += ctor(semSrc, defn, en, si, isAbstract)
-              }
+              builder += ctor(semSrc, defn, visibility(mods).getOrElse(inheritedVisiblity), si, isAbstract)
             }
           }
 
@@ -144,7 +140,7 @@ object Analyzer {
             val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
 
             def isCtorParamVisibleAsField(termMods: List[Mod]): Boolean = {
-              !hasPrivateMod(termMods) && (allMembersAreVisible || termMods.exists(exportMemberAnnot.isDefinedAt(_)))
+              !hasPrivateMod(termMods) && (allMembersAreVisible || termMods.exists(memberVisibiltyAnnot.isDefinedAt(_)))
             }
 
             val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
@@ -171,7 +167,7 @@ object Analyzer {
             val members = recurse(allMembersAreVisible, visitChildren)
             builder += Input.Cls(semSrc,
                                  defn,
-                                 exportName(defn.mods),
+                                 visibility(defn.mods).getOrElse(Visibility.No),
                                  si,
                                  members,
                                  allMembersAreVisible,
@@ -187,7 +183,7 @@ object Analyzer {
           } {
             val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
             val members              = recurse(allMembersAreVisible, visitChildren)
-            builder += Input.Obj(semSrc, defn, exportName(defn.mods), si, members, allMembersAreVisible)
+            builder += Input.Obj(semSrc, defn, visibility(defn.mods).getOrElse(inheritedVisiblity), si, members, allMembersAreVisible)
           }
 
         }
@@ -245,7 +241,7 @@ object Analyzer {
 
   def topLevel(is: List[Input.Defn]): List[TopLevelExport] = {
     is.collect {
-      case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.name.get.topLevelExportName.get, i)
+      case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.visibility.topLevelExportName.get, i)
     }
   }
 

@@ -21,12 +21,13 @@ import sbt.internal.inc.ScalaInstance
 
 import scala.sys.process.Process
 
-val scalaMetaVersion = "4.3.10"
+val scalaMetaVersion = "4.3.20"
+
 // the ScalaJS version the ScalaTsPlugin depends upon
 // (this build also uses the ScalaJS plugin; that version is configure in project/plugins.sbt)
 val scalaJsVersion = "1.1.1"
 
-lazy val scala212 = "2.12.11"
+lazy val scala212 = "2.12.12"
 lazy val scala213 = "2.13.2"
 
 lazy val commonSettings = Seq(
@@ -52,8 +53,9 @@ lazy val runtime = project
   .settings(
     name := "scala-ts-runtime",
     description := "runtime library that contains conversion logic when using adapters",
-    crossScalaVersions := List(scala212, scala213),
+    crossScalaVersions := List(scala213),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % "test",
+//    scalacOptions += "-Xlog-implicits"
   ).enablePlugins(ScalaJSPlugin)
 
 lazy val generator = project.in(file("generator"))
@@ -69,7 +71,7 @@ lazy val generator = project.in(file("generator"))
     // -> add the compiler plugin dependency
     // -> set autoCompilerPlugins := false -> no "-Xplugin=..." Scalac option is added automatically
     // -> add the necessary Scalac options manually in the test configuration
-    addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.3.10" cross CrossVersion.full),
+    addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % scalaMetaVersion cross CrossVersion.full),
     autoCompilerPlugins := false,
     ivyConfigurations += Configurations.CompilerPlugin,
     scalacOptions in Test ++= Classpaths.autoPlugins(update.value, Seq(), ScalaInstance.isDotty(scalaVersion.value)),
@@ -126,7 +128,7 @@ lazy val plugin = project
   )
 
 lazy val root = project.in(file("."))
-  .aggregate(annotations.jvm, annotations.js, generator, plugin)
+  .aggregate(annotations.jvm, annotations.js, runtime, generator, plugin)
   .settings (
     name := "scala-ts",
     crossScalaVersions := Nil,

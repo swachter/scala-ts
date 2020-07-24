@@ -128,13 +128,13 @@ object SealedTraitSubtypeAnalyzer {
 
     case class ExportedCls(parent: Input.Trait, subcls: Input.Cls) extends NonSealedTraitSubtype {
       override def unionMemberName =
-        subcls.name.flatMap(_.topLevelExportName).map(FullName.fromSimpleName(_)).getOrElse(FullName(subcls.si))
+        subcls.visibility.topLevelExportName.map(FullName.fromSimpleName(_)).getOrElse(FullName(subcls.si))
       override def classSignature = subcls.classSignature
     }
 
     case class ExportedObj(parent: Input.Trait, subobj: Input.Obj) extends NonSealedTraitSubtype {
       override def unionMemberName =
-        subobj.name.flatMap(_.topLevelExportName).map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName(subobj.si))
+        subobj.visibility.topLevelExportName.map(s => FullName.fromSimpleName(s"$s$$")).getOrElse(FullName(subobj.si))
       override def classSignature = subobj.si.signature.asInstanceOf[ClassSignature]
     }
 
