@@ -25,8 +25,6 @@ trait LowPrio {
 
 object InteropConverter extends LowPrio {
 
-//  def apply[X, Y](implicit ev: C[X, Y]): C[X, Y] = ev
-
   implicit def jsArray2ScalaArray[X: ClassTag, Y: ClassTag](implicit ev: C[X, Y]): C[js.Array[X], Array[Y]] = _.toArray.map(ev(_))
   implicit def jsArray2ScalaList[X, Y](implicit ev: C[X, Y]): C[js.Array[X], List[Y]] = _.toList.map(ev(_))
 

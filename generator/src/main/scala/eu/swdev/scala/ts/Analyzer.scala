@@ -9,16 +9,21 @@ import scala.meta.transversers.Traverser
 import scala.meta.{Decl, Defn, Init, Lit, Mod, Name, Stat, Term, Tree}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
+import eu.swdev.scala.ts.annotation.{Adapt, AdaptMembers, AdaptConstructor, AdaptAll}
 
 object Analyzer {
 
   def classSymbol[C](implicit ev: ClassTag[C]) = s"${ev.runtimeClass.getName.replace('.', '/')}#"
 
-  val jsExportTopLevelSymbol = classSymbol[JSExportTopLevel]
-  val jsExportSymbol         = classSymbol[JSExport]
-  val jsExportAllSymbol      = classSymbol[JSExportAll]
-  val jsExportStaticSymbol   = "scala/scalajs/js/annotation/JSExportStatic#"
-  val jsNameSymbol           = "scala/scalajs/js/annotation/JSName#"
+  val jsExportTopLevelSymbol   = classSymbol[JSExportTopLevel]
+  val jsExportSymbol           = classSymbol[JSExport]
+  val jsExportAllSymbol        = classSymbol[JSExportAll]
+  val jsExportStaticSymbol     = "scala/scalajs/js/annotation/JSExportStatic#"
+  val jsNameSymbol             = "scala/scalajs/js/annotation/JSName#"
+  val jsAdaptSymbol            = classSymbol[Adapt]
+  val jsAdaptMembersSymbol     = classSymbol[AdaptMembers]
+  val jsAdaptConstructorSymbol = classSymbol[AdaptConstructor]
+  val jsAdaptAllSymbol         = classSymbol[AdaptAll]
 
   /**
     * @return flattened list of all input definitions (nested input definitions are included in the list)
@@ -35,6 +40,11 @@ object Analyzer {
     def existsExportAllAnnot(tree: Tree): Boolean      = existsSymbolReference(tree, jsExportAllSymbol)
     def existsExportStaticAnnot(tree: Tree): Boolean   = existsSymbolReference(tree, jsExportStaticSymbol)
     def existsJsNameAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsNameSymbol)
+
+    def existsAdaptAnnot(tree: Tree): Boolean            = existsSymbolReference(tree, jsAdaptSymbol)
+    def existsAdaptMembersAnnot(tree: Tree): Boolean     = existsSymbolReference(tree, jsAdaptMembersSymbol)
+    def existsAdaptConstructorAnnot(tree: Tree): Boolean = existsSymbolReference(tree, jsAdaptConstructorSymbol)
+    def existsAdaptAllAnnot(tree: Tree): Boolean         = existsSymbolReference(tree, jsAdaptAllSymbol)
 
     def referencedSymbol(term: Term): Symbol = {
       // the term must reference a static, stable field (cf. https://www.scala-js.org/doc/interoperability/facade-types.html)
@@ -64,7 +74,13 @@ object Analyzer {
 
     val visibilityAnnot = topLevelVisibilityAnnot orElse memberVisibiltyAnnot orElse staticVisibilityAnnot
 
+    val adaptAnnot: PartialFunction[Mod, Adapted] = {
+      case Mod.Annot(t @ Init(_, _, List(List(Lit.String(lit))))) if existsAdaptAnnot(t) => Adapted.WithOverriddenInteropType(lit)
+      case Mod.Annot(t @ Init(_, _, Nil)) if existsAdaptAnnot(t)                         => Adapted.WithDefaultInteropType
+    }
+
     def visibility(mods: List[Mod]): Option[Visibility] = mods.collect(visibilityAnnot).headOption
+    def proxied(mods: List[Mod]): Option[Adapted]       = mods.collect(adaptAnnot).headOption
 
     def fieldName(mods: List[Mod], default: String): String =
       mods
@@ -80,14 +96,19 @@ object Analyzer {
         .headOption
         .getOrElse(default)
 
-    def hasExportAllAnnot(mods: List[Mod]): Boolean = {
-      mods.exists {
-        case Mod.Annot(t @ Init(_, _, _)) => existsExportAllAnnot(t)
-        case _                            => false
-      }
+    def hasAnnot(mods: List[Mod], pred: Tree => Boolean): Boolean = mods.exists {
+      case Mod.Annot(t @ Init(_, _, _)) => pred(t)
+      case _                            => false
     }
 
+    def hasExportAllAnnot(mods: List[Mod]): Boolean = hasAnnot(mods, existsExportAllAnnot)
+
+    def hasAdaptMembersAnnot(mods: List[Mod]): Boolean     = hasAnnot(mods, existsAdaptMembersAnnot)
+    def hasAdaptConstructorAnnot(mods: List[Mod]): Boolean = hasAnnot(mods, existsAdaptConstructorAnnot)
+    def hasAdaptAllAnnot(mods: List[Mod]): Boolean         = hasAnnot(mods, existsAdaptAllAnnot)
+
     def areAllMembersVisible(mods: List[Mod], si: SymbolInformation): Boolean = hasExportAllAnnot(mods) || isSubtypeOfJsAny(si)
+    def areAllMembersAdapted(mods: List[Mod]): Boolean                        = hasAdaptAllAnnot(mods) || hasAdaptMembersAnnot(mods)
 
     def hasCaseClassMod(mods: List[Mod]): Boolean = mods.exists(_.isInstanceOf[Mod.Case])
     def hasValMod(mods: List[Mod]): Boolean       = mods.exists(_.isInstanceOf[Mod.ValParam])
@@ -106,26 +127,29 @@ object Analyzer {
       */
     val traverser = new Traverser {
 
-      class State(allStateMembersAreVisible: Boolean) {
+      class State(allStateMembersAreVisible: Boolean, allStateMembersAreProxied: Boolean) {
 
         val builder = List.newBuilder[Input.Defn]
 
-        val inheritedVisiblity = if (allStateMembersAreVisible) Visibility.DisplayName else Visibility.No
+        val inheritedVisiblity                   = if (allStateMembersAreVisible) Visibility.DisplayName else Visibility.No
+        val inheritedAdapted                     = if (allStateMembersAreProxied) Adapted.WithDefaultInteropType else Adapted.No
+        def effectiveVisibility(mods: List[Mod]) = visibility(mods).getOrElse(inheritedVisiblity)
+        def effectiveAdapted(mods: List[Mod])    = proxied(mods).getOrElse(inheritedAdapted)
 
         def processDefValVar[D <: Stat](defn: D,
                                         mods: List[Mod],
                                         isAbstract: Boolean,
-                                        ctor: (SemSource, D, Visibility, SymbolInformation, Boolean) => Input.Defn): Unit =
+                                        ctor: (SemSource, D, Visibility, Adapted, SymbolInformation, Boolean) => Input.Defn): Unit =
           if (!hasPrivateMod(mods)) {
             for {
               si <- semSrc.symbolInfo(defn.pos, Kind.METHOD)
             } {
-              builder += ctor(semSrc, defn, visibility(mods).getOrElse(inheritedVisiblity), si, isAbstract)
+              builder += ctor(semSrc, defn, effectiveVisibility(mods), effectiveAdapted(mods), si, isAbstract)
             }
           }
 
-        def recurse(allMembersAreVisible: Boolean, visitChildren: => Unit): List[Input.Defn] = {
-          states.push(new State(allMembersAreVisible))
+        def recurse(allMembersAreVisible: Boolean, allMembersAreProxied: Boolean, visitChildren: => Unit): List[Input.Defn] = {
+          states.push(new State(allMembersAreVisible, allMembersAreProxied))
           visitChildren
           states.pop().builder.result()
         }
@@ -138,6 +162,7 @@ object Analyzer {
 
             val isCaseClass          = hasCaseClassMod(defn.mods)
             val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
+            val allMembersAreAdapted = areAllMembersAdapted(defn.mods)
 
             def isCtorParamVisibleAsField(termMods: List[Mod]): Boolean = {
               !hasPrivateMod(termMods) && (allMembersAreVisible || termMods.exists(memberVisibiltyAnnot.isDefinedAt(_)))
@@ -152,11 +177,19 @@ object Analyzer {
                     case tp @ Term.Param(termMods, termName @ Name(ctorParamSi.displayName), termType, defaultTerm)
                         if isCtorParamVisibleAsField(termMods) && hasVarMod(termMods) =>
                       val fldName = fieldName(termMods, termName.value)
-                      Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Var(fldName))
+                      Input.CtorParam(semSrc,
+                                      tp,
+                                      ctorParamSi.displayName,
+                                      ctorParamSi,
+                                      Input.CtorParamMod.Var(fldName, effectiveAdapted(termMods)))
                     case tp @ Term.Param(termMods, termName @ Name(ctorParamSi.displayName), termType, defaultTerm)
                         if isCtorParamVisibleAsField(termMods) && (isCaseClass || hasValMod(termMods)) =>
                       val fldName = fieldName(termMods, termName.value)
-                      Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Val(fldName))
+                      Input.CtorParam(semSrc,
+                                      tp,
+                                      ctorParamSi.displayName,
+                                      ctorParamSi,
+                                      Input.CtorParamMod.Val(fldName, effectiveAdapted(termMods)))
                     case tp @ Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSi.displayName =>
                       Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Prv)
                   }
@@ -164,15 +197,19 @@ object Analyzer {
               case None => Nil
             }
 
-            val members = recurse(allMembersAreVisible, visitChildren)
-            builder += Input.Cls(semSrc,
-                                 defn,
-                                 visibility(defn.mods).getOrElse(Visibility.No),
-                                 si,
-                                 members,
-                                 allMembersAreVisible,
-                                 ctorParams,
-                                 hasAbstractMod(defn.mods))
+            val members = recurse(allMembersAreVisible, allMembersAreAdapted, visitChildren)
+            builder += Input.Cls(
+              semSrc,
+              defn,
+              effectiveVisibility(defn.mods),
+              hasAdaptConstructorAnnot(defn.mods) || hasAdaptAllAnnot(defn.mods),
+              si,
+              members,
+              allMembersAreVisible,
+              allMembersAreAdapted,
+              ctorParams,
+              hasAbstractMod(defn.mods)
+            )
           }
 
         }
@@ -182,8 +219,9 @@ object Analyzer {
             si <- semSrc.symbolInfo(defn.pos, Kind.OBJECT)
           } {
             val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
-            val members              = recurse(allMembersAreVisible, visitChildren)
-            builder += Input.Obj(semSrc, defn, visibility(defn.mods).getOrElse(inheritedVisiblity), si, members, allMembersAreVisible)
+            val allMembersAreAdapted = areAllMembersAdapted(defn.mods)
+            val members              = recurse(allMembersAreVisible, allMembersAreAdapted,visitChildren)
+            builder += Input.Obj(semSrc, defn, effectiveVisibility(defn.mods), si, members, allMembersAreVisible, allMembersAreAdapted)
           }
 
         }
@@ -192,7 +230,7 @@ object Analyzer {
           for {
             si <- semSrc.symbolInfo(defn.pos, Kind.TRAIT)
           } {
-            val members = recurse(areAllMembersVisible(defn.mods, si), visitChildren)
+            val members = recurse(areAllMembersVisible(defn.mods, si), areAllMembersAdapted(defn.mods), visitChildren)
             builder += Input.Trait(semSrc, defn, si, members)
           }
         }
@@ -224,7 +262,7 @@ object Analyzer {
         }
       }
 
-      val states = mutable.ArrayStack(new State(false))
+      val states = mutable.ArrayStack(new State(false, false))
 
       override def apply(tree: Tree): Unit = {
         states.top.process(tree, super.apply(tree))

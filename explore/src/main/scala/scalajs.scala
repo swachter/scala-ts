@@ -65,6 +65,12 @@ class StdClass2() {
   @JSExport
   def value = _value
 
+  // check if a setter/getter pair can be exported as a property
+  @JSExport
+  def valueProperty_=(v: Int) = _value = v
+  @JSExport
+  def valueProperty = _value
+
   // export setter and getter for the numbers array
   // that converting between Scala and JavaScript arrays
   @JSExport

@@ -12,6 +12,7 @@ case class FullName private (str: String) extends AnyVal {
     if (idx >= 0) Some(new FullName(str.substring(idx + 1))) else None
   }
   def withUnionSuffix = new FullName(s"$str$$u")
+  def member(name: String) = new FullName(s"$str.$name")
 }
 
 object FullName {
@@ -25,7 +26,6 @@ object FullName {
       .substring(0, sym.length - 1)
       .replace(".package.", ".")
       .replace("_empty_/", "")
-      .replace(".", "$.") // objects have a '.' suffix -> mark objects by a '$'
       .replace('/', '.') // path steps to packages
       .replace('#', '.') // classes have a '#' suffix -> replace by '.' separator
     s"$s$suffix"
@@ -38,10 +38,10 @@ object FullName {
 }
 
 /**
- * Indicates the visibility of classes, objects, traits, defs, vals, and vars.
- *
- * The visibility is determined by various ScalaJS annotations or if a class, object, trait extends js.Any.
- */
+  * Indicates the visibility of classes, objects, traits, defs, vals, and vars.
+  *
+  * The visibility is determined by various ScalaJS annotations or if a class, object, trait extends js.Any.
+  */
 sealed trait Visibility {
   def isMember: Boolean
   def isStatic: Boolean
@@ -64,18 +64,18 @@ object Visibility {
   }
 
   case object No extends Visibility {
-    override def isMember: Boolean = false
-    override def isStatic: Boolean = false
+    override def isMember: Boolean                  = false
+    override def isStatic: Boolean                  = false
     override def topLevelExportName: Option[String] = None
   }
 
   /**
-   * Used for members that have no annotation of their own but are visible because their owner is a subtype of
-   * js.Any or has an @JSExportAll annotation.
-   */
+    * Used for members that have no annotation of their own but are visible because their owner is a subtype of
+    * js.Any or has an @JSExportAll annotation.
+    */
   case object DisplayName extends Member
 
-  case object JSExportWithoutName extends Member
+  case object JSExportWithoutName        extends Member
   case class JSExportWithName(s: String) extends Member
 
   case class JSExportStaticWithName(s: String) extends Static
@@ -90,12 +90,24 @@ object Visibility {
   case class JsNameWithSymbol(s: Symbol) extends Member
 }
 
-sealed trait Proxied
+/**
+  * Indicates if a def, val, var, or parameter is adapted.
+  */
+sealed trait Adapted {
+  def isAdapted: Boolean
+}
 
-object Proxied {
-  case object No                                            extends Proxied
-  case object WithDefaultInteropType                        extends Proxied
-  case class WithOverriddenInteropType(interopType: String) extends Proxied
+object Adapted {
+  case object No extends Adapted {
+    override def isAdapted: Boolean = false
+  }
+  case object WithDefaultInteropType extends Adapted {
+    override def isAdapted: Boolean = true
+
+  }
+  case class WithOverriddenInteropType(interopType: String) extends Adapted {
+    override def isAdapted: Boolean = true
+  }
 }
 
 sealed trait Input {
@@ -130,7 +142,9 @@ object Input {
 
   sealed trait Type extends Defn
 
-  sealed trait DefOrValOrVar extends Defn with Exportable with HasMethodSignature
+  sealed trait DefOrValOrVar extends Defn with Exportable with HasMethodSignature {
+    def adapted: Adapted
+  }
 
   sealed trait ClsOrObj extends Type with Exportable {
     def allMembersAreVisible: Boolean
@@ -141,9 +155,12 @@ object Input {
   //
   //
 
-  case class Def(semSrc: SemSource, tree: Stat, visibility: Visibility, si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
-  case class Val(semSrc: SemSource, tree: Stat, visibility: Visibility, si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
-  case class Var(semSrc: SemSource, tree: Stat, visibility: Visibility, si: SymbolInformation, isAbstract: Boolean) extends DefOrValOrVar
+  case class Def(semSrc: SemSource, tree: Stat, visibility: Visibility, adapted: Adapted, si: SymbolInformation, isAbstract: Boolean)
+      extends DefOrValOrVar
+  case class Val(semSrc: SemSource, tree: Stat, visibility: Visibility, adapted: Adapted, si: SymbolInformation, isAbstract: Boolean)
+      extends DefOrValOrVar
+  case class Var(semSrc: SemSource, tree: Stat, visibility: Visibility, adapted: Adapted, si: SymbolInformation, isAbstract: Boolean)
+      extends DefOrValOrVar
 
   case class Obj(semSrc: SemSource,
                  tree: Defn.Object,
@@ -151,16 +168,19 @@ object Input {
                  si: SymbolInformation,
                  member: List[Defn],
                  allMembersAreVisible: Boolean,
-  ) extends ClsOrObj {
+                 allMembersAreAdapted: Boolean)
+      extends ClsOrObj {
     def isVisibleMember = visibility.isMember
   }
 
   case class Cls(semSrc: SemSource,
                  tree: Defn.Class,
                  visibility: Visibility,
+                 constrAdapted: Boolean,
                  si: SymbolInformation,
                  member: List[Defn],
                  allMembersAreVisible: Boolean,
+                 allMembersAreAdapted: Boolean,
                  ctorParams: List[Input.CtorParam],
                  isAbstract: Boolean)
       extends ClsOrObj
@@ -177,8 +197,8 @@ object Input {
   sealed trait CtorParamMod
 
   object CtorParamMod {
-    case class Val(name: String) extends CtorParamMod
-    case class Var(name: String) extends CtorParamMod
+    case class Val(name: String, adapted: Adapted) extends CtorParamMod
+    case class Var(name: String, adapted: Adapted) extends CtorParamMod
     // private constructor param
     object Prv extends CtorParamMod
   }

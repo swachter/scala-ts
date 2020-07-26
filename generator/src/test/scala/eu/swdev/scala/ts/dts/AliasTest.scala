@@ -8,9 +8,9 @@ import scala.scalajs.js.|
 class AliasTest extends DtsFunSuite {
 
   """
-    |export function invert(v: dts.AliasTest$.U): dts.AliasTest$.U
+    |export function invert(v: dts.AliasTest.U): dts.AliasTest.U
     |export namespace dts {
-    |  namespace AliasTest$ {
+    |  namespace AliasTest {
     |    type U = number | string | boolean
     |  }
     |}

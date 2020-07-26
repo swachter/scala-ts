@@ -53,10 +53,12 @@ object ReferencedSymbolsAnalyzer {
 
     def collect(si: SymbolInformation): Unit = {
       val sym = si.symbol
-      if (accu.add(sym)) {
-        inputTypes.get(sym) match {
-          case Some(inputType) => collectMembers(inputType)
-          case None            => collect(si.signature)
+      if (sym != "scala/AnyRef#") {
+        if (accu.add(sym)) {
+          inputTypes.get(sym) match {
+            case Some(inputType) => collectMembers(inputType)
+            case None            => collect(si.signature)
+          }
         }
       }
     }
@@ -64,25 +66,28 @@ object ReferencedSymbolsAnalyzer {
     // collect the types that are referenced in the export by a known input type
     private def collectMembers(i: Input.Type): Unit = i match {
       case i: Input.Obj   => i.member.foreach(collectExportedMember)
-      case i: Input.Cls   => i.member.foreach(collectExportedMember); i.ctorParams.foreach(cp => collect(cp.si))
+      case i: Input.Cls   => i.member.foreach(collectExportedMember); if (i.isTopLevelExport) i.ctorParams.foreach(cp => collect(cp.si))
       case i: Input.Trait => i.member.foreach(collectExportedMember)
       case i: Input.Alias => collect(i.typeSignature)
     }
 
     def collectExportedMember(i: Input.Defn): Unit = i match {
-      case i: Input.DefOrValOrVar            => collect(i.methodSignature) // all Input.DefOrValOrVar are exported
-      case i: Input.Obj if i.isVisibleMember => collect(i.si) // only some Input.Obj are exported as members
-      case i: Input.Type                     => // nested type members are not considered; they do not appear as members in the output
+      case i: Input.DefOrValOrVar if i.visibility.isMember => collect(i.methodSignature) // only visible members are collected
+      case i: Input.DefOrValOrVar                          => // invisible members are not considered
+      case i: Input.Obj if i.isVisibleMember               => collect(i.si) // only some Input.Obj are exported as members
+      case i: Input.Type                                   => // nested type members are not considered; they do not appear as members in the output
     }
 
     def collect(sig: Signature): Unit = sig match {
       case ValueSignature(tpe) => collect(tpe)
       case TypeSignature(typeParameters, lowerBound, upperBound) =>
-        (lowerBound.typeSymbol, upperBound.typeSymbol) match {
-          case (Some("scala/Nothing#"), Some("scala/Any#")) =>
-          case (Some("scala/Nothing#"), _)                  => collect(upperBound)
-          case (_, Some("scala/Any#"))                      => collect(lowerBound)
-          case _                                            => collect(lowerBound); collect(upperBound)
+        lowerBound.typeSymbol match {
+          case Some("scala/Nothing#") =>
+          case _                      => collect(lowerBound)
+        }
+        upperBound.typeSymbol match {
+          case Some("scala/Any#" | "scala/AnyRef#") =>
+          case _                                    => collect(upperBound)
         }
       case ClassSignature(typeParameters, parents, self, declarations) => // do not look inside the class -> it was not in the source
       case Signature.Empty                                             =>

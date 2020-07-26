@@ -2,7 +2,7 @@ package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.SealedTraitSubtypeAnalyzer.SubtypeParam
 
-import scala.meta.internal.semanticdb.{RepeatedType, TypeRef, ValueSignature}
+import scala.meta.internal.semanticdb.{RepeatedType, SymbolInformation, TypeRef, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -65,9 +65,14 @@ object Generator {
       case _                                                                   => s"$name: ${typeFormatter(tpe)}"
     }
 
-    def formatMethodParam(symbol: String, e: Input.Def): String = {
-      val si = e.semSrc.symbolInfo(symbol)
+    def valueSymbolInfoAnddSignature(symbol: String, i: Input.Def): (SymbolInformation, ValueSignature) = {
+      val si = i.semSrc.symbolInfo(symbol)
       val vs = si.signature.asInstanceOf[ValueSignature]
+      (si, vs)
+    }
+
+    def formatMethodParam(symbol: String, e: Input.Def): String = {
+      val (si, vs) = valueSymbolInfoAnddSignature(symbol, e)
       formatNameAndType(si.displayName, vs.tpe)
     }
 
@@ -102,13 +107,16 @@ object Generator {
       sb.append(s"export let $name: $returnType\n")
     }
 
-    def memberDef(i: Input.Def, isMemberOfAbstractClass: Boolean): String = {
+    def memberDef(i: Input.Def, memberKind: MemberKind): String = {
       val tps        = formatTParamSyms(i.methodSignature.typeParamSymbols)
       val returnType = typeFormatter(i.methodSignature.returnType)
-      val abs        = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
+      val abs        = if (memberKind.isAbstract) "abstract " else ""
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
-        s"${abs}get ${memberName(i)}(): $returnType\n"
+        memberKind match {
+          case MemberKind.IsInInterface => s"${abs}readonly ${memberName(i)}: $returnType\n"
+          case _ => s"${abs}get ${memberName(i)}(): $returnType\n"
+        }
       } else {
         val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
         val params  = strings.mkString(", ")
@@ -121,22 +129,27 @@ object Generator {
       }
     }
 
-    def memberVal(i: Input.Val, isMemberOfAbstractClass: Boolean): String = {
-      val abs = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
+    def memberVal(i: Input.Val, memberKind: MemberKind): String = {
+      val abs = if (memberKind.isAbstract) "abstract " else ""
       s"${abs}readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
     }
 
-    def memberVar(i: Input.Var, isMemberOfAbstractClass: Boolean): String = {
-      val abs = if (isMemberOfAbstractClass && i.isAbstract) "abstract " else ""
+    def memberVar(i: Input.Var, memberKind: MemberKind): String = {
+      val abs = if (memberKind.isAbstract) "abstract " else ""
+      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
+    }
+
+    def memberAccessorPair(i: Input.Def, memberKind: MemberKind): String = {
+      val abs = if (memberKind.isAbstract) "abstract " else ""
       s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
       def member(name: String) = formatNameAndType(name, i.valueSignature.tpe)
       i.mod match {
-        case Input.CtorParamMod.Val(name) => s"readonly ${member(name)}\n"
-        case Input.CtorParamMod.Var(name) => s"${member(name)}\n"
-        case Input.CtorParamMod.Prv       => ""
+        case Input.CtorParamMod.Val(name, _) => s"readonly ${member(name)}\n"
+        case Input.CtorParamMod.Var(name, _) => s"${member(name)}\n"
+        case Input.CtorParamMod.Prv          => ""
       }
     }
 
@@ -153,12 +166,57 @@ object Generator {
 
     def isParentTypeKnown(p: ParentType) = rootNamespace.contains(p.fullName)
 
-    def members(inputs: List[Input], canBeAbstract: Boolean): List[String] = {
+    def members(inputs: List[Input], memberOf: MemberOf): List[String] = {
+
+      def isGetter(i: Input.Def): Boolean = i.visibility.isMember && i.methodSignature.parameterLists.isEmpty
+
+      def isSetter(i: Input.Def): Boolean = i.visibility.isMember && i.si.displayName.endsWith("_=") && i.methodSignature.parameterLists.flatMap(_.symlinks).size == 1
+
+      val getters = inputs.collect {
+        case i: Input.Def if isGetter(i) => i.si.displayName -> i
+      }.toMap
+
+      val setters = inputs.collect {
+        case i: Input.Def if isSetter(i) => i.si.displayName -> i
+      }.toMap
+
+      def commonType(getter: Input.Def, setter: Input.Def): Option[isb.Type] = {
+        (getter.methodSignature.returnType, setter.methodSignature.parameterLists.flatMap(_.symlinks.map(sym => valueSymbolInfoAnddSignature(sym, setter)))) match {
+          case (gt, Seq((si, vs))) =>
+            (gt.typeSymbol, vs.tpe.typeSymbol) match {
+              case (Some(s1), Some(s2)) if s1 == s2 =>Some(gt)
+              case _ => None
+            }
+          case _ => None
+        }
+      }
+
+      val accessorPairs = getters.map {
+        case (dn, gettter) => dn -> (gettter, setters.get(s"${dn}_="))
+      }.collect {
+        case (dn, (getter, Some(setter))) => dn -> (getter, setter, commonType(getter, setter))
+      }.collect {
+        case (dn, (getter, setter, Some(tpe))) => dn -> (getter, setter, tpe)
+      }
+
+
+      def memberDefOrAccessorPair(i: Input.Def, memberKind: MemberKind): String = {
+        val dn = i.si.displayName
+        accessorPairs.get(dn) match {
+          case Some((getter, _, _)) => memberAccessorPair(getter, memberKind)
+          case None =>
+            Option(dn).filter(_.endsWith("_=")).flatMap(n => accessorPairs.get(n.dropRight(2))) match {
+              case Some(_) => "" // no output for the setter of an accessor pair
+              case None => memberDef(i, memberKind)
+            }
+        }
+      }
+
       inputs
         .collect {
-          case i: Input.Def if i.visibility.isMember => memberDef(i, canBeAbstract && i.isAbstract)
-          case i: Input.Val if i.visibility.isMember => memberVal(i, canBeAbstract && i.isAbstract)
-          case i: Input.Var if i.visibility.isMember => memberVar(i, canBeAbstract && i.isAbstract)
+          case i: Input.Def if i.visibility.isMember => memberDefOrAccessorPair(i, memberOf.memberKind(i.isAbstract))
+          case i: Input.Val if i.visibility.isMember => memberVal(i, memberOf.memberKind(i.isAbstract))
+          case i: Input.Var if i.visibility.isMember => memberVar(i, memberOf.memberKind(i.isAbstract))
           case i: Input.CtorParam                    => memberCtorParam(i)
           case i: Input.Obj if i.isVisibleMember     => memberObj(i)
         }
@@ -192,15 +250,15 @@ object Generator {
       val objSymbol = s"${i.si.symbol.dropRight(1)}."
       statics.get(objSymbol).foreach {
         _.map {
-          case e: Input.Def => memberDef(e, false)
-          case e: Input.Val => memberVal(e, false)
-          case e: Input.Var => memberVar(e, false)
+          case e: Input.Def => memberDef(e, MemberKind.IsNonAbstract)
+          case e: Input.Val => memberVal(e, MemberKind.IsNonAbstract)
+          case e: Input.Var => memberVar(e, MemberKind.IsNonAbstract)
         }.foreach(m => sb.append(s"  static $m"))
       }
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
       sb.append(s"  constructor($cParams)\n")
 
-      val ms = members(i.ctorParams ++ i.member, true)
+      val ms = members(i.ctorParams ++ i.member, MemberOf.Cls)
       ms.foreach(m => sb.append(s"  $m"))
       sb.append("}\n")
     }
@@ -218,7 +276,7 @@ object Generator {
 
       sb.append(s"$space${exp}interface ${itf.simpleName}${formatTParamSyms(itf.typeParamSyms)}$ext {\n")
 
-      members(itf.members, false).foreach(m => sb.append(s"$space  $m"))
+      members(itf.members, MemberOf.Itf).foreach(m => sb.append(s"$space  $m"))
 
       sb.append(s"$space  '${itf.fullName}': never\n")
       sb.append(s"$space}\n")
@@ -303,6 +361,37 @@ object Generator {
     exportNs(rootNamespace, -1)
 
     sb.toString
+  }
+
+  sealed trait MemberOf {
+    def memberKind(inputIsAbstract: Boolean): MemberKind
+  }
+
+  object MemberOf {
+    object Itf extends MemberOf {
+      override def memberKind(inputIsAbstract: Boolean): MemberKind = MemberKind.IsInInterface
+    }
+    object Cls extends MemberOf {
+      override def memberKind(inputIsAbstract: Boolean): MemberKind =
+        if (inputIsAbstract) MemberKind.IsAbstract else MemberKind.IsNonAbstract
+    }
+  }
+
+  sealed trait MemberKind {
+    def isAbstract: Boolean
+  }
+
+  object MemberKind {
+    object IsNonAbstract extends MemberKind {
+      override def isAbstract: Boolean = false
+    }
+    object IsAbstract    extends MemberKind {
+      override def isAbstract: Boolean = true
+    }
+    object IsInInterface extends MemberKind {
+      // a member must not be marked as abstract in interfaces
+      override def isAbstract: Boolean = false
+    }
   }
 
 }

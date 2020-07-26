@@ -142,13 +142,17 @@ Translation rules for top-level definitions (definitions must be annotated accor
 
 Translation rules for class and object members (constructor `val`/`var` parameters are also considered):
 
-| Scala Definition | TypeScript Definition |
-| --- | --- |
-| `val x: tpe` | `readonly x: tpe` | 
-| `var x:tpe` | `x: tpe` |
-| `def x: tpe` | `get x(): tpe` |
-| `def x_=(v: tpe)` | `set x(v: tpe)` |
-| `def x(...): tpe` | `x(...): tpe` |
+| Scala Definition | TypeScript Definition | Note
+| --- | --- | --- |
+| `val x: tpe` | `readonly x: tpe` | |
+| `var x:tpe` | `x: tpe` | |
+| `def x: tpe` | `readonly x: tpe` | if the `def` is an interface member and there is no corresponding setter |
+| `def x: tpe` | `get x(): tpe` | if the `def` is a class member and there is no corresponding getter |
+| `def x_=(v: tpe)` | `set x(v: tpe)` |  |
+| `def x: tpe` <br> `def x_=(v: tpe)` | `x: tpe` | a corresponding getter/setter pair |
+| `def x(...): tpe` | `x(...): tpe` | |
+
+Note: Setters are not supported in TypeScript interfaces. Therefore a corresponding getter must be supplied if the setter would be part of an interface.
 
 If a member is annotated by `@JSExport` or `@JSName` and the given name is not a valid identifier then the member is defined using so called bracket notation. Bracket notation is also used if the member name is given by a symbol. For example:
 

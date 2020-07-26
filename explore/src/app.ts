@@ -35,28 +35,6 @@ console.log('sc.upperProperty: ' + sc.upperProperty);
 console.log('sc.upperGetter  : ' + sc.upperGetter);
 console.log('sc.upperMethod  : ' + sc.upperMethod());
 
-const sc2 = new fs.StdClass2();
-console.log('sc2.value: ' + sc2.value);
-sc2.value = 66;
-console.log('sc2.value: ' + sc2.value);
-console.log(`typeof sc2: ${typeof sc2}`);
-
-console.log('sc2.numbers: ' + sc2.numbers);
-sc2.numbers = [66, 67, 68];
-console.log('sc2.numbers: ' + sc2.numbers);
-
-console.log('sc2.option: ' + sc2.option);
-sc2.option = undefined;
-console.log('sc2.option: ' + sc2.option);
-sc2.option = 77;
-console.log('sc2.option: ' + sc2.option);
-
-console.log('sc2.tuple: ' + sc2.tuple);
-const [s, n] = sc2.tuple;
-console.log(`s: ${s}`);
-console.log(`n: ${n}`);
-sc2.tuple = ['uvw', 68];
-console.log('sc2.tuple: ' + sc2.tuple);
 
 const jc = new fs.JsClass(5);
 console.log('jc.int: ' + jc.int);

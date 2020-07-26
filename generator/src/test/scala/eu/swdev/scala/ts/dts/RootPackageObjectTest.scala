@@ -9,14 +9,14 @@ class RootPackageObjectTest extends DtsFunSuite {
 
   """
     |export interface rootPackageObject$ {
-    |  readonly x: RootPackageObjectTest$.x$
+    |  readonly x: RootPackageObjectTest.x$
     |  'rootPackageObject$': never
     |}
     |export const rootPackageObject: rootPackageObject$
-    |export namespace RootPackageObjectTest$ {
+    |export namespace RootPackageObjectTest {
     |  interface x$ {
     |    readonly x: number
-    |    'RootPackageObjectTest$.x$': never
+    |    'RootPackageObjectTest.x$': never
     |  }
     |}
     |""".check()

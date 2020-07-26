@@ -3,7 +3,7 @@ import {assertNever} from './util'
 
 describe('object adt', function() {
 
-  function match(adt: m.e2e.ObjectAdt$.Adt$u): string | number {
+  function match(adt: m.e2e.ObjectAdt.Adt$u): string | number {
     if (adt.tpe === 1) {
       return adt.str
     } else if (adt.tpe === 2) {

@@ -13,7 +13,7 @@ class OuterTest extends DtsFunSuite {
     |  readonly midd: eu.swdev.scala.ts.dts.Outer.midd$
     |}
     |export interface OuterObject$ {
-    |  readonly middle: eu.swdev.scala.ts.dts.Outer$.middle$
+    |  readonly middle: eu.swdev.scala.ts.dts.Outer.middle$
     |  'OuterObject$': never
     |}
     |export const OuterObject: OuterObject$
@@ -27,16 +27,14 @@ class OuterTest extends DtsFunSuite {
     |              x: number
     |              'eu.swdev.scala.ts.dts.Outer.midd$': never
     |            }
-    |          }
-    |          namespace Outer$ {
     |            interface middle$ {
-    |              readonly innerMost: eu.swdev.scala.ts.dts.Outer$.middle$.innerMost$
-    |              'eu.swdev.scala.ts.dts.Outer$.middle$': never
+    |              readonly innerMost: eu.swdev.scala.ts.dts.Outer.middle.innerMost$
+    |              'eu.swdev.scala.ts.dts.Outer.middle$': never
     |            }
-    |            namespace middle$ {
+    |            namespace middle {
     |              interface innerMost$ {
     |                x: number
-    |                'eu.swdev.scala.ts.dts.Outer$.middle$.innerMost$': never
+    |                'eu.swdev.scala.ts.dts.Outer.middle.innerMost$': never
     |              }
     |            }
     |          }

@@ -8,13 +8,13 @@ import scala.scalajs.js.|
 class TypeAliasTest extends DtsFunSuite {
 
   """
-    |export const valWithTypeAlias: eu.swdev.scala.ts.dts.TypeAliasTest$.X
+    |export const valWithTypeAlias: eu.swdev.scala.ts.dts.TypeAliasTest.X
     |export namespace eu {
     |  namespace swdev {
     |    namespace scala {
     |      namespace ts {
     |        namespace dts {
-    |          namespace TypeAliasTest$ {
+    |          namespace TypeAliasTest {
     |            type X = string | number
     |          }
     |        }

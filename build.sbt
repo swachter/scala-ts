@@ -53,13 +53,13 @@ lazy val runtime = project
   .settings(
     name := "scala-ts-runtime",
     description := "runtime library that contains conversion logic when using adapters",
-    crossScalaVersions := List(scala213),
+    crossScalaVersions := List(scala212, scala213),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % "test",
 //    scalacOptions += "-Xlog-implicits"
   ).enablePlugins(ScalaJSPlugin)
 
 lazy val generator = project.in(file("generator"))
-  .dependsOn(annotations.jvm % Test)
+  .dependsOn(annotations.jvm)
   .settings(commonSettings: _*)
   .settings(
     name := "scala-ts-generator",

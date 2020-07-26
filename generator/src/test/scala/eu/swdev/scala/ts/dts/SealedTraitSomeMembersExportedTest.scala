@@ -7,31 +7,31 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 class SealedTraitSomeMembersExportedTest extends DtsFunSuite {
 
   """
-    |export interface Case1 extends dts.SealedTraitSomeMembersExportedTest$.Base {
+    |export interface Case1 extends dts.SealedTraitSomeMembersExportedTest.Base {
     |  'Case1': never
     |}
     |export class Case1 {
     |  constructor()
     |}
-    |export interface Case2 extends dts.SealedTraitSomeMembersExportedTest$.Sub {
+    |export interface Case2 extends dts.SealedTraitSomeMembersExportedTest.Sub {
     |  'Case2': never
     |}
     |export class Case2 {
     |  constructor()
     |}
     |export namespace dts {
-    |  namespace SealedTraitSomeMembersExportedTest$ {
+    |  namespace SealedTraitSomeMembersExportedTest {
     |    interface Base {
-    |      'dts.SealedTraitSomeMembersExportedTest$.Base': never
+    |      'dts.SealedTraitSomeMembersExportedTest.Base': never
     |    }
-    |    type Base$u = Case1 | dts.SealedTraitSomeMembersExportedTest$.Sub$u
-    |    interface Case3 extends dts.SealedTraitSomeMembersExportedTest$.Sub {
-    |      'dts.SealedTraitSomeMembersExportedTest$.Case3': never
+    |    type Base$u = Case1 | dts.SealedTraitSomeMembersExportedTest.Sub$u
+    |    interface Case3 extends dts.SealedTraitSomeMembersExportedTest.Sub {
+    |      'dts.SealedTraitSomeMembersExportedTest.Case3': never
     |    }
-    |    interface Sub extends dts.SealedTraitSomeMembersExportedTest$.Base {
-    |      'dts.SealedTraitSomeMembersExportedTest$.Sub': never
+    |    interface Sub extends dts.SealedTraitSomeMembersExportedTest.Base {
+    |      'dts.SealedTraitSomeMembersExportedTest.Sub': never
     |    }
-    |    type Sub$u = Case2 | dts.SealedTraitSomeMembersExportedTest$.Case3
+    |    type Sub$u = Case2 | dts.SealedTraitSomeMembersExportedTest.Case3
     |  }
     |}
     |""".check()

@@ -51,6 +51,10 @@ export class StdClass {
     get int(): number;
 }
 
+interface StdClass2 {
+  valueProperty: number
+}
+
 export class StdClass2 {
 
     constructor();

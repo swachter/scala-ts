@@ -7,7 +7,7 @@ import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 class TraitInheritanceTest1 extends DtsFunSuite {
 
   """
-    |export interface ClassWithInheritedMethods1 extends eu.swdev.scala.ts.dts.TraitInheritanceTest1$.Middle {
+    |export interface ClassWithInheritedMethods1 extends eu.swdev.scala.ts.dts.TraitInheritanceTest1.Middle {
     |  'ClassWithInheritedMethods1': never
     |}
     |export class ClassWithInheritedMethods1 {
@@ -18,14 +18,14 @@ class TraitInheritanceTest1 extends DtsFunSuite {
     |    namespace scala {
     |      namespace ts {
     |        namespace dts {
-    |          namespace TraitInheritanceTest1$ {
+    |          namespace TraitInheritanceTest1 {
     |            interface Base {
     |              base(n: number): number
-    |              'eu.swdev.scala.ts.dts.TraitInheritanceTest1$.Base': never
+    |              'eu.swdev.scala.ts.dts.TraitInheritanceTest1.Base': never
     |            }
-    |            interface Middle extends eu.swdev.scala.ts.dts.TraitInheritanceTest1$.Base {
+    |            interface Middle extends eu.swdev.scala.ts.dts.TraitInheritanceTest1.Base {
     |              middle(n: number): number
-    |              'eu.swdev.scala.ts.dts.TraitInheritanceTest1$.Middle': never
+    |              'eu.swdev.scala.ts.dts.TraitInheritanceTest1.Middle': never
     |            }
     |          }
     |        }

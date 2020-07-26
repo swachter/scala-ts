@@ -7,26 +7,26 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 class SealedTraitAllMembersExportedTest extends DtsFunSuite {
 
   """
-    |export interface Case1 extends dts.SealedTraitAllMembersExportedTest$.Base {
+    |export interface Case1 extends dts.SealedTraitAllMembersExportedTest.Base {
     |  'Case1': never
     |}
     |export class Case1 {
     |  constructor()
     |}
-    |export interface Case2 extends dts.SealedTraitAllMembersExportedTest$.Sub {
+    |export interface Case2 extends dts.SealedTraitAllMembersExportedTest.Sub {
     |  'Case2': never
     |}
     |export class Case2 {
     |  constructor()
     |}
     |export namespace dts {
-    |  namespace SealedTraitAllMembersExportedTest$ {
+    |  namespace SealedTraitAllMembersExportedTest {
     |    interface Base {
-    |      'dts.SealedTraitAllMembersExportedTest$.Base': never
+    |      'dts.SealedTraitAllMembersExportedTest.Base': never
     |    }
-    |    type Base$u = Case1 | dts.SealedTraitAllMembersExportedTest$.Sub$u
-    |    interface Sub extends dts.SealedTraitAllMembersExportedTest$.Base {
-    |      'dts.SealedTraitAllMembersExportedTest$.Sub': never
+    |    type Base$u = Case1 | dts.SealedTraitAllMembersExportedTest.Sub$u
+    |    interface Sub extends dts.SealedTraitAllMembersExportedTest.Base {
+    |      'dts.SealedTraitAllMembersExportedTest.Sub': never
     |    }
     |    type Sub$u = Case2
     |  }

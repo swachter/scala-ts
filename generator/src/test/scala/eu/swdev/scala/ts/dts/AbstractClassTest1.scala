@@ -7,23 +7,23 @@ import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 class AbstractClassTest1 extends DtsFunSuite {
 
   """
-    |export interface Case1 extends dts.AbstractClassTest1$.Base<string> {
+    |export interface Case1 extends dts.AbstractClassTest1.Base<string> {
     |  'Case1': never
     |}
     |export class Case1 {
     |  constructor(s: string)
     |}
-    |export interface Case2 extends dts.AbstractClassTest1$.Base<number> {
+    |export interface Case2 extends dts.AbstractClassTest1.Base<number> {
     |  'Case2': never
     |}
     |export class Case2 {
     |  constructor(i: number)
     |}
     |export namespace dts {
-    |  namespace AbstractClassTest1$ {
+    |  namespace AbstractClassTest1 {
     |    interface Base<X> {
     |      readonly x: X
-    |      'dts.AbstractClassTest1$.Base': never
+    |      'dts.AbstractClassTest1.Base': never
     |    }
     |  }
     |}

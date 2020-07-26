@@ -1,13 +1,15 @@
 package eu.swdev.scala.ts
 
-import scala.meta.internal.semanticdb.{SingleType, SymbolInformation, Type, TypeRef, ValueSignature}
+import eu.swdev.scala.ts.Input.CtorParam
+
+import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature}
 import scala.meta.internal.symtab.SymbolTable
 
 object AdapterGenerator {
 
   def generate(inputs: List[Input.Defn], symTab: SymbolTable, result: Result): Unit = {
 
-    val topLevelExports = Analyzer.topLevel(inputs)
+    val root = AdapterObject(inputs)
 
     val unchangedTypeFormatter = new UnchangedTypeFormatter(symTab)
     val interopTypeFormatter   = new InteropTypeFormatter(symTab)
@@ -38,61 +40,125 @@ object AdapterGenerator {
       val si = i.semSrc.symbolInfo(symbol)
       val vs = si.signature.asInstanceOf[ValueSignature]
       val conv = if (interopTypeFormatter.needsConverter(vs.tpe)) {
-        s".convert[${unchangedTypeFormatter(vs.tpe)}]"
+        s".$$cnv[${unchangedTypeFormatter(vs.tpe)}]"
       } else {
         ""
       }
       s"${si.displayName}$conv"
     }
 
-    def memberDef(i: Input.Def): Unit = {
-      i.visibility match {
-        case Visibility.JsNameWithString(s) => result.addLine(s"""@JSName("$s")""")
-        case _                              =>
-      }
-      val tparams = formatTParamSyms(i.methodSignature.typeParamSymbols)
-      val (params, args) = if (i.methodSignature.parameterLists.isEmpty) {
+    def displayNameAndAccessName(input: Input, outerName: List[String]): (String, String) = {
+      val displayName = input.si.displayName
+      val accessName  = (displayName :: outerName).reverse.mkString(".")
+      (displayName, accessName)
+    }
+
+    def outputDef(a: Adaption.Def, outerName: List[String]): Unit = {
+      val input                     = a.input
+      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+      val tparams                   = formatTParamSyms(input.methodSignature.typeParamSymbols)
+      val (params, args) = if (input.methodSignature.parameterLists.isEmpty) {
         ("", "")
       } else {
         (
-          i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i))).mkString("(", ", ", ")"),
-          i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodArg(_, i))).mkString("(", ", ", ")")
+          input.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, input))).mkString("(", ", ", ")"),
+          input.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodArg(_, input))).mkString("(", ", ", ")")
         )
       }
-      result.addLine(s"def ${i.si.displayName}$tparams$params = result(delegate.${i.si.displayName}$args")
+      result.addLine(s"def $displayName$tparams$params = $$res($accessName$args)")
     }
 
-    def memberVal(i: Input.Val): Unit = {}
+    def outputVal(a: Adaption.Val, outerName: List[String]): Unit = {
+      val input                     = a.input
+      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+      result.addLine(s"def $displayName = $$res($accessName)")
+    }
 
-    def memberVar(i: Input.Var): Unit = {}
+    def outputVar(a: Adaption.Var, outerName: List[String]): Unit = {
+      val input                     = a.input
+      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+      val unchangedType             = unchangedTypeFormatter(input.methodSignature.returnType)
+      val interopType               = interopTypeFormatter(input.methodSignature.returnType)
+      result.addLine(s"def $displayName: $interopType = $$res($$delegate.${input.si.displayName}")
+      result.addLine(s"def ${displayName}_=(value: $interopType): Unit = $accessName = value.$$cnv[$unchangedType]")
+    }
 
-    def topLevelObj(name: String, i: Input.Obj): Unit = {
-      result.addLine(s"""@JSExportTopLevel("$name$$a")""")
-      result.addLine(s"@JSExportAll")
-      result.openBlock(s"object ${adapterId(i.si)}")
-      result.addLine(s"val delegate = ${FullName(i.si).toString.replace("$", "")}")
-      i.member.foreach {
-        case i: Input.Def => memberDef(i)
-        case i: Input.Val => memberVal(i)
-        case i: Input.Var => memberVar(i)
-        case _            =>
+    def outputNewInstance(a: Adaption.NewInstance, outerName: List[String]): Unit = {
+      val input                     = a.input
+      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+      val (params, args) = if (input.ctorParams.isEmpty) {
+        ("", "")
+      } else {
+        def ctorParam(ct: CtorParam): String = s"${ct.si.displayName}: ${interopTypeFormatter(ct.valueSignature.tpe)}"
+        def ctorArg(ct: CtorParam): String   = s"${ct.si.displayName}.$$cnv[${unchangedTypeFormatter(ct.valueSignature.tpe)}]"
+        (
+          input.ctorParams.map(ctorParam).mkString("(", ", ", ")"),
+          input.ctorParams.map(ctorArg).mkString("(", ", ", ")")
+        )
+      }
+      val tparams = formatTParamSyms(input.classSignature.typeParamSymbols)
+      // TODO does not work for nested classes; the instance can not be created by "new FullName"; it must be "new $delegate.DisplayName"
+      result.addLine(s"def newInstance$tparams$params = new _root_.${FullName(input.si)}$args")
+    }
+
+    def outputNewAdapter(a: Adaption.NewAdapter, outerName: List[String]): Unit = {
+      val input       = a.input
+      val displayName = input.si.displayName
+      // TODO does not work for nested classes; the delegate must be of type "$delegate.DisplayName"
+      result.openBlock(s"def newAdapter(delegate: _root_.${FullName(input.si)}): $displayName = new $displayName")
+      result.addLine("$delegate = delegate")
+      result.closeBlock()
+    }
+
+    def outputTrait(a: Adaption.Trait): Unit = {
+      val input = a.input
+      result.addLine("@JSExportAll")
+      result.openBlock(s"trait ${input.si.displayName} extends InstanceAdapter[_root_.${FullName(input.si)}]")
+      input.member.foreach {
+        case i: Input.Def if i.adapted.isAdapted => outputDef(Adaption.Def(i), List("$delegate"))
+        case i: Input.Val if i.adapted.isAdapted => outputVal(Adaption.Val(i), List("$delegate"))
+        case i: Input.Var if i.adapted.isAdapted => outputVar(Adaption.Var(i), List("$delegate"))
       }
       result.closeBlock()
     }
 
     result.addLine("import scala.scalajs.js")
+    result.addLine("import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}")
     result.addLine("import eu.swdev.scala.ts.adapter._")
-    result.addLine("import js.JSConverters._")
 
-    result.openBlock("object Adapter")
+    val adapterName = "Adapter"
 
-    topLevelExports.foreach {
-      case TopLevelExport(n, i: Input.Def) => //exportDef(n, i)
-      case TopLevelExport(n, i: Input.Val) => //exportVal(n, i)
-      case TopLevelExport(n, i: Input.Var) => //exportVar(n, i)
-      case TopLevelExport(n, i: Input.Obj) => topLevelObj(n, i)
-      case TopLevelExport(n, i: Input.Cls) => //exportCls(n, i)
+    result.addLine(s"""@JSExportTopLevel("$adapterName")""")
+    result.openBlock(s"object $adapterName extends js.Object")
+    result.addLine("@JSExportAll")
+    result.openBlock("trait InstanceAdapter[D]")
+    result.addLine("val $delegate: D")
+    result.closeBlock()
+
+    def outputAdapter(ao: AdapterObject, outerName: List[String]): Unit = {
+
+      ao.methods.values.foreach {
+        case a: Adaption.Def         => outputDef(a, outerName)
+        case a: Adaption.Val         => outputVal(a, outerName)
+        case a: Adaption.Var         => outputVar(a, outerName)
+        case a: Adaption.NewInstance => outputNewInstance(a, outerName)
+        case a: Adaption.NewAdapter  => outputNewAdapter(a, outerName)
+      }
+
+      ao.traits.values.foreach {
+        case a: Adaption.Trait => outputTrait(a)
+      }
+
+      ao.nested.foreach {
+        case (name, ao) =>
+          result.openBlock(s"object $name extends js.Object")
+          outputAdapter(ao, name :: outerName)
+          result.closeBlock()
+      }
+
     }
+
+    outputAdapter(root, Nil)
 
     result.closeBlock()
   }
