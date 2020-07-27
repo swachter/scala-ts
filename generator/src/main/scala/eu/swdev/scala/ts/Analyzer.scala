@@ -235,7 +235,7 @@ object Analyzer {
             si <- semSrc.symbolInfo(defn.pos, Kind.TYPE)
           } {
             val e = Input.Alias(semSrc, defn, si)
-            (e.typeSignature.lowerBound.typeSymbol, e.typeSignature.upperBound.typeSymbol) match {
+            (e.typeSignature.lowerBound.typeSymbol(symTab), e.typeSignature.upperBound.typeSymbol(symTab)) match {
               case (Some(s1), Some(s2)) if s1 == s2 => builder += e
               case _                                =>
             }

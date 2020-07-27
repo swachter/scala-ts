@@ -31,7 +31,7 @@ class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], 
       } else {
         symTab.info(sym).flatMap { si =>
           si.signature match {
-            case TypeSignature(_, _, upperBound) => upperBound.typeSymbol.flatMap(s => nativeSymbol(s)) // follow type aliases
+            case TypeSignature(_, _, upperBound) => upperBound.typeSymbol(symTab).flatMap(s => nativeSymbol(s)) // follow type aliases
             case ClassSignature(_, _, _, _)      => nativeClassSymbol(si)
             case MethodSignature(_, _, _)        => nativeMethodSymbol(si) // defs, vals, and vars
             case _                               => None

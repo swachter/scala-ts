@@ -40,7 +40,7 @@ object Adapter extends js.Object {
         // access object val
         def x = $res(_root_.x.y.SomeClass.x)
         // access object var
-        def y: String = $res(_root_.x.y.SomeClass.y)
+        def y = $res(_root_.x.y.SomeClass.y)
         def y_=(v: String) = _root_.x.y.SomeClass.y = v.$cnv[String]
       }
     }

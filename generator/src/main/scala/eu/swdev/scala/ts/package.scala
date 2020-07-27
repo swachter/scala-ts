@@ -2,7 +2,29 @@ package eu.swdev.scala
 
 import scala.meta.inputs.Position
 import scala.meta.internal.semanticdb.SymbolInformation.Kind
-import scala.meta.internal.semanticdb.{AnnotatedType, ByNameType, ClassSignature, ConstantType, ExistentialType, IntersectionType, MethodSignature, RepeatedType, Scope, SingleType, StructuralType, SuperType, SymbolInformation, ThisType, Type, TypeRef, TypeSignature, UnionType, UniversalType, WithType, Range => SRange}
+import scala.meta.internal.semanticdb.{
+  AnnotatedType,
+  ByNameType,
+  ClassSignature,
+  ConstantType,
+  ExistentialType,
+  IntersectionType,
+  MethodSignature,
+  RepeatedType,
+  Scope,
+  SingleType,
+  StructuralType,
+  SuperType,
+  SymbolInformation,
+  ThisType,
+  Type,
+  TypeRef,
+  TypeSignature,
+  UnionType,
+  UniversalType,
+  WithType,
+  Range => SRange
+}
 import scala.meta.internal.symtab.SymbolTable
 import scala.meta.internal.{semanticdb => isb}
 
@@ -36,15 +58,15 @@ package object ts {
       symTab.info(sym) match {
         case Some(si) =>
           val ts = si.signature.asInstanceOf[TypeSignature]
-          val upperBound = ts.upperBound.typeSymbol match {
+          val upperBound = ts.upperBound.typeSymbol(symTab) match {
             case Some("scala/Any#") => None
             case Some(_)            => Some(ts.upperBound)
             case None               => None
           }
-          val lowerBound = ts.lowerBound.typeSymbol match {
+          val lowerBound = ts.lowerBound.typeSymbol(symTab) match {
             case Some("scala/Nothing#") => None
-            case Some(_)            => Some(ts.lowerBound)
-            case None               => None
+            case Some(_)                => Some(ts.lowerBound)
+            case None                   => None
           }
           TParam(si.displayName, upperBound, lowerBound)
         case None => throw new RuntimeException(s"missing symbol information for type parameter symbol: $sym")
@@ -90,10 +112,24 @@ package object ts {
 
   implicit class TypeOps(val tpe: isb.Type) extends AnyVal {
 
-    def isTypeParam(symTab: SymbolTable): Boolean = typeSymbol.map(symTab.isTypeParam(_)).getOrElse(false)
+    def isTypeParam(symTab: SymbolTable): Boolean = typeSymbol(symTab).map(symTab.isTypeParam(_)).getOrElse(false)
 
-    def typeSymbol: Option[String] = tpe match {
-      case TypeRef(isb.Type.Empty, symbol, _) => Some(symbol)
+    def typeSymbol(symTab: SymbolTable): Option[String] = tpe match {
+      case TypeRef(isb.Type.Empty, symbol, _) =>
+        symTab.info(symbol) match {
+          // follow type aliases (for example "scala/Predef.String#" -> "java/lang/String#")
+          case Some(si) =>
+            si.signature match {
+              case TypeSignature(_, lowerBound, upperBound) =>
+                // if it is a type signature with lower bound == upper bound then pick one of the bounds
+                (lowerBound.typeSymbol(symTab), upperBound.typeSymbol(symTab)) match {
+                  case (s @ Some(s1), Some(s2)) if s1 == s2 => s
+                  case _                                    => Some(symbol)
+                }
+              case _ => Some(symbol)
+            }
+          case None => Some(symbol)
+        }
       case SingleType(isb.Type.Empty, symbol) => Some(symbol)
       case _                                  => None
     }
@@ -157,7 +193,7 @@ package object ts {
       * Checks if this type is a subtype of the given symbol
       */
     def isSubtypeOf(sym: Symbol, symTab: SymbolTable): Boolean = {
-      tpe.typeSymbol.exists(_ == sym) || tpe.parents(symTab).exists(_.isSubtypeOf(sym, symTab))
+      tpe.typeSymbol(symTab).exists(_ == sym) || tpe.parents(symTab).exists(_.isSubtypeOf(sym, symTab))
     }
 
   }

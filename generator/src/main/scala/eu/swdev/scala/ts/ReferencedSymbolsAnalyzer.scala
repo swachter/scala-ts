@@ -81,11 +81,11 @@ object ReferencedSymbolsAnalyzer {
     def collect(sig: Signature): Unit = sig match {
       case ValueSignature(tpe) => collect(tpe)
       case TypeSignature(typeParameters, lowerBound, upperBound) =>
-        lowerBound.typeSymbol match {
+        lowerBound.typeSymbol(symTab) match {
           case Some("scala/Nothing#") =>
           case _                      => collect(lowerBound)
         }
-        upperBound.typeSymbol match {
+        upperBound.typeSymbol(symTab) match {
           case Some("scala/Any#" | "scala/AnyRef#") =>
           case _                                    => collect(upperBound)
         }

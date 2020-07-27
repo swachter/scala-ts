@@ -91,7 +91,7 @@ object SealedTraitSubtypeAnalyzer {
       *
       * Subtypes are members of union types. In order to disambiguate their type parameters names a prefix is provided.
       */
-    def subtypeParams(prefix: String): Seq[SubtypeParam]
+    def subtypeParams(prefix: String, symTab: SymbolTable): Seq[SubtypeParam]
 
     def classSignature: ClassSignature
 
@@ -99,12 +99,12 @@ object SealedTraitSubtypeAnalyzer {
     // -> a type parameter of the subtype may be passed to the parent type
     // -> in that case the map contains an entry mapping the symbol of the subtype type parameter
     //    into its argument index for the parent type
-    val typeArgumentsForParent: Map[Symbol, Int] = {
+    def typeArgumentsForParent(symTab: SymbolTable): Map[Symbol, Int] = {
       classSignature.parents
         .collect {
           case TypeRef(isb.Type.Empty, symbol, tArgs) if symbol == parentSymbol =>
             tArgs.zipWithIndex.flatMap {
-              case (tpe, idx) => tpe.typeSymbol.map(_ -> idx)
+              case (tpe, idx) => tpe.typeSymbol(symTab).map(_ -> idx)
             }
         }
         .flatten
@@ -116,9 +116,9 @@ object SealedTraitSubtypeAnalyzer {
   object Subtype {
 
     sealed trait NonSealedTraitSubtype extends Subtype {
-      override def subtypeParams(prefix: String): Seq[SubtypeParam] = {
+      override def subtypeParams(prefix: String, symTab: SymbolTable): Seq[SubtypeParam] = {
         classSignature.typeParamSymbols.map { typeParamSymbol =>
-          typeArgumentsForParent.get(typeParamSymbol) match {
+          typeArgumentsForParent(symTab).get(typeParamSymbol) match {
             case Some(idx) => SubtypeParam.Parent(idx)
             case None      => SubtypeParam.Unrelated(prefix, typeParamSymbol)
           }
@@ -150,7 +150,7 @@ object SealedTraitSubtypeAnalyzer {
       override def unionMemberName = FullName(subtraitSymbolInfo).withUnionSuffix
       override def classSignature  = subtraitSymbolInfo.signature.asInstanceOf[ClassSignature]
       // subtype parameters of this sealed trait are determined based on the subtype parameters of all its subtypes
-      override def subtypeParams(prefix: String) = {
+      override def subtypeParams(prefix: String, symTab: SymbolTable) = {
         // maps the indexes of the type parameters of this sealed trait into their symbol
         // -> used to translate subtype parameters of union members that reference a type parameter of this sealed trait
         val unionTypeParamSyms = classSignature.typeParameters.typeParamSymbols.zipWithIndex.map(_.swap).toMap
@@ -158,10 +158,10 @@ object SealedTraitSubtypeAnalyzer {
         val params = subtypes.zipWithIndex.flatMap {
           case (subtype, idx) =>
             // use the idx of the subtype to disambiguate type parameters names
-            subtype.subtypeParams(s"$prefix${idx}_").map {
-              case SubtypeParam.Parent(idx) if typeArgumentsForParent.contains(unionTypeParamSyms(idx)) =>
+            subtype.subtypeParams(s"$prefix${idx}_", symTab).map {
+              case SubtypeParam.Parent(idx) if typeArgumentsForParent(symTab).contains(unionTypeParamSyms(idx)) =>
                 // the subtype references a type param of this trait that is passed through to the parent of this trait
-                SubtypeParam.Parent(typeArgumentsForParent(unionTypeParamSyms(idx)))
+                SubtypeParam.Parent(typeArgumentsForParent(symTab)(unionTypeParamSyms(idx)))
               case SubtypeParam.Parent(idx) =>
                 // the subtype references a type param of this trait that is not passed through to the parent of this trait
                 // -> the type param is unrelated to the parent

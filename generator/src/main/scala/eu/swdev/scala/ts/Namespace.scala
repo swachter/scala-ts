@@ -54,7 +54,7 @@ object Namespace {
     val referencedTypes = allInputTypes.filter(tpe => apiRefs.contains(tpe.si.symbol))
 
     // determine the type symbols of all ancestors of referenced types
-    val ancestorRefs = referencedTypes.flatMap(_.si.ancestors(symTab)).flatMap(_.typeSymbol).toSet
+    val ancestorRefs = referencedTypes.flatMap(_.si.ancestors(symTab)).flatMap(_.typeSymbol(symTab)).toSet
 
     // types referenced by the API or ancestors thereof
     val referencedOrAncestorTypes = allInputTypes.filter(i => apiRefs.contains(i.si.symbol) || ancestorRefs.contains(i.si.symbol))
@@ -108,7 +108,7 @@ object Namespace {
     // close the gaps in the inheritance hierarchy
     // -> add interfaces for all ancestors that have an already exported ancestor
     ancestorRefs.flatMap(symTab.typeSymInfo(_)).collect {
-      case si if canBeAdded(si.symbol) && si.ancestors(symTab).flatMap(_.typeSymbol).exists(isExportedOrNamedNative) =>
+      case si if canBeAdded(si.symbol) && si.ancestors(symTab).flatMap(_.typeSymbol(symTab)).exists(isExportedOrNamedNative) =>
         rootNamespace += Output.Interface(si, symTab)
     }
 

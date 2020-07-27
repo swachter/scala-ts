@@ -185,7 +185,7 @@ object Generator {
         (getter.methodSignature.returnType,
          setter.methodSignature.parameterLists.flatMap(_.symlinks.map(sym => valueSymbolInfoAnddSignature(sym, setter)))) match {
           case (gt, Seq((si, vs))) =>
-            (gt.typeSymbol, vs.tpe.typeSymbol) match {
+            (gt.typeSymbol(symTab), vs.tpe.typeSymbol(symTab)) match {
               case (Some(s1), Some(s2)) if s1 == s2 => Some(gt)
               case _                                => None
             }
@@ -216,6 +216,9 @@ object Generator {
         }
       }
 
+      val x = symTab.info("scala/Predef.String#")
+      val y = symTab.info("java/lang/String#")
+
       inputs
         .collect {
           case i: Input.Def if i.visibility.isMember => memberDefOrAccessorPair(i, memberOf.memberKind(i.isAbstract))
@@ -241,7 +244,7 @@ object Generator {
       // check if there is an exported parent class
       val ext = i.si
         .parents(symTab)
-        .find(p => p.typeSymbol.filter(exportedClassNames.contains(_)).map(symTab.isClass(_)).getOrElse(false))
+        .find(p => p.typeSymbol(symTab).filter(exportedClassNames.contains(_)).map(symTab.isClass(_)).getOrElse(false))
         .fold("")(p => s" extends ${typeFormatter(p)}")
 
       val abst = if (i.isAbstract) " abstract" else ""
@@ -288,7 +291,7 @@ object Generator {
     }
 
     def exportUnion(union: Output.Union, indent: Int): Unit = {
-      val allTypeArgs               = union.members.flatMap(_.typeParams)
+      val allTypeArgs               = union.members.flatMap(_.typeParams(symTab))
       val (parentArgs, privateArgs) = SubtypeParam.removeDuplicatesAndSplit(allTypeArgs)
 
       val parentTParams = union.sealedTrait.classSignature.typeParamSymbols.map(TParam(_, symTab)).zipWithIndex.map(_.swap).toMap
@@ -303,7 +306,7 @@ object Generator {
 
       val members = union.members
         .map { member =>
-          val tArgs = member.typeParams.map {
+          val tArgs = member.typeParams(symTab).map {
             case SubtypeParam.Parent(idx)            => parentTParams(idx).displayName
             case SubtypeParam.Unrelated(prefix, sym) => s"$$M$prefix${TParam(sym, symTab).displayName}"
           }

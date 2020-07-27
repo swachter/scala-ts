@@ -137,7 +137,7 @@ object Output {
   case class UnionMember(subtype: Subtype, idx: Int) {
     def name = subtype.unionMemberName
     // use the idx of the union member to disambiguate type parameters names
-    val typeParams = subtype.subtypeParams(s"${idx}_")
+    def typeParams(symTab: SymbolTable) = subtype.subtypeParams(s"${idx}_", symTab)
   }
 
 }
