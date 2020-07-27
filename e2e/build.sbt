@@ -16,7 +16,6 @@ lazy val root = (project in file("."))
     (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     // scalaTsChangeForkOptions := withDebugForkOptions(5005),
-    libraryDependencies += "eu.swdev" %%% "scala-ts-runtime" % "0.10-SNAPSHOT",
     test := {
       // tests depend on ScalaTs output
       scalaTsFastOpt.value

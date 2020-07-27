@@ -17,13 +17,14 @@ class ClassTest extends AdapterFunSuite {
     |  object test extends js.Object {
     |    @JSExportAll
     |    trait AdaptedClass extends InstanceAdapter[_root_.test.AdaptedClass] {
+    |      def x = $res($delegate.x)
     |      def sum = $res($delegate.sum)
     |    }
     |    object AdaptedClass extends js.Object {
     |      def newAdapter(delegate: _root_.test.AdaptedClass): AdaptedClass = new AdaptedClass {
     |        $delegate = delegate
     |      }
-    |      def newInstance(x: scala.Int, y: scala.Int) = new _root_.test.AdaptedClass(x.$cnv[scala.Int], y.$cnv[scala.Int])
+    |      def newInstance(x: Int, y: Int) = new _root_.test.AdaptedClass(x.$cnv[Int], y.$cnv[Int])
     |    }
     |  }
     |}

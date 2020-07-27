@@ -124,6 +124,7 @@ lazy val plugin = project
     // adds libraryDependency to the ScalaJS sbt plugin
     // -> the ScalaTsPlugin references the ScalaJS plugin
     addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJsVersion),
+    addSbtPlugin("org.portable-scala" % "sbt-platform-deps" % "1.0.0"),
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "test"
   )
 

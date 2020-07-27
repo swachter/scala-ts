@@ -1,6 +1,6 @@
 package eu.swdev.scala.ts
 
-import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
+import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, Type => SdbType, TypeSignature, ValueSignature}
 import scala.meta.{Defn, Stat, Term}
 
 case class FullName private (str: String) extends AnyVal {
@@ -190,15 +190,15 @@ object Input {
 
   case class Alias(semSrc: SemSource, tree: Defn.Type, si: SymbolInformation) extends Type with HasTypeSignature
 
-  case class CtorParam(semSrc: SemSource, tree: Term.Param, name: String, si: SymbolInformation, mod: CtorParamMod)
+  case class CtorParam(semSrc: SemSource, tree: Term.Param, name: String, si: SymbolInformation, mod: CtorParamMod, isVisible: Boolean, adapted: Adapted)
       extends Input
       with HasValueSignature
 
   sealed trait CtorParamMod
 
   object CtorParamMod {
-    case class Val(name: String, adapted: Adapted) extends CtorParamMod
-    case class Var(name: String, adapted: Adapted) extends CtorParamMod
+    case class Val(name: String) extends CtorParamMod
+    case class Var(name: String) extends CtorParamMod
     // private constructor param
     object Prv extends CtorParamMod
   }

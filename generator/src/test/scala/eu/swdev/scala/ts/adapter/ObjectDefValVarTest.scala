@@ -16,10 +16,10 @@ class ObjectDefValVarTest extends AdapterFunSuite {
     |  }
     |  object test extends js.Object {
     |    object ObjectDefValVarTest extends js.Object {
-    |      def method(x: scala.Int) = $res(test.ObjectDefValVarTest.method(x))
+    |      def method(x: Int) = $res(test.ObjectDefValVarTest.method(x))
     |      def value = $res(test.ObjectDefValVarTest.value)
-    |      def variable = $res($delegate.variable
-    |      def variable_=(value: scala.Boolean) = test.ObjectDefValVarTest.variable = value.$cnv[scala.Boolean]
+    |      def variable = $res($delegate.variable)
+    |      def variable_=(value: Boolean) = test.ObjectDefValVarTest.variable = value.$cnv[Boolean]
     |    }
     |  }
     |}

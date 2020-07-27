@@ -2,7 +2,7 @@ package eu.swdev.scala.ts
 
 import eu.swdev.scala.ts.Input.CtorParam
 
-import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature}
+import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature, Type => SdbType}
 import scala.meta.internal.symtab.SymbolTable
 
 object AdapterGenerator {
@@ -68,20 +68,26 @@ object AdapterGenerator {
       result.addLine(s"def $displayName$tparams$params = $$res($accessName$args)")
     }
 
-    def outputVal(a: Adaption.Val, outerName: List[String]): Unit = {
-      val input                     = a.input
+    def doOutputVal(input: Input, outerName: List[String]): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, outerName)
       result.addLine(s"def $displayName = $$res($accessName)")
     }
 
-    def outputVar(a: Adaption.Var, outerName: List[String]): Unit = {
-      val input                     = a.input
+    def doOutputVar(input: Input, tpe: SdbType, outerName: List[String]): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, outerName)
-      val unchangedType             = unchangedTypeFormatter(input.methodSignature.returnType)
-      val interopType               = interopTypeFormatter(input.methodSignature.returnType)
-      result.addLine(s"def $displayName: $interopType = $$res($$delegate.${input.si.displayName}")
-      result.addLine(s"def ${displayName}_=(value: $interopType): Unit = $accessName = value.$$cnv[$unchangedType]")
+      val unchangedType             = unchangedTypeFormatter(tpe)
+      val interopType               = interopTypeFormatter(tpe)
+      result.addLine(s"def $displayName = $$res($$delegate.${input.si.displayName})")
+      result.addLine(s"def ${displayName}_=(value: $interopType) = $accessName = value.$$cnv[$unchangedType]")
     }
+
+    def outputVal(a: Adaption.Val, outerName: List[String]): Unit = doOutputVal(a.input, outerName)
+
+    def outputVar(a: Adaption.Var, outerName: List[String]): Unit = doOutputVar(a.input, a.input.methodSignature.returnType, outerName)
+
+    def outputCtorVal(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVal(input, outerName)
+
+    def outputCtorVar(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVar(input, input.valueSignature.tpe, outerName)
 
     def outputNewInstance(a: Adaption.NewInstance, outerName: List[String]): Unit = {
       val input                     = a.input
@@ -114,10 +120,20 @@ object AdapterGenerator {
       val input = a.input
       result.addLine("@JSExportAll")
       result.openBlock(s"trait ${input.si.displayName} extends InstanceAdapter[_root_.${FullName(input.si)}]")
+      input.ctorParams.foreach { ctp =>
+        if (ctp.adapted.isAdapted) {
+          ctp.mod match {
+            case _: Input.CtorParamMod.Val => outputCtorVal(ctp, List("$delegate"))
+            case _: Input.CtorParamMod.Var => outputCtorVar(ctp, List("$delegate"))
+            case Input.CtorParamMod.Prv    =>
+          }
+        }
+      }
       input.member.foreach {
         case i: Input.Def if i.adapted.isAdapted => outputDef(Adaption.Def(i), List("$delegate"))
         case i: Input.Val if i.adapted.isAdapted => outputVal(Adaption.Val(i), List("$delegate"))
         case i: Input.Var if i.adapted.isAdapted => outputVar(Adaption.Var(i), List("$delegate"))
+        case _                                   =>
       }
       result.closeBlock()
     }

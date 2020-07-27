@@ -115,7 +115,7 @@ object Generator {
         // no parameter lists -> it's a getter
         memberKind match {
           case MemberKind.IsInInterface => s"${abs}readonly ${memberName(i)}: $returnType\n"
-          case _ => s"${abs}get ${memberName(i)}(): $returnType\n"
+          case _                        => s"${abs}get ${memberName(i)}(): $returnType\n"
         }
       } else {
         val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
@@ -147,9 +147,9 @@ object Generator {
     def memberCtorParam(i: Input.CtorParam): String = {
       def member(name: String) = formatNameAndType(name, i.valueSignature.tpe)
       i.mod match {
-        case Input.CtorParamMod.Val(name, _) => s"readonly ${member(name)}\n"
-        case Input.CtorParamMod.Var(name, _) => s"${member(name)}\n"
-        case Input.CtorParamMod.Prv          => ""
+        case Input.CtorParamMod.Val(name) => s"readonly ${member(name)}\n"
+        case Input.CtorParamMod.Var(name) => s"${member(name)}\n"
+        case Input.CtorParamMod.Prv       => ""
       }
     }
 
@@ -170,7 +170,8 @@ object Generator {
 
       def isGetter(i: Input.Def): Boolean = i.visibility.isMember && i.methodSignature.parameterLists.isEmpty
 
-      def isSetter(i: Input.Def): Boolean = i.visibility.isMember && i.si.displayName.endsWith("_=") && i.methodSignature.parameterLists.flatMap(_.symlinks).size == 1
+      def isSetter(i: Input.Def): Boolean =
+        i.visibility.isMember && i.si.displayName.endsWith("_=") && i.methodSignature.parameterLists.flatMap(_.symlinks).size == 1
 
       val getters = inputs.collect {
         case i: Input.Def if isGetter(i) => i.si.displayName -> i
@@ -181,24 +182,27 @@ object Generator {
       }.toMap
 
       def commonType(getter: Input.Def, setter: Input.Def): Option[isb.Type] = {
-        (getter.methodSignature.returnType, setter.methodSignature.parameterLists.flatMap(_.symlinks.map(sym => valueSymbolInfoAnddSignature(sym, setter)))) match {
+        (getter.methodSignature.returnType,
+         setter.methodSignature.parameterLists.flatMap(_.symlinks.map(sym => valueSymbolInfoAnddSignature(sym, setter)))) match {
           case (gt, Seq((si, vs))) =>
             (gt.typeSymbol, vs.tpe.typeSymbol) match {
-              case (Some(s1), Some(s2)) if s1 == s2 =>Some(gt)
-              case _ => None
+              case (Some(s1), Some(s2)) if s1 == s2 => Some(gt)
+              case _                                => None
             }
           case _ => None
         }
       }
 
-      val accessorPairs = getters.map {
-        case (dn, gettter) => dn -> (gettter, setters.get(s"${dn}_="))
-      }.collect {
-        case (dn, (getter, Some(setter))) => dn -> (getter, setter, commonType(getter, setter))
-      }.collect {
-        case (dn, (getter, setter, Some(tpe))) => dn -> (getter, setter, tpe)
-      }
-
+      val accessorPairs = getters
+        .map {
+          case (dn, gettter) => dn -> (gettter, setters.get(s"${dn}_="))
+        }
+        .collect {
+          case (dn, (getter, Some(setter))) => dn -> (getter, setter, commonType(getter, setter))
+        }
+        .collect {
+          case (dn, (getter, setter, Some(tpe))) => dn -> (getter, setter, tpe)
+        }
 
       def memberDefOrAccessorPair(i: Input.Def, memberKind: MemberKind): String = {
         val dn = i.si.displayName
@@ -207,7 +211,7 @@ object Generator {
           case None =>
             Option(dn).filter(_.endsWith("_=")).flatMap(n => accessorPairs.get(n.dropRight(2))) match {
               case Some(_) => "" // no output for the setter of an accessor pair
-              case None => memberDef(i, memberKind)
+              case None    => memberDef(i, memberKind)
             }
         }
       }
@@ -217,8 +221,9 @@ object Generator {
           case i: Input.Def if i.visibility.isMember => memberDefOrAccessorPair(i, memberOf.memberKind(i.isAbstract))
           case i: Input.Val if i.visibility.isMember => memberVal(i, memberOf.memberKind(i.isAbstract))
           case i: Input.Var if i.visibility.isMember => memberVar(i, memberOf.memberKind(i.isAbstract))
-          case i: Input.CtorParam                    => memberCtorParam(i)
+          case i: Input.CtorParam if i.isVisible     => memberCtorParam(i)
           case i: Input.Obj if i.isVisibleMember     => memberObj(i)
+          case _                                     => ""
         }
         .filter(_.nonEmpty)
     }
@@ -385,7 +390,7 @@ object Generator {
     object IsNonAbstract extends MemberKind {
       override def isAbstract: Boolean = false
     }
-    object IsAbstract    extends MemberKind {
+    object IsAbstract extends MemberKind {
       override def isAbstract: Boolean = true
     }
     object IsInInterface extends MemberKind {

@@ -1,7 +1,5 @@
 package eu.swdev.scala.ts
 
-import eu.swdev.scala.ts.TypeFormatter.escapeTypeScriptString
-
 import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, NullConstant, ShortConstant, SingleType, StringConstant, Type, TypeRef, UnitConstant}
 import scala.meta.internal.symtab.SymbolTable
 
@@ -13,7 +11,10 @@ abstract class AdapterTypeFormatter(symTab: SymbolTable) extends (Type => String
       symTab.typeParamSymInfo(symbol).get.displayName
   }
 
+  import AdapterTypeFormatter.simpleTypeNames
+
   val unchanged: CTypeFormatter = formatType => {
+    case TypeRef(Type.Empty, sym, targs) if simpleTypeNames.contains(sym) => simpleTypeNames(sym)
     case TypeRef(Type.Empty, sym, targs) =>
       val ts = if (targs.isEmpty) {
         ""
@@ -21,8 +22,7 @@ abstract class AdapterTypeFormatter(symTab: SymbolTable) extends (Type => String
         targs.map(formatType).mkString("[", ",", "]")
       }
       s"${FullName.fromSymbol(sym)}$ts"
-    case SingleType(Type.Empty, symbol) =>
-      s"${FullName.fromSymbol(symbol)}"
+    case SingleType(Type.Empty, symbol)       => s"${FullName.fromSymbol(symbol)}"
     case ConstantType(BooleanConstant(value)) => String.valueOf(value)
     case ConstantType(ByteConstant(value))    => String.valueOf(value)
     case ConstantType(CharConstant(value))    => s"'${new Character(value.toChar)}'"
@@ -34,13 +34,12 @@ abstract class AdapterTypeFormatter(symTab: SymbolTable) extends (Type => String
     case ConstantType(ShortConstant(value))   => String.valueOf(value)
     case ConstantType(StringConstant(value))  => s"""${AdapterTypeFormatter.escapeScalaString(value)}"""
     case ConstantType(UnitConstant())         => "Unit"
-
   }
-
 
 }
 
 object AdapterTypeFormatter {
+
   def escapeScalaString(str: String): String = {
     str.flatMap {
       case '\n'                      => "\\n"
@@ -51,16 +50,32 @@ object AdapterTypeFormatter {
       case c                         => f"\\u$c%04x"
     }
   }
+
+  val simpleTypeNames: Map[Symbol, String] = Map(
+    "java/lang/String#"        -> "String",
+    "scala/Boolean#"           -> "Boolean",
+    "scala/Byte#"              -> "Byte",
+    "scala/Double#"            -> "Double",
+    "scala/Float#"             -> "Float",
+    "scala/Int#"               -> "Int",
+    "scala/Nothing#"           -> "Nothing",
+    "scala/Predef.String#"     -> "String",
+    "scala/Short#"             -> "Short",
+    "scala/Unit#"              -> "Unit",
+  )
+
 }
 
 class UnchangedTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(symTab) {
-  val formatter = typeParam orElse unchanged(this)
+  val formatter                       = typeParam orElse unchanged(this)
   override def apply(t: Type): String = formatter(t)
 }
 
 class InteropTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(symTab) {
 
-  val withoutConverterTf: PTypeFormatter = {
+  val changed: PTypeFormatter = {
+    case TypeRef(Type.Empty, "scala/Array#", targs) =>
+      s"js.Array[${apply(targs(0))}]"
     case TypeRef(Type.Empty, symbol, targs) if symbol matches "scala/Function\\d+#" =>
       val args = targs.map(apply).mkString("[", ",", "]")
       s"js.Function${targs.size - 1}$args"
@@ -68,14 +83,9 @@ class InteropTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(sym
       s"js.UndefOr[${apply(targs(0))}]"
   }
 
-  val withConverterTf: PTypeFormatter = {
-    case TypeRef(Type.Empty, "scala/Array#", targs) =>
-      s"js.Array[${apply(targs(0))}]"
-  }
+  val formatter = typeParam orElse changed orElse unchanged(this)
 
-  val formatter = typeParam orElse withoutConverterTf orElse withConverterTf orElse unchanged(this)
-
-  def needsConverter(t: Type): Boolean = withConverterTf.isDefinedAt(t)
+  def needsConverter(t: Type): Boolean = changed.isDefinedAt(t)
 
   override def apply(t: Type): String = formatter(t)
 }

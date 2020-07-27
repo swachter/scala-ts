@@ -80,7 +80,7 @@ object Analyzer {
     }
 
     def visibility(mods: List[Mod]): Option[Visibility] = mods.collect(visibilityAnnot).headOption
-    def proxied(mods: List[Mod]): Option[Adapted]       = mods.collect(adaptAnnot).headOption
+    def adapted(mods: List[Mod]): Option[Adapted]       = mods.collect(adaptAnnot).headOption
 
     def fieldName(mods: List[Mod], default: String): String =
       mods
@@ -127,14 +127,14 @@ object Analyzer {
       */
     val traverser = new Traverser {
 
-      class State(allStateMembersAreVisible: Boolean, allStateMembersAreProxied: Boolean) {
+      class State(allStateMembersAreVisible: Boolean, allStateMembersAreAdapted: Boolean) {
 
         val builder = List.newBuilder[Input.Defn]
 
         val inheritedVisiblity                   = if (allStateMembersAreVisible) Visibility.DisplayName else Visibility.No
-        val inheritedAdapted                     = if (allStateMembersAreProxied) Adapted.WithDefaultInteropType else Adapted.No
+        val inheritedAdapted                     = if (allStateMembersAreAdapted) Adapted.WithDefaultInteropType else Adapted.No
         def effectiveVisibility(mods: List[Mod]) = visibility(mods).getOrElse(inheritedVisiblity)
-        def effectiveAdapted(mods: List[Mod])    = proxied(mods).getOrElse(inheritedAdapted)
+        def effectiveAdapted(mods: List[Mod])    = adapted(mods).getOrElse(inheritedAdapted)
 
         def processDefValVar[D <: Stat](defn: D,
                                         mods: List[Mod],
@@ -148,8 +148,8 @@ object Analyzer {
             }
           }
 
-        def recurse(allMembersAreVisible: Boolean, allMembersAreProxied: Boolean, visitChildren: => Unit): List[Input.Defn] = {
-          states.push(new State(allMembersAreVisible, allMembersAreProxied))
+        def recurse(allMembersAreVisible: Boolean, allMembersAreAdapted: Boolean, visitChildren: => Unit): List[Input.Defn] = {
+          states.push(new State(allMembersAreVisible, allMembersAreAdapted))
           visitChildren
           states.pop().builder.result()
         }
@@ -164,35 +164,30 @@ object Analyzer {
             val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
             val allMembersAreAdapted = areAllMembersAdapted(defn.mods)
 
-            def isCtorParamVisibleAsField(termMods: List[Mod]): Boolean = {
-              !hasPrivateMod(termMods) && (allMembersAreVisible || termMods.exists(memberVisibiltyAnnot.isDefinedAt(_)))
-            }
-
             val ctorParams = semSrc.symbolInfo(defn.pos, Kind.CONSTRUCTOR) match {
               case Some(ctorSi) =>
                 val ctorSig              = ctorSi.signature.asInstanceOf[MethodSignature]
                 val ctorParamSymbolInfos = ctorSig.parameterLists.flatMap(_.symlinks.map(semSrc.symbolInfo(_)))
                 ctorParamSymbolInfos.flatMap { ctorParamSi =>
-                  ctorParamTerms.collect {
-                    case tp @ Term.Param(termMods, termName @ Name(ctorParamSi.displayName), termType, defaultTerm)
-                        if isCtorParamVisibleAsField(termMods) && hasVarMod(termMods) =>
-                      val fldName = fieldName(termMods, termName.value)
-                      Input.CtorParam(semSrc,
-                                      tp,
-                                      ctorParamSi.displayName,
-                                      ctorParamSi,
-                                      Input.CtorParamMod.Var(fldName, effectiveAdapted(termMods)))
-                    case tp @ Term.Param(termMods, termName @ Name(ctorParamSi.displayName), termType, defaultTerm)
-                        if isCtorParamVisibleAsField(termMods) && (isCaseClass || hasValMod(termMods)) =>
-                      val fldName = fieldName(termMods, termName.value)
-                      Input.CtorParam(semSrc,
-                                      tp,
-                                      ctorParamSi.displayName,
-                                      ctorParamSi,
-                                      Input.CtorParamMod.Val(fldName, effectiveAdapted(termMods)))
-                    case tp @ Term.Param(termMods, termName, termType, defaultTerm) if termName.value == ctorParamSi.displayName =>
-                      Input.CtorParam(semSrc, tp, ctorParamSi.displayName, ctorParamSi, Input.CtorParamMod.Prv)
-                  }
+                  ctorParamTerms
+                    .collect {
+                      case tp @ Term.Param(_, Name(ctorParamSi.displayName), _, _) => tp
+                    }
+                    .headOption
+                    .map { termParam =>
+                      def fldName = fieldName(termParam.mods, termParam.name.value)
+                      val m = termParam.mods match {
+                        case mods if hasPrivateMod(mods)            => Input.CtorParamMod.Prv
+                        case mods if hasVarMod(mods)                => Input.CtorParamMod.Var(fldName)
+                        case mods if hasValMod(mods) || isCaseClass => Input.CtorParamMod.Val(fldName)
+                        case _                                      => Input.CtorParamMod.Prv
+                      }
+
+                      val isVisible = allMembersAreVisible || termParam.mods.exists(memberVisibiltyAnnot.isDefinedAt(_))
+                      val a = adapted(termParam.mods).getOrElse(if (allMembersAreAdapted) Adapted.WithDefaultInteropType else Adapted.No)
+
+                      Input.CtorParam(semSrc, termParam, ctorParamSi.displayName, ctorParamSi, m, isVisible, a)
+                    }
                 }.toList
               case None => Nil
             }
@@ -220,7 +215,7 @@ object Analyzer {
           } {
             val allMembersAreVisible = areAllMembersVisible(defn.mods, si)
             val allMembersAreAdapted = areAllMembersAdapted(defn.mods)
-            val members              = recurse(allMembersAreVisible, allMembersAreAdapted,visitChildren)
+            val members              = recurse(allMembersAreVisible, allMembersAreAdapted, visitChildren)
             builder += Input.Obj(semSrc, defn, effectiveVisibility(defn.mods), si, members, allMembersAreVisible, allMembersAreAdapted)
           }
 
