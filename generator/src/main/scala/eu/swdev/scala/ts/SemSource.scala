@@ -23,7 +23,9 @@ case class SemSource(td: TextDocument, source: Source, dialect: Dialect) {
       case (so, range) => td.symbols.find(si => si.kind == kind && si.symbol == so.symbol).map((_, range))
     }.collect {
       case Some(s) => s
-    }.sortBy(_._2.startCharacter).map(_._1)
+    }.sortWith {
+      case ((_, r1), (_, r2)) => r1.startLine < r2.startLine || r1.startLine == r2.startLine && r1.startCharacter < r2.startCharacter
+    }.map(_._1)
   }
 
   def symbolOccurrences(pos: Position, role: Role): Seq[SymbolOccurrence] = {
