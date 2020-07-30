@@ -335,3 +335,11 @@ export class ClassWithMethodsFromTraits {
   base(n: number): number
   middle(n: number): number
 }
+
+export class ClassWithInnerObj {
+  constructor()
+  readonly x: number
+  readonly innerObj: {
+    y: number
+  }
+}

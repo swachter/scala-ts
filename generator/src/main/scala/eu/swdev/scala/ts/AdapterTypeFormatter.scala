@@ -1,6 +1,22 @@
 package eu.swdev.scala.ts
 
-import scala.meta.internal.semanticdb.{BooleanConstant, ByteConstant, CharConstant, ConstantType, DoubleConstant, FloatConstant, IntConstant, LongConstant, NullConstant, ShortConstant, SingleType, StringConstant, Type, TypeRef, UnitConstant}
+import scala.meta.internal.semanticdb.{
+  BooleanConstant,
+  ByteConstant,
+  CharConstant,
+  ConstantType,
+  DoubleConstant,
+  FloatConstant,
+  IntConstant,
+  LongConstant,
+  NullConstant,
+  ShortConstant,
+  SingleType,
+  StringConstant,
+  Type,
+  TypeRef,
+  UnitConstant
+}
 import scala.meta.internal.symtab.SymbolTable
 
 abstract class AdapterTypeFormatter(symTab: SymbolTable) extends (Type => String) {
@@ -52,16 +68,16 @@ object AdapterTypeFormatter {
   }
 
   val simpleTypeNames: Map[Symbol, String] = Map(
-    "java/lang/String#"        -> "String",
-    "scala/Boolean#"           -> "Boolean",
-    "scala/Byte#"              -> "Byte",
-    "scala/Double#"            -> "Double",
-    "scala/Float#"             -> "Float",
-    "scala/Int#"               -> "Int",
-    "scala/Nothing#"           -> "Nothing",
-    "scala/Predef.String#"     -> "String",
-    "scala/Short#"             -> "Short",
-    "scala/Unit#"              -> "Unit",
+    "java/lang/String#"    -> "String",
+    "scala/Boolean#"       -> "Boolean",
+    "scala/Byte#"          -> "Byte",
+    "scala/Double#"        -> "Double",
+    "scala/Float#"         -> "Float",
+    "scala/Int#"           -> "Int",
+    "scala/Nothing#"       -> "Nothing",
+    "scala/Predef.String#" -> "String",
+    "scala/Short#"         -> "Short",
+    "scala/Unit#"          -> "Unit",
   )
 
 }
@@ -73,19 +89,33 @@ class UnchangedTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(s
 
 class InteropTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(symTab) {
 
-  val changed: PTypeFormatter = {
-    case TypeRef(Type.Empty, "scala/Array#", targs) =>
-      s"js.Array[${apply(targs(0))}]"
-    case TypeRef(Type.Empty, symbol, targs) if symbol matches "scala/Function\\d+#" =>
-      val args = targs.map(apply).mkString("[", ",", "]")
-      s"js.Function${targs.size - 1}$args"
-    case TypeRef(Type.Empty, "scala/Option#", targs) =>
-      s"js.UndefOr[${apply(targs(0))}]"
-  }
+  val formatter = typeParam orElse Function.unlift(changed) orElse unchanged(this)
 
-  val formatter = typeParam orElse changed orElse unchanged(this)
-
-  def needsConverter(t: Type): Boolean = changed.isDefinedAt(t)
+  def needsConverter(t: Type): Boolean = changed(t).isDefined
 
   override def apply(t: Type): String = formatter(t)
+
+  private def changed(tpe: Type): Option[String] = {
+    for {
+      TypeRef(_, _, targs) <- Option(tpe)
+      normalizedSym        <- tpe.typeSymbol(symTab)
+      replaced             <- simpleReplacements.get(normalizedSym).orElse(complexReplacment.lift(normalizedSym))
+    } yield {
+      val args = if (targs.isEmpty) "" else targs.map(apply).mkString("[", ",", "]")
+      s"$replaced$args"
+    }
+  }
+
+  val simpleReplacements = Map(
+    "java/util/Date#"                  -> "js.Date",
+    "scala/Array#"                     -> "js.Array",
+    "scala/Option#"                    -> "js.UndefOr",
+    "scala/collection/immutable/List#" -> "js.Array",
+    "scala/concurrent/Future#"         -> "js.Promise"
+  )
+
+  val complexReplacment: PartialFunction[String, String] = {
+    case sym if sym matches "scala/Function\\d+#" => s"js.Function${sym.dropRight(1).substring(14)}"
+    case sym if sym matches "scala/Tuple\\d+#"    => s"js.Tuple${sym.dropRight(1).substring(11)}"
+  }
 }

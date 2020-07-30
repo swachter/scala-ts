@@ -25,7 +25,7 @@ import scala.meta.internal.{semanticdb => isb}
   * formatter that formats every other type returning "any" as a last resort.
   */
 class TypeFormatter(
-    formatterCreatorsForKnownTypes: Seq[CTypeFormatter],
+    addRootNamespace: Boolean,
     nativeSymbolAnalyzer: NativeSymbolAnalyzer,
     symTab: SymbolTable
 ) extends (Type => String) {
@@ -47,7 +47,9 @@ class TypeFormatter(
       // it is a type parameter -> use its display name
       symTab.typeParamSymInfo(symbol).get.displayName
     case TypeRef(isb.Type.Empty, "scala/scalajs/js/Array#", targs) =>
-      s"${formatType(targs(0))}[]"
+      // use parentheses because the type parameter may be union (for example UndefOr) and the  array type constructor
+      // has a higher precedence than the union type constructor
+      s"(${formatType(targs(0))})[]"
     case TypeRef(isb.Type.Empty, symbol, targs) if simpleBuiltInTypeNames.contains(symbol) =>
       simpleBuiltInTypeNames(symbol)
     case TypeRef(isb.Type.Empty, symbol, targs) if nativeSymbol(symbol).isDefined =>
@@ -105,11 +107,19 @@ class TypeFormatter(
 
   }
 
+  val rootPrefix = if (addRootNamespace) "_root_" else ""
+
   val catchAllFormatterCreator: CTypeFormatter = formatType => {
 
     case TypeRef(isb.Type.Empty, symbol, tArgs) =>
       val tas = formatTypeNames(tArgs.map(formatType))
       s"${nonExportedTypeName(symbol)}$tas"
+
+    case TypeRef(prefix, symbol, tArgs) =>
+      val tas = formatTypeNames(tArgs.map(formatType))
+      val idx = symbol.dropRight(1).lastIndexOf('#')
+      val sn = FullName.fromSimpleName(symbol.dropRight(1).substring(idx + 1))
+      s"${formatType(prefix)}.$sn$tas"
 
     case SingleType(isb.Type.Empty, symbol) =>
       nonExportedTypeName(symbol)
@@ -138,14 +148,13 @@ class TypeFormatter(
     "scala/scalajs/js/Symbol#" -> "symbol"
   )
 
-  val knownOrBuiltInFormatterCreators = formatterCreatorsForKnownTypes ++ Seq(builtInFormatterCreator)
-  val knownOrBuiltInFormatter         = knownOrBuiltInFormatterCreators.map(_.apply(this)).reduce(_ orElse _)
+  val knownOrBuiltInFormatter = builtInFormatterCreator(this)
 
   val catchAllFormatter = catchAllFormatterCreator.apply(this)
 
   val formatter = knownOrBuiltInFormatter orElse catchAllFormatter
 
-  def nonExportedTypeName(symbol: String): String = FullName.fromSymbol(symbol).str
+  def nonExportedTypeName(symbol: String): String = s"$rootPrefix${FullName.fromSymbol(symbol)}"
 
 }
 

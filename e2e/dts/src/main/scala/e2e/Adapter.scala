@@ -27,8 +27,8 @@ object Adapter extends js.Object {
     object y extends js.Object {
       @JSExportAll
       trait SomeClass extends InstanceAdapter[_root_.x.y.SomeClass] {
-        def array = $res($delegate.array)
-        def sum   = $res($delegate.sum)
+        def array = $delegate.array.$res
+        def sum   = $delegate.sum.$res
       }
       object SomeClass extends js.Object {
         def newInstance(array: js.Array[Int]) = new _root_.x.y.SomeClass(array.$cnv[Array[Int]])
@@ -36,11 +36,11 @@ object Adapter extends js.Object {
           override val $delegate = delegate
         }
         // access object def
-        def upper(s: String): String = $res(_root_.x.y.SomeClass.upper(s).$cnv[String])
+        def upper(s: String): String = _root_.x.y.SomeClass.upper(s).$res
         // access object val
-        def x = $res(_root_.x.y.SomeClass.x)
+        def x = _root_.x.y.SomeClass.x.$res
         // access object var
-        def y = $res(_root_.x.y.SomeClass.y)
+        def y = _root_.x.y.SomeClass.y.$res
         def y_=(v: String) = _root_.x.y.SomeClass.y = v.$cnv[String]
       }
     }

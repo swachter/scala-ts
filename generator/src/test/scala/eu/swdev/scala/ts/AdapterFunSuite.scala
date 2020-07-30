@@ -49,9 +49,7 @@ trait AdapterFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { s
 
     val inputs = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
 
-    val result = new ts.Result.StringBuilderResult
-    AdapterGenerator.generate(inputs, symTab, result)
-    result.sb.toString().trim
+    AdapterGenerator.generate(inputs, symTab, "Adapter").trim
   }
 
 }

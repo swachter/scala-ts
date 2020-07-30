@@ -1,3 +1,4 @@
+import scala.annotation.meta.getter
 import scala.collection.mutable
 import scala.concurrent.Promise
 import scala.scalajs.js
@@ -323,4 +324,20 @@ class ClassWithMethodsFromTraits extends MiddleTrait {
   override def middle(n: Int): Int = 3*n
 
   override def base(n: Int): Int = 2*n
+}
+
+@JSExportAll
+trait OuterTrait {
+  object inheritedInnerObj extends js.Object {
+    val y = 1
+  }
+}
+
+@JSExportTopLevel("ClassWithInnerObj")
+@JSExportAll
+class ClassWithInnerObj {
+  val x = 1
+  object innerObj extends js.Object {
+    val y = 2
+  }
 }

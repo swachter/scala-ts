@@ -9,7 +9,7 @@ lazy val root = (project in file("."))
   .settings(
     scalaVersion := "2.13.3",
     version := "0.0.1-SNAPSHOT",
-    name := "scala-ts-e2e",
+    name := "scala-ts-e2e-dts",
     organization := "eu.swdev",
     scalaTsModuleName := "scala-ts-mod",
     scalaTsValidate := true,
@@ -38,7 +38,7 @@ lazy val root = (project in file("."))
           Process("npm" :: "t" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) !
         )
       if (r != 0) {
-        throw new MessageOnlyException("e2e tests failed")
+        throw new MessageOnlyException("e2e dts tests failed")
       }
     },
     externalNpm := {

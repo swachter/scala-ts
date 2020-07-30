@@ -14,29 +14,33 @@ import scala.meta.tokens.Token
   *
   * In case that multiple ".d.ts:" or "group:" comments are given only the first is considered.
   */
-sealed trait DtsInfo
+sealed trait ValidationInfo
 
-object DtsInfo {
+object ValidationInfo {
 
-  case class Dts(dts: String)                        extends DtsInfo
-  case class Group(group: String)                    extends DtsInfo
-  case class DtsAndGroup(dts: String, group: String) extends DtsInfo
+  case class Expected(string: String)                          extends ValidationInfo
+  case class Group(group: String)                              extends ValidationInfo
+  case class ExpectedAndGroup(expected: String, group: String) extends ValidationInfo
 
-  val groupMarker = "group:"
-  val dtsMarker   = ".d.ts:"
+  val groupMarker   = "group:"
+  val dtsMarker     = ".d.ts:"
+  val adapterMarker = "adapter:"
 
-  def apply(semSrc: SemSource): Option[DtsInfo] = {
+  def apply(semSrc: SemSource, expectedMarker: String): Option[ValidationInfo] = {
     val optDts = semSrc.tokens.collectFirst {
-      case t: Token.Comment if t.value.trim.startsWith(dtsMarker) => t.value.trim.substring(dtsMarker.length).trim
+      case t: Token.Comment if t.value.trim.startsWith(expectedMarker) => t.value.trim.substring(expectedMarker.length).trim
     }
     val optGroup = semSrc.tokens.collectFirst {
       case t: Token.Comment if t.value.trim.startsWith(groupMarker) => t.value.trim.substring(groupMarker.length).trim
     }
     (optDts, optGroup) match {
-      case (Some(dts), Some(group)) => Some(DtsAndGroup(dts, group))
-      case (Some(dts), _)           => Some(Dts(dts))
+      case (Some(dts), Some(group)) => Some(ExpectedAndGroup(dts, group))
+      case (Some(dts), _)           => Some(Expected(dts))
       case (_, Some(group))         => Some(Group(group))
       case _                        => None
     }
   }
+
+  def dts(semSrc: SemSource) = apply(semSrc, dtsMarker)
+  def adapter(semSrc: SemSource) = apply(semSrc, adapterMarker)
 }

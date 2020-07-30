@@ -1,0 +1,19 @@
+{
+  "name": "test-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "tsc && node --experimental-vm-modules node_modules/jest/bin/jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^25.2.3",
+    "@types/node": "^14.0.5",
+    "jest": "^26.0.1",
+    "scala-adapter": "file:client/target/node_module",
+    "typescript": "^3.9.5"
+  },
+  "type": "module"
+}

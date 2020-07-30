@@ -1,5 +1,6 @@
 package eu.swdev.scala.ts
 
+import eu.swdev.scala.ts
 import eu.swdev.scala.ts.Input.CtorParam
 
 import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature, Type => SdbType}
@@ -7,7 +8,13 @@ import scala.meta.internal.symtab.SymbolTable
 
 object AdapterGenerator {
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable, result: Result): Unit = {
+  def generate(inputs: List[Input.Defn], symTab: SymbolTable, adapterName: String): String = {
+    val r = new ts.Result.StringBuilderResult
+    generate(inputs, symTab, adapterName, r)
+    r.sb.toString()
+  }
+
+  def generate(inputs: List[Input.Defn], symTab: SymbolTable, adapterName: String, result: Result): Unit = {
 
     val root = AdapterObject(inputs)
 
@@ -53,6 +60,8 @@ object AdapterGenerator {
       (displayName, accessName)
     }
 
+    def resOrCnv(interopType: Option[String]) = interopType.fold(".$res")(s => s".$$cnv[$s]")
+
     def outputDef(a: Adaption.Def, outerName: List[String]): Unit = {
       val input                     = a.input
       val (displayName, accessName) = displayNameAndAccessName(input, outerName)
@@ -65,31 +74,31 @@ object AdapterGenerator {
           input.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodArg(_, input))).mkString("(", ", ", ")")
         )
       }
-      result.addLine(s"def $displayName$tparams$params = $$res($accessName$args)")
+      result.addLine(s"def $displayName$tparams$params = $accessName$args${resOrCnv(input.adapted.interopType)}")
     }
 
-    def doOutputVal(input: Input, outerName: List[String]): Unit = {
+    def doOutputVal(input: Input, outerName: List[String], interopType: Option[String]): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, outerName)
-      result.addLine(s"def $displayName = $$res($accessName)")
+      result.addLine(s"def $displayName = $accessName${resOrCnv(interopType)}")
     }
 
-    def doOutputVar(input: Input, tpe: SdbType, outerName: List[String]): Unit = {
+    def doOutputVar(input: Input, tpe: SdbType, outerName: List[String], interopType: Option[String]): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, outerName)
       val unchangedType             = unchangedTypeFormatter(tpe)
-      val interopType               = interopTypeFormatter(tpe)
-      result.addLine(s"def $displayName = $$res($$delegate.${input.si.displayName})")
-      result.addLine(s"def ${displayName}_=(value: $interopType) = $accessName = value.$$cnv[$unchangedType]")
+      val iopType                   = interopType.getOrElse(interopTypeFormatter(tpe))
+      result.addLine(s"def $displayName = $accessName.$$cnv[$iopType]")
+      result.addLine(s"def ${displayName}_=(value: $iopType) = $accessName = value.$$cnv[$unchangedType]")
     }
 
-    def outputVal(a: Adaption.Val, outerName: List[String]): Unit = doOutputVal(a.input, outerName)
+    def outputVal(a: Adaption.Val, outerName: List[String]): Unit = doOutputVal(a.input, outerName, a.input.adapted.interopType)
 
-    def outputVar(a: Adaption.Var, outerName: List[String]): Unit = doOutputVar(a.input, a.input.methodSignature.returnType, outerName)
+    def outputVar(a: Adaption.Var, outerName: List[String]): Unit = doOutputVar(a.input, a.input.methodSignature.returnType, outerName, a.input.adapted.interopType)
 
-    def outputCtorVal(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVal(input, outerName)
+    def outputCtorVal(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVal(input, outerName, input.adapted.interopType)
 
-    def outputCtorVar(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVar(input, input.valueSignature.tpe, outerName)
+    def outputCtorVar(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVar(input, input.valueSignature.tpe, outerName, input.adapted.interopType)
 
-    def outputNewInstance(a: Adaption.NewInstance, outerName: List[String]): Unit = {
+    def outputNewDelegate(a: Adaption.NewDelegate, outerName: List[String]): Unit = {
       val input                     = a.input
       val (displayName, accessName) = displayNameAndAccessName(input, outerName)
       val (params, args) = if (input.ctorParams.isEmpty) {
@@ -104,7 +113,7 @@ object AdapterGenerator {
       }
       val tparams = formatTParamSyms(input.classSignature.typeParamSymbols)
       // TODO does not work for nested classes; the instance can not be created by "new FullName"; it must be "new $delegate.DisplayName"
-      result.addLine(s"def newInstance$tparams$params = new _root_.${FullName(input.si)}$args")
+      result.addLine(s"def newDelegate$tparams$params = new _root_.${FullName(input.si)}$args")
     }
 
     def outputNewAdapter(a: Adaption.NewAdapter, outerName: List[String]): Unit = {
@@ -112,7 +121,7 @@ object AdapterGenerator {
       val displayName = input.si.displayName
       // TODO does not work for nested classes; the delegate must be of type "$delegate.DisplayName"
       result.openBlock(s"def newAdapter(delegate: _root_.${FullName(input.si)}): $displayName = new $displayName")
-      result.addLine("$delegate = delegate")
+      result.addLine("override val $delegate = delegate")
       result.closeBlock()
     }
 
@@ -142,14 +151,15 @@ object AdapterGenerator {
     result.addLine("import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}")
     result.addLine("import eu.swdev.scala.ts.adapter._")
 
-    val adapterName = "Adapter"
-
     result.addLine(s"""@JSExportTopLevel("$adapterName")""")
     result.openBlock(s"object $adapterName extends js.Object")
-    result.addLine("@JSExportAll")
-    result.openBlock("trait InstanceAdapter[D]")
-    result.addLine("val $delegate: D")
-    result.closeBlock()
+
+    if (root.hasTraits) {
+      result.addLine("@JSExportAll")
+      result.openBlock("trait InstanceAdapter[D]")
+      result.addLine("val $delegate: D")
+      result.closeBlock()
+    }
 
     def outputAdapter(ao: AdapterObject, outerName: List[String]): Unit = {
 
@@ -157,7 +167,7 @@ object AdapterGenerator {
         case a: Adaption.Def         => outputDef(a, outerName)
         case a: Adaption.Val         => outputVal(a, outerName)
         case a: Adaption.Var         => outputVar(a, outerName)
-        case a: Adaption.NewInstance => outputNewInstance(a, outerName)
+        case a: Adaption.NewDelegate => outputNewDelegate(a, outerName)
         case a: Adaption.NewAdapter  => outputNewAdapter(a, outerName)
       }
 
@@ -174,7 +184,7 @@ object AdapterGenerator {
 
     }
 
-    outputAdapter(root, Nil)
+    outputAdapter(root, List("_root_"))
 
     result.closeBlock()
   }

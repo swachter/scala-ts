@@ -29,7 +29,7 @@ object InteropConverter extends LowPrio {
   implicit def jsArray2ScalaList[X, Y](implicit ev: C[X, Y]): C[js.Array[X], List[Y]] = _.toList.map(ev(_))
 
   implicit def scalaArray2JsArray[X, Y](implicit ev: C[X, Y]): C[Array[X], js.Array[Y]] = _.toJSArray.map(ev(_))
-  implicit def scalaList2JsArray[X: ClassTag, Y: ClassTag](implicit ev: C[X, Y]): C[List[X], js.Array[Y]] = _.toJSArray.map(ev(_))
+  implicit def scalaList2JsArray[X, Y](implicit ev: C[X, Y]): C[List[X], js.Array[Y]] = _.toJSArray.map(ev(_))
 
   implicit def undefOr2Option[X, Y](implicit ev: C[X, Y]): C[js.UndefOr[X], Option[Y]] = _.toOption.map(ev(_))
   implicit def option2undefOr[X, Y](implicit ev: C[X, Y]): C[Option[X], js.UndefOr[Y]] = _.orUndefined.map(ev(_))

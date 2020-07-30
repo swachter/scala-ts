@@ -10,16 +10,12 @@ class ObjectDefValVarTest extends AdapterFunSuite {
     |import eu.swdev.scala.ts.adapter._
     |@JSExportTopLevel("Adapter")
     |object Adapter extends js.Object {
-    |  @JSExportAll
-    |  trait InstanceAdapter[D] {
-    |    val $delegate: D
-    |  }
     |  object test extends js.Object {
     |    object ObjectDefValVarTest extends js.Object {
-    |      def method(x: Int) = $res(test.ObjectDefValVarTest.method(x))
-    |      def value = $res(test.ObjectDefValVarTest.value)
-    |      def variable = $res($delegate.variable)
-    |      def variable_=(value: Boolean) = test.ObjectDefValVarTest.variable = value.$cnv[Boolean]
+    |      def method(x: Int) = _root_.test.ObjectDefValVarTest.method(x).$res
+    |      def value = _root_.test.ObjectDefValVarTest.value.$res
+    |      def variable = _root_.test.ObjectDefValVarTest.variable.$cnv[Boolean]
+    |      def variable_=(value: Boolean) = _root_.test.ObjectDefValVarTest.variable = value.$cnv[Boolean]
     |    }
     |  }
     |}

@@ -15,11 +15,11 @@ import org.scalatest.matchers.must.Matchers
   */
 abstract class AbstractAutoDetectingTest extends AnyFunSuite with ScalaMetaHelper with Matchers {
 
-  def dtsInfos(): List[(SemSource, DtsInfo)] = {
+  def dtsInfos(): List[(SemSource, ValidationInfo)] = {
     val relativeTestDir = basePath.relativize(testDirPath).toString
     locateSemSources(metaInfPath, dialect)
       .filter(_.td.uri.contains(relativeTestDir))
-      .map(s => s -> DtsInfo(s))
+      .map(s => s -> ValidationInfo.dts(s))
       .collect {
         case (semSource, Some(dtsInfo)) => semSource -> dtsInfo
       }
@@ -28,24 +28,24 @@ abstract class AbstractAutoDetectingTest extends AnyFunSuite with ScalaMetaHelpe
   val infos = dtsInfos()
 
   private def check(inputs: List[Input.Defn], expectedDts: String): Unit = {
-    val generatedDts = Generator.generate(inputs, symTab, Seq.empty, getClass.getClassLoader).trim
+    val generatedDts = Generator.generate(inputs, false, symTab, getClass.getClassLoader).trim
     generatedDts mustBe expectedDts
   }
 
   infos.foreach {
 
-    case (semSrc, DtsInfo.Dts(expectedDts)) =>
+    case (semSrc, ValidationInfo.Expected(expectedDts)) =>
       test(s"file: ${semSrc.td.uri}") {
         val inputs = Analyzer.analyze(semSrc, symTab)
         check(inputs, expectedDts)
       }
 
-    case (_, DtsInfo.DtsAndGroup(expectedDts, group)) =>
+    case (_, ValidationInfo.ExpectedAndGroup(expectedDts, group)) =>
       test(s"group: $group") {
         val inputs = infos
           .collect {
-            case (semSrc, DtsInfo.Group(`group`))          => semSrc
-            case (semSrc, DtsInfo.DtsAndGroup(_, `group`)) => semSrc
+            case (semSrc, ValidationInfo.Group(`group`))          => semSrc
+            case (semSrc, ValidationInfo.ExpectedAndGroup(_, `group`)) => semSrc
           }
           .flatMap(Analyzer.analyze(_, symTab))
         check(inputs, expectedDts)

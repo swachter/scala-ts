@@ -43,7 +43,7 @@ class OuterTest extends DtsFunSuite {
     |    }
     |  }
     |}
-    |""".check(classOf[Outer])
+    |""".check()
 
 }
 

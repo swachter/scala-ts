@@ -220,8 +220,7 @@ In addition to the interfaces that are generated for _opaque_ types, interfaces 
 
 ### Folder Contents
 
-- `e2e`: standalone SBT project with end-2-end tests ([`readme`](e2e/readme.md))
-- `e2e-mirror`: contains a symbolic link to the sources of the `e2e` folder; allows to edit the sources of the `e2e` test when working with this build
+- `e2e`: standalone SBT projects for end-2-end tests ([`readme`](e2e/readme.md))
 - `explore`: a `ScalaJS` project for exploration
 - `generator`: a library module that contains the code generator
 - `sbt-scala-ts`: contains the `ScalaTsPlugin`

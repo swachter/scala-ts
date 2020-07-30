@@ -17,11 +17,11 @@ object Adaption {
   case class Val(input: Input.Val) extends DefValVar
   case class Var(input: Input.Var) extends DefValVar
 
-  // the newInstance and newAdapter methods must be part of the adapter object of the class
-  // -> construct the full name by adding "newInstance" or "newAdapter" to the full name of the class
+  // the newDelegate and newAdapter methods must be part of the adapter object of the class
+  // -> construct the full name by adding "newDelegate" or "newAdapter" to the full name of the class
 
-  case class NewInstance(input: Input.Cls) extends Method {
-    def fullName = FullName(input.si).member("newInstance")
+  case class NewDelegate(input: Input.Cls) extends Method {
+    def fullName = FullName(input.si).member("newDelegate")
   }
   case class NewAdapter(input: Input.Cls) extends Method {
     def fullName = FullName(input.si).member("newAdapter")

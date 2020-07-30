@@ -45,6 +45,7 @@ lazy val annotations = crossProject(JSPlatform, JVMPlatform).crossType(CrossType
     name := "scala-ts-annotations",
     description := "compile time only library including annotations for ScalaTs",
     crossScalaVersions := List(scala212, scala213),
+    publishMavenStyle := false,
   )
 
 lazy val runtime = project

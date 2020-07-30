@@ -6,7 +6,7 @@ import scala.scalajs.js.annotation.{JSExportAll, JSExportTopLevel}
 class AdapterClassTest extends DtsFunSuite {
   """
     |export interface AdapterClassTest$ {
-    |  readonly x: AdapterClassTest.x$
+    |  readonly x: _root_AdapterClassTest.x$
     |  'AdapterClassTest$': never
     |}
     |export const AdapterClassTest: AdapterClassTest$
@@ -16,18 +16,18 @@ class AdapterClassTest extends DtsFunSuite {
     |    'AdapterClassTest.InstanceAdapter': never
     |  }
     |  interface x$ {
-    |    readonly SomeClass: AdapterClassTest.x.SomeClass$
+    |    readonly SomeClass: _root_AdapterClassTest.x.SomeClass$
     |    'AdapterClassTest.x$': never
     |  }
     |  namespace x {
-    |    interface SomeClass extends AdapterClassTest.InstanceAdapter<x.SomeClass> {
-    |      readonly array: number[]
+    |    interface SomeClass extends AdapterClassTest.InstanceAdapter<_root_x.SomeClass> {
+    |      readonly array: (number)[]
     |      readonly sum: number
     |      'AdapterClassTest.x.SomeClass': never
     |    }
     |    interface SomeClass$ {
-    |      newInstance(array: number[]): x.SomeClass
-    |      newAdapter(d: x.SomeClass): AdapterClassTest.x.SomeClass
+    |      newInstance(array: (number)[]): _root_x.SomeClass
+    |      newAdapter(d: _root_x.SomeClass): AdapterClassTest.x.SomeClass
     |      'AdapterClassTest.x.SomeClass$': never
     |    }
     |  }
@@ -37,7 +37,9 @@ class AdapterClassTest extends DtsFunSuite {
     |    'x.SomeClass': never
     |  }
     |}
-    |""".check()
+    |import _root_AdapterClassTest = AdapterClassTest
+    |import _root_x = x
+    |""".check(addRootNamespace = true)
 }
 
 package x {

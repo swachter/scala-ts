@@ -24,9 +24,9 @@ object FullName {
     }
     val s = sym
       .substring(0, sym.length - 1)
-      .replace(".package.", ".")
       .replace("_empty_/", "")
       .replace('/', '.') // path steps to packages
+      .replace(".package.", ".")
       .replace('#', '.') // classes have a '#' suffix -> replace by '.' separator
     s"$s$suffix"
   }
@@ -95,18 +95,21 @@ object Visibility {
   */
 sealed trait Adapted {
   def isAdapted: Boolean
+  def interopType: Option[String]
 }
 
 object Adapted {
   case object No extends Adapted {
     override def isAdapted: Boolean = false
+    def interopType: Option[String] = None
   }
   case object WithDefaultInteropType extends Adapted {
     override def isAdapted: Boolean = true
-
+    def interopType: Option[String] = None
   }
-  case class WithOverriddenInteropType(interopType: String) extends Adapted {
+  case class WithOverriddenInteropType(iopType: String) extends Adapted {
     override def isAdapted: Boolean = true
+    def interopType: Option[String] = Some(iopType)
   }
 }
 

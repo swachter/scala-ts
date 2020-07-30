@@ -14,9 +14,9 @@ trait DtsFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { self 
       *
       * If no class is specified then the test class itself is used.
       */
-    def check(classes: Class[_]*): Unit = {
+    def check(addRootNamespace: Boolean = false): Unit = {
       test("dts") {
-        val generatedDts = if (classes.isEmpty) dts(self.getClass) else dts(classes: _*)
+        val generatedDts = dts(addRootNamespace, Seq(self.getClass))
         generatedDts mustBe expectedDts.stripMargin.trim
       }
     }
@@ -29,7 +29,7 @@ trait DtsFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { self 
     * Note that not only the given classes are considered when generating the type declaration file but all
     * symbols that are defined in the corresponding files.
     */
-  def dts(classes: Class[_]*): String = {
+  def dts(addRootNamespace: Boolean, classes: Seq[Class[_]]): String = {
 
     val classSymbols = classes
       .map(_.getName.replace('.', '/'))
@@ -56,7 +56,7 @@ trait DtsFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { self 
 
     val inputs = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
 
-    Generator.generate(inputs, symTab, Seq.empty, getClass.getClassLoader).trim
+    Generator.generate(inputs, addRootNamespace, symTab, getClass.getClassLoader).trim
   }
 
 }

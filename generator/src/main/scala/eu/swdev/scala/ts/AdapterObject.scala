@@ -18,6 +18,8 @@ class AdapterObject(val name: String) {
     this
   }
 
+  def hasTraits: Boolean = traits.nonEmpty || nested.values.exists(_.hasTraits)
+
   private def enclosingAdapterObject(fullName: FullName): AdapterObject = {
     var n = this
     fullName.str.split('.').dropRight(1).foreach { p =>
@@ -54,9 +56,9 @@ object AdapterObject {
       case i: Input.Cls => i
     }.foreach { cls =>
       if (cls.constrAdapted) {
-        root += Adaption.NewInstance(cls)
+        root += Adaption.NewDelegate(cls)
       }
-      if (cls.member.exists(isAdapted)) {
+      if (cls.member.exists(isAdapted) || cls.ctorParams.exists(_.adapted.isAdapted)) {
         root += Adaption.NewAdapter(cls)
         root += Adaption.Trait(cls)
       }

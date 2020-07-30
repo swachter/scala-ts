@@ -19,13 +19,19 @@ object ScalaTsPlugin extends AutoPlugin {
     val scalaTsModuleVersion =
       settingKey[String => String]("Maps the project version into a node module version (default: identity function with check)")
 
+    val scalaTsAddRootNamespace = settingKey[Boolean]("Determines if a out root namespace is added (default: false)")
     val scalaTsConsiderFullCompileClassPath = settingKey[Boolean](
       "Determines if the full compile class path or only the classes of the current project are considered (default: false)")
     val scalaTsInclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: .)")
     val scalaTsExclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: (?!.).)")
 
-    val scalaTsFastOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
-    val scalaTsFullOpt           = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
+    val scalaTsFastOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
+    val scalaTsFullOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
+
+    val scalaTsAdapterEnabled = settingKey[Boolean]("Determines if adapter code is generated; implies considerFullCompileClassPath and addRootNamespace; (default: false)")
+    val scalaTsAdapterName    = settingKey[String]("Name of adapter (default: Adapter)")
+
+    // development support settings
     val scalaTsValidate          = settingKey[Boolean]("Determines if generation results are compared given expected results")
     val scalaTsChangeForkOptions = settingKey[ForkOptions => ForkOptions]("Allows to change the fork options (default: identity function)")
 
@@ -36,10 +42,13 @@ object ScalaTsPlugin extends AutoPlugin {
   import autoImport._
 
   override lazy val globalSettings = Seq(
+    scalaTsAddRootNamespace := false,
     scalaTsModuleVersion := semanticVersionCheck,
     scalaTsConsiderFullCompileClassPath := false,
     scalaTsInclude := Pattern.compile("."),
     scalaTsExclude := Pattern.compile("(?!.)."),
+    scalaTsAdapterEnabled := false,
+    scalaTsAdapterName := "Adapter",
     scalaTsChangeForkOptions := identity,
     scalaTsValidate := false,
   )
@@ -57,6 +66,12 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaJSUseMainModuleInitializer := false,
   )
 
+  lazy val annotationDependency = "eu.swdev" %% "scala-ts-generator" % BuildInfo.version
+  
+  lazy val adapterSettings = Seq(
+    libraryDependencies += annotationDependency,
+  )
+
   override lazy val projectSettings: Seq[Setting[_]] = semanticDbSettings ++ scalaJsSettings ++ Seq(
     scalaTsModuleName := name.value,
     // the scala-ts generator uses scala-reflect in order to access the compiled classes of the current project
@@ -65,17 +80,33 @@ object ScalaTsPlugin extends AutoPlugin {
     // -> add the scala-ts-generator jar as a dependency to the project in order to have it on the classpath
     // -> use (classDirectory +: fullClassPath) as the classpath for the forked process
     libraryDependencies += "eu.swdev" %% "scala-ts-generator" % BuildInfo.version,
-    libraryDependencies += "eu.swdev" %%% "scala-ts-runtime" % BuildInfo.version,
+    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("eu.swdev" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
+    Compile / sourceGenerators += Def.task {
+      generateAdapter(
+        scalaTsAdapterEnabled.value,
+        AdapterGeneratorMain.Config(
+          adapterFile = (Compile / sourceManaged).value / (scalaTsAdapterName.value + ".scala"),
+          adapterName = scalaTsAdapterName.value,
+          include = scalaTsInclude.value,
+          exclude = scalaTsExclude.value,
+          (dependencyClasspath in Compile).value.map(_.data).toList,
+          scalaTsValidate.value,
+        ),
+       scalaTsChangeForkOptions.value,
+       streams.value.log
+      )
+    }.taskValue,
     // the scala-ts-generator is availabble in the jcenter repo
     resolvers += Resolver.jcenterRepo,
     scalaTsFastOpt := {
       (Compile / fastOptJS).value
-      forkGenerator(
-        ForkedMain.Config(
+      forkDtsGenerator(
+        DtsGeneratorMain.Config(
           (artifactPath in fastOptJS in Compile).value,
+          scalaTsAddRootNamespace.value || scalaTsAdapterEnabled.value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
-          scalaTsConsiderFullCompileClassPath.value,
+          scalaTsConsiderFullCompileClassPath.value || scalaTsAdapterEnabled.value,
           scalaTsInclude.value,
           scalaTsExclude.value,
           (classDirectory in Compile).value,
@@ -88,12 +119,13 @@ object ScalaTsPlugin extends AutoPlugin {
     },
     scalaTsFullOpt := {
       (Compile / fullOptJS).value
-      forkGenerator(
-        ForkedMain.Config(
+      forkDtsGenerator(
+        DtsGeneratorMain.Config(
           (artifactPath in fullOptJS in Compile).value,
+          scalaTsAddRootNamespace.value || scalaTsAdapterEnabled.value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
-          scalaTsConsiderFullCompileClassPath.value,
+          scalaTsConsiderFullCompileClassPath.value || scalaTsAdapterEnabled.value,
           scalaTsInclude.value,
           scalaTsExclude.value,
           (classDirectory in Compile).value,
@@ -116,8 +148,8 @@ object ScalaTsPlugin extends AutoPlugin {
     }
   }
 
-  def forkGenerator(
-      config: ForkedMain.Config,
+  def forkDtsGenerator(
+      config: DtsGeneratorMain.Config,
       changeForkOptions: ForkOptions => ForkOptions,
       log: ManagedLogger
   ): Unit = {
@@ -127,7 +159,34 @@ object ScalaTsPlugin extends AutoPlugin {
       .withEnvVars(config.asEnvVars)
     Fork.scala(
       changeForkOptions(options),
-      Seq(s"${classOf[ForkedMain].getName}")
+      Seq(s"${classOf[DtsGeneratorMain].getName}")
+    )
+  }
+
+  def generateAdapter(enabled: Boolean, config: AdapterGeneratorMain.Config,
+                      changeForkOptions: ForkOptions => ForkOptions,
+                      log: ManagedLogger
+                     ): Seq[File] = {
+    if (enabled) {
+      forkAdapterGenerator(config, changeForkOptions, log)
+      Seq(config.adapterFile)
+    } else {
+      Seq()
+    }
+  }
+
+  def forkAdapterGenerator(
+      config: AdapterGeneratorMain.Config,
+      changeForkOptions: ForkOptions => ForkOptions,
+      log: ManagedLogger
+  ): Unit = {
+    val options = ForkOptions()
+      .withBootJars(config.compileFullClasspath.toVector)
+      .withOutputStrategy(OutputStrategy.LoggedOutput(log))
+      .withEnvVars(config.asEnvVars)
+    Fork.scala(
+      changeForkOptions(options),
+      Seq(s"${classOf[AdapterGeneratorMain].getName}")
     )
   }
 

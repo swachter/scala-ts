@@ -10,13 +10,13 @@ object Generator {
 
   import TypeFormatter._
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader): String = {
+  def generate(inputs: List[Input.Defn], addRootNamespace: Boolean, symTab: SymbolTable, classLoader: ClassLoader): String = {
     val r = new Result.StringBuilderResult
-    generate(inputs, symTab, custom, classLoader, r)
+    generate(inputs, addRootNamespace, symTab, classLoader, r)
     r.sb.toString()
   }
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader, result: Result): Unit = {
+  def generate(inputs: List[Input.Defn], addRootNamespace: Boolean, symTab: SymbolTable, classLoader: ClassLoader, result: Result): Unit = {
 
     val topLevelExports = Analyzer.topLevel(inputs)
 
@@ -26,7 +26,7 @@ object Generator {
 
     val nativeSymbolAnalyzer = NativeSymbolAnalyzer(topLevelExports, classLoader, symTab)
 
-    val typeFormatter = new TypeFormatter(custom, nativeSymbolAnalyzer, symTab)
+    val typeFormatter = new TypeFormatter(addRootNamespace, nativeSymbolAnalyzer, symTab)
 
     import typeFormatter._
 
@@ -158,13 +158,13 @@ object Generator {
     }
 
     def memberObj(i: Input.Obj): String = {
-      s"readonly ${memberName(i)}: ${FullName(i.si)}"
+      s"readonly ${memberName(i)}: $rootPrefix${FullName(i.si)}"
     }
 
     def exportObj(name: String, i: Input.Obj): Unit = {
       // export an interface with the same name as the object constant that includes the object members
       // -> this allows the object to be part of a union type
-      exportItf(Output.Interface(i.si, FullName.fromSimpleName(s"$name$$"), i.member, symTab), 0)
+      exportItf(Output.Interface(i.si, FullName.fromSimpleName(s"$name$$"), i.member, symTab), "export ")
       result.addLine(s"export const $name: $name$$")
     }
 
@@ -241,7 +241,7 @@ object Generator {
       // -> the declaration of that interface and the declaration of the class are "merged"; cf. TypeScript declaration merging
       val itf = Output.Interface(i.si, FullName.fromSimpleName(name), Nil, symTab)
       if (itf.parents.exists(isParentTypeKnown)) {
-        exportItf(itf, 0)
+        exportItf(itf, "export ")
       }
       val tps = formatTParamSyms(i.classSignature.typeParamSymbols)
 
@@ -275,15 +275,13 @@ object Generator {
       result.closeBlock()
     }
 
-    def exportItf(itf: Output.Interface, indent: Int): Unit = {
+    def exportItf(itf: Output.Interface, exp: String): Unit = {
 
       val parents = itf.parents.filter(isParentTypeKnown)
 
       val ext =
         if (parents.isEmpty) ""
         else parents.map(p => s"${p.fullName}${formatTypes(p.typeArgs)}").mkString(" extends ", ", ", "")
-
-      val exp   = if (indent == 0) "export " else ""
 
       result.openBlock(s"${exp}interface ${itf.simpleName}${formatTParamSyms(itf.typeParamSyms)}$ext")
 
@@ -293,7 +291,7 @@ object Generator {
       result.closeBlock()
     }
 
-    def exportUnion(union: Output.Union, indent: Int): Unit = {
+    def exportUnion(union: Output.Union, exp: String): Unit = {
       val allTypeArgs               = union.members.flatMap(_.typeParams(symTab))
       val (parentArgs, privateArgs) = SubtypeParam.removeDuplicatesAndSplit(allTypeArgs)
 
@@ -303,8 +301,6 @@ object Generator {
         case SubtypeParam.Parent(idx)            => formatTParam(parentTParams(idx))
         case SubtypeParam.Unrelated(prefix, sym) => s"$$M$prefix${formatTParamSym(sym)}"
       }
-
-      val exp   = if (indent == 0) "export " else ""
 
       val members = union.members
         .map { member =>
@@ -319,27 +315,45 @@ object Generator {
       result.addLine(s"${exp}type ${union.fullName.last}${formatTypeNames(unionTParams)} = $members")
     }
 
-    def exportAlias(tpe: Output.Alias, indent: Int): Unit = {
-      val exp   = if (indent == 0) "export " else ""
+    def exportAlias(tpe: Output.Alias, exp: String): Unit = {
       val tps   = formatTParamSyms(tpe.e.si.typeParamSymbols)
-
       result.addLine(s"${exp}type ${tpe.simpleName}$tps = ${typeFormatter(tpe.rhs)}")
     }
 
-    def exportNs(ns: Namespace, indent: Int): Unit = {
-      val exp   = if (indent == 0) "export " else ""
-      if (indent >= 0) {
+    def exportNs(ns: Namespace, needsExport: Boolean): Unit = {
+      val nsOpened = if (ns.name.isEmpty) {
+        false
+      } else {
+        val exp = if (needsExport) "export " else ""
         result.openBlock(s"${exp}namespace ${ns.name}")
+        true
       }
+
+//      val nsOpened = if (ns.name.isEmpty && addRootNamespace) {
+//        result.openBlock(s"export namespace _root_")
+//        true
+//      } else if (ns.name.isEmpty) {
+//        false
+//      } else {
+//        val exp = if (needsExport) "export " else ""
+//        result.openBlock(s"${exp}namespace ${ns.name}")
+//        true
+//      }
+
+      val memberExport = if (nsOpened) "" else "export "
+
       ns.types.values.foreach {
-        case i: Output.Alias     => exportAlias(i, indent + 1)
-        case i: Output.Interface => exportItf(i, indent + 1)
-        case i: Output.Union     => exportUnion(i, indent + 1)
+        case i: Output.Alias     => exportAlias(i, memberExport)
+        case i: Output.Interface => exportItf(i, memberExport)
+        case i: Output.Union     => exportUnion(i, memberExport)
       }
-      ns.nested.values.foreach(exportNs(_, indent + 1))
-      if (indent >= 0) {
+
+      ns.nested.values.foreach(exportNs(_, !nsOpened))
+
+      if (nsOpened) {
         result.closeBlock()
       }
+
     }
 
     val mods2Names = nativeSymbolAnalyzer.nativeSymbolImports
@@ -366,7 +380,13 @@ object Generator {
     unions.foreach(rootNamespace += _)
     missingInterfaces.foreach(rootNamespace += _)
 
-    exportNs(rootNamespace, -1)
+    exportNs(rootNamespace, true)
+
+    // TypeScript does not support a "_root_" namespace indicator comparable to Scala's _root_ package indicator
+    // -> generate aliases for the top level namespaces that are used when referencing types
+    if (addRootNamespace) {
+      rootNamespace.nested.keys.foreach(ns => result.addLine(s"import $rootPrefix$ns = $ns"))
+    }
   }
 
   sealed trait MemberOf {

@@ -32,13 +32,13 @@ class AdapterNestedClassTest extends DtsFunSuite {
     |      'AdapterNestedClassTest.x.Outer$': never
     |    }
     |    namespace Outer {
-    |      interface Inner extends AdapterNestedClassTest.InstanceAdapter<any> {
+    |      interface Inner extends AdapterNestedClassTest.InstanceAdapter<x.Outer.Inner> {
     |        innerMethod(): string
     |        'AdapterNestedClassTest.x.Outer.Inner': never
     |      }
     |      interface Inner$ {
-    |        newInstance(y: string): any
-    |        newAdapter(d: any): AdapterNestedClassTest.x.Inner
+    |        newInstance(y: string): x.Outer.Inner
+    |        newAdapter(d: x.Outer.Inner): AdapterNestedClassTest.x.Inner
     |        'AdapterNestedClassTest.x.Outer.Inner$': never
     |      }
     |    }
@@ -86,14 +86,14 @@ object AdapterNestedClassTest extends js.Object {
     trait Outer extends InstanceAdapter[_root_.x.Outer] {
       def outerMethod() = $delegate.outerMethod()
       object Inner extends js.Object {
-        def newInstance(y: String) = new $delegate.Inner(y)
-        def newAdapter(d: $delegate.Inner): Inner = new Inner {
+        def newInstance(y: String): _root_.x.Outer#Inner = new $delegate.Inner(y)
+        def newAdapter(d: _root_.x.Outer#Inner): Inner = new Inner {
           override val $delegate = d
         }
 
       }
       @JSExportAll
-      trait Inner extends InstanceAdapter[$delegate.Inner] {
+      trait Inner extends InstanceAdapter[_root_.x.Outer#Inner] {
         def innerMethod() = $delegate.innerMethod()
       }
     }

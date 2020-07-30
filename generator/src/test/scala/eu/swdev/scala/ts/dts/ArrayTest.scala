@@ -8,10 +8,10 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 class ArrayTest extends DtsFunSuite {
 
   """
-    |export function vector(v: number[]): number[]
-    |export function vectorGen<X>(v: X[]): X[]
-    |export function matrix(v: number[][]): number[][]
-    |export function matrixGen<X>(v: X[][]): X[][]
+    |export function vector(v: (number)[]): (number)[]
+    |export function vectorGen<X>(v: (X)[]): (X)[]
+    |export function matrix(v: ((number)[])[]): ((number)[])[]
+    |export function matrixGen<X>(v: ((X)[])[]): ((X)[])[]
     |""".check()
 
 }
