@@ -343,3 +343,74 @@ export class ClassWithInnerObj {
     y: number
   }
 }
+
+export interface AdapterV1$ {
+  readonly x: _root_AdapterV1.x$
+  'AdapterV1$': never
+}
+export const AdapterV1: AdapterV1$
+export namespace AdapterV1 {
+  interface InstanceAdapter<D> {
+    readonly $delegate: D
+    'AdapterV1.InstanceAdapter': never
+  }
+  interface x$ {
+    readonly OuterV1: _root_AdapterV1.x.OuterV1$
+    readonly outerV1: AdapterV1.x.OuterV1
+    'AdapterV1.x$': never
+  }
+  namespace x {
+    interface OuterV1 extends AdapterV1.InstanceAdapter<_root_x.OuterV1> {
+      readonly x: number
+      readonly MiddleV1: _root_AdapterV1.x.OuterV1.MiddleV1$
+      readonly middleV1: _root_AdapterV1.x.OuterV1.MiddleV1$
+      'AdapterV1.x.OuterV1': never
+    }
+    interface OuterV1$ {
+      newInstance(x: number): _root_x.OuterV1
+      newAdapter(d: _root_x.OuterV1): AdapterV1.x.OuterV1
+      'AdapterV1.x.OuterV1$': never
+    }
+    namespace OuterV1 {
+      interface MiddleV1 extends AdapterV1.InstanceAdapter<_root_x.OuterV1.MiddleV1> {
+        readonly y: string
+        readonly InnerV1: _root_AdapterV1.x.OuterV1.MiddleV1.InnerV1$
+        readonly innerV1: _root_AdapterV1.x.OuterV1.MiddleV1.InnerV1$
+        'AdapterV1.x.OuterV1.MiddleV1': never
+      }
+      interface MiddleV1$ {
+        newInstance(y: string): _root_x.OuterV1.MiddleV1
+        newAdapter(d: _root_x.OuterV1.MiddleV1): _root_AdapterV1.x.OuterV1.MiddleV1
+        'AdapterV1.x.OuterV1.MiddleV1$': never
+      }
+      namespace MiddleV1 {
+        interface InnerV1 extends AdapterV1.InstanceAdapter<_root_x.OuterV1.MiddleV1.InnerV1> {
+          readonly z: boolean
+          'AdapterV1.x.OuterV1.MiddleV1.InnerV1': never
+        }
+        interface InnerV1$ {
+          newInstance(z: boolean): _root_x.OuterV1.MiddleV1.InnerV1
+          newAdapter(d: _root_x.OuterV1.MiddleV1.InnerV1): _root_AdapterV1.x.OuterV1.MiddleV1.InnerV1
+          'AdapterV1.x.OuterV1.MiddleV1.InnerV1$': never
+        }
+      }
+    }
+  }
+}
+export namespace x {
+  interface OuterV1 {
+    'x.OuterV1': never
+  }
+  namespace OuterV1 {
+    interface MiddleV1 {
+      'x.OuterV1.MiddleV1': never
+    }
+    namespace MiddleV1 {
+      interface InnerV1 {
+        'x.OuterV1.MiddleV1.InnerV1': never
+      }
+    }
+  }
+}
+import _root_AdapterV1 = AdapterV1
+import _root_x = x

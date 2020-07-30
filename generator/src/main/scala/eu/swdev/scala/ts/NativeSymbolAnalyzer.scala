@@ -138,7 +138,9 @@ class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], 
   }
 
   private def innerNativeClassSymbol(si: SymbolInformation): Option[NativeSymbol.Inner] = {
-    val idx = if (si.symbol.endsWith(".")) si.symbol.lastIndexOf('.', si.symbol.length - 2) else si.symbol.lastIndexOf('.')
+    val idx1 = si.symbol.dropRight(1).lastIndexOf('.')
+    val idx2 = si.symbol.dropRight(1).lastIndexOf('#')
+    val idx = Math.max(idx1, idx2)
     if (idx >= 0) {
       nativeSymbol(si.symbol.substring(0, idx + 1)).flatMap { outerNativeSym =>
         if (outerNativeSym.allMembersAreVisible) {

@@ -38,7 +38,7 @@ class AdapterNestedClassTest extends DtsFunSuite {
     |      }
     |      interface Inner$ {
     |        newInstance(y: string): x.Outer.Inner
-    |        newAdapter(d: x.Outer.Inner): AdapterNestedClassTest.x.Inner
+    |        newAdapter(d: x.Outer.Inner): AdapterNestedClassTest.x.Outer.Inner
     |        'AdapterNestedClassTest.x.Outer.Inner$': never
     |      }
     |    }
