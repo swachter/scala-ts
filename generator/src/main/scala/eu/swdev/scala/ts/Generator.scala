@@ -11,6 +11,12 @@ object Generator {
   import TypeFormatter._
 
   def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader): String = {
+    val r = new Result.StringBuilderResult
+    generate(inputs, symTab, custom, classLoader, r)
+    r.sb.toString()
+  }
+
+  def generate(inputs: List[Input.Defn], symTab: SymbolTable, custom: Seq[CTypeFormatter], classLoader: ClassLoader, result: Result): Unit = {
 
     val topLevelExports = Analyzer.topLevel(inputs)
 
@@ -88,23 +94,21 @@ object Generator {
 
     def formatTParamSyms(symbols: Seq[Symbol]): String = formatTypeNames(symbols.map(formatTParamSym(_)))
 
-    val sb = new StringBuilder
-
     def exportDef(name: String, i: Input.Def): Unit = {
       val tps        = formatTParamSyms(i.methodSignature.typeParamSymbols)
       val params     = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i))).mkString(", ")
       val returnType = typeFormatter(i.methodSignature.returnType)
-      sb.append(s"export function $name$tps($params): $returnType\n")
+      result.addLine(s"export function $name$tps($params): $returnType")
     }
 
     def exportVal(name: String, i: Input.Val): Unit = {
       val returnType = typeFormatter(i.methodSignature.returnType)
-      sb.append(s"export const $name: $returnType\n")
+      result.addLine(s"export const $name: $returnType")
     }
 
     def exportVar(name: String, i: Input.Var): Unit = {
       val returnType = typeFormatter(i.methodSignature.returnType)
-      sb.append(s"export let $name: $returnType\n")
+      result.addLine(s"export let $name: $returnType")
     }
 
     def memberDef(i: Input.Def, memberKind: MemberKind): String = {
@@ -114,54 +118,54 @@ object Generator {
       if (i.methodSignature.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
         memberKind match {
-          case MemberKind.IsInInterface => s"${abs}readonly ${memberName(i)}: $returnType\n"
-          case _                        => s"${abs}get ${memberName(i)}(): $returnType\n"
+          case MemberKind.IsInInterface => s"${abs}readonly ${memberName(i)}: $returnType"
+          case _                        => s"${abs}get ${memberName(i)}(): $returnType"
         }
       } else {
         val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
         val params  = strings.mkString(", ")
         if (i.si.displayName.endsWith("_=")) {
           // name ends with _= -> it's a setter
-          s"${abs}set ${i.si.displayName.dropRight(2)}($params)\n"
+          s"${abs}set ${i.si.displayName.dropRight(2)}($params)"
         } else {
-          s"${abs}${memberName(i)}$tps($params): $returnType\n"
+          s"${abs}${memberName(i)}$tps($params): $returnType"
         }
       }
     }
 
     def memberVal(i: Input.Val, memberKind: MemberKind): String = {
       val abs = if (memberKind.isAbstract) "abstract " else ""
-      s"${abs}readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
+      s"${abs}readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}"
     }
 
     def memberVar(i: Input.Var, memberKind: MemberKind): String = {
       val abs = if (memberKind.isAbstract) "abstract " else ""
-      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
+      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}"
     }
 
     def memberAccessorPair(i: Input.Def, memberKind: MemberKind): String = {
       val abs = if (memberKind.isAbstract) "abstract " else ""
-      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}\n"
+      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}"
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
       def member(name: String) = formatNameAndType(name, i.valueSignature.tpe)
       i.mod match {
-        case Input.CtorParamMod.Val(name) => s"readonly ${member(name)}\n"
-        case Input.CtorParamMod.Var(name) => s"${member(name)}\n"
+        case Input.CtorParamMod.Val(name) => s"readonly ${member(name)}"
+        case Input.CtorParamMod.Var(name) => s"${member(name)}"
         case Input.CtorParamMod.Prv       => ""
       }
     }
 
     def memberObj(i: Input.Obj): String = {
-      s"readonly ${memberName(i)}: ${FullName(i.si)}\n"
+      s"readonly ${memberName(i)}: ${FullName(i.si)}"
     }
 
     def exportObj(name: String, i: Input.Obj): Unit = {
       // export an interface with the same name as the object constant that includes the object members
       // -> this allows the object to be part of a union type
       exportItf(Output.Interface(i.si, FullName.fromSimpleName(s"$name$$"), i.member, symTab), 0)
-      sb.append(s"export const $name: $name$$\n")
+      result.addLine(s"export const $name: $name$$")
     }
 
     def isParentTypeKnown(p: ParentType) = rootNamespace.contains(p.fullName)
@@ -253,7 +257,7 @@ object Generator {
       // -> that interface possibly extends base interfaces
       // -> the declaration of the interface and the declaration of the class are "merged"
       //    (cf. TypeScript declaration merging)
-      sb.append(s"export$abst class $name$tps$ext {\n")
+      result.openBlock(s"export$abst class $name$tps$ext")
 
       val objSymbol = s"${i.si.symbol.dropRight(1)}."
       statics.get(objSymbol).foreach {
@@ -261,14 +265,14 @@ object Generator {
           case e: Input.Def => memberDef(e, MemberKind.IsNonAbstract)
           case e: Input.Val => memberVal(e, MemberKind.IsNonAbstract)
           case e: Input.Var => memberVar(e, MemberKind.IsNonAbstract)
-        }.foreach(m => sb.append(s"  static $m"))
+        }.foreach(m => result.addLine(s"static $m"))
       }
       val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
-      sb.append(s"  constructor($cParams)\n")
+      result.addLine(s"constructor($cParams)")
 
       val ms = members(i.ctorParams ++ i.member, MemberOf.Cls)
-      ms.foreach(m => sb.append(s"  $m"))
-      sb.append("}\n")
+      ms.foreach(m => result.addLine(m))
+      result.closeBlock()
     }
 
     def exportItf(itf: Output.Interface, indent: Int): Unit = {
@@ -280,14 +284,13 @@ object Generator {
         else parents.map(p => s"${p.fullName}${formatTypes(p.typeArgs)}").mkString(" extends ", ", ", "")
 
       val exp   = if (indent == 0) "export " else ""
-      val space = "  " * indent
 
-      sb.append(s"$space${exp}interface ${itf.simpleName}${formatTParamSyms(itf.typeParamSyms)}$ext {\n")
+      result.openBlock(s"${exp}interface ${itf.simpleName}${formatTParamSyms(itf.typeParamSyms)}$ext")
 
-      members(itf.members, MemberOf.Itf).foreach(m => sb.append(s"$space  $m"))
+      members(itf.members, MemberOf.Itf).foreach(m => result.addLine(m))
 
-      sb.append(s"$space  '${itf.fullName}': never\n")
-      sb.append(s"$space}\n")
+      result.addLine(s"'${itf.fullName}': never")
+      result.closeBlock()
     }
 
     def exportUnion(union: Output.Union, indent: Int): Unit = {
@@ -302,7 +305,6 @@ object Generator {
       }
 
       val exp   = if (indent == 0) "export " else ""
-      val space = "  " * indent
 
       val members = union.members
         .map { member =>
@@ -314,22 +316,20 @@ object Generator {
         }
         .mkString(" | ")
 
-      sb.append(s"$space${exp}type ${union.fullName.last}${formatTypeNames(unionTParams)} = $members\n")
+      result.addLine(s"${exp}type ${union.fullName.last}${formatTypeNames(unionTParams)} = $members")
     }
 
     def exportAlias(tpe: Output.Alias, indent: Int): Unit = {
       val exp   = if (indent == 0) "export " else ""
-      val space = "  " * indent
       val tps   = formatTParamSyms(tpe.e.si.typeParamSymbols)
 
-      sb.append(s"$space${exp}type ${tpe.simpleName}$tps = ${typeFormatter(tpe.rhs)}\n")
+      result.addLine(s"${exp}type ${tpe.simpleName}$tps = ${typeFormatter(tpe.rhs)}")
     }
 
     def exportNs(ns: Namespace, indent: Int): Unit = {
       val exp   = if (indent == 0) "export " else ""
-      val space = "  " * indent
       if (indent >= 0) {
-        sb.append(s"$space${exp}namespace ${ns.name} {\n")
+        result.openBlock(s"${exp}namespace ${ns.name}")
       }
       ns.types.values.foreach {
         case i: Output.Alias     => exportAlias(i, indent + 1)
@@ -338,7 +338,7 @@ object Generator {
       }
       ns.nested.values.foreach(exportNs(_, indent + 1))
       if (indent >= 0) {
-        sb.append(s"$space}\n")
+        result.closeBlock()
       }
     }
 
@@ -351,7 +351,7 @@ object Generator {
         val defImport       = if (names.contains("default")) Some(s"${NativeSymbol.moduleName2Id(module)}_") else None
         val namespaceExport = if (names.exists(_ != "default")) Some(s"* as ${NativeSymbol.moduleName2Id(module)}") else None
         val str             = (defImport ++ namespaceExport.toSeq).mkString(", ")
-        sb.append(s"import $str from '$module'\n")
+        result.addLine(s"import $str from '$module'")
     }
 
     topLevelExports.foreach {
@@ -367,8 +367,6 @@ object Generator {
     missingInterfaces.foreach(rootNamespace += _)
 
     exportNs(rootNamespace, -1)
-
-    sb.toString
   }
 
   sealed trait MemberOf {
