@@ -37,6 +37,24 @@ object FullName {
   implicit val ord = implicitly[Ordering[String]].on[FullName](_.str)
 }
 
+case class Inputs(list: List[Input.Defn]) {
+
+  lazy val flattened: List[Input.Defn] = {
+    val b = List.newBuilder[Input.Defn]
+    def go(i: Input.Defn): Unit = {
+      b += i
+      i match {
+        case i: Input.ClsOrObj => i.member.foreach(go)
+        case i: Input.Trait    => i.member.foreach(go)
+        case _                 =>
+      }
+    }
+    list.foreach(go)
+    b.result()
+  }
+
+}
+
 /**
   * Indicates the visibility of classes, objects, traits, defs, vals, and vars.
   *

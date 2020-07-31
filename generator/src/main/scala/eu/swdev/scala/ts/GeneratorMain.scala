@@ -11,10 +11,10 @@ class GeneratorMain {
     case _                          => dialects.Scala
   }
 
-  protected def validate(semSrcs: List[SemSource], symTab: SymbolTable, generate: List[Input.Defn] => String): Unit = {
+  protected def validate(semSrcs: List[SemSource], symTab: SymbolTable, generate: Inputs => String): Unit = {
     val infos  = semSrcs.map(s => s -> ValidationInfo.dts(s)).collect { case (semSource, Some(dtsInfo)) => semSource -> dtsInfo }
     var failed = false
-    def check(name: String, inputs: List[Input.Defn], expected: String): Unit = {
+    def check(name: String, inputs: Inputs, expected: String): Unit = {
       val actual = generate(inputs).trim
       if (actual != expected) {
         System.err.println(s"$name: failed\n====== expected:\n$expected\n==== actual:\n$actual\n====")
@@ -25,16 +25,16 @@ class GeneratorMain {
     }
     infos.foreach {
       case (semSrc, ValidationInfo.Expected(expectedDts)) =>
-        val inputs = Analyzer.analyze(semSrc, symTab)
+        val inputs = Analyzer.analyze(List(semSrc), symTab)
         check(s"file: ${semSrc.td.uri}", inputs, expectedDts)
 
       case (_, ValidationInfo.ExpectedAndGroup(expectedDts, group)) =>
-        val inputs = infos
+        val semSrcs = infos
           .collect {
             case (semSrc, ValidationInfo.Group(`group`))               => semSrc
             case (semSrc, ValidationInfo.ExpectedAndGroup(_, `group`)) => semSrc
           }
-          .flatMap(Analyzer.analyze(_, symTab))
+        val inputs = Analyzer.analyze(semSrcs, symTab)
         check(s"group: $group", inputs, expectedDts)
 
       case _ =>

@@ -18,23 +18,24 @@ class NestedClassTest extends AdapterFunSuite {
     |  object adapter extends js.Object {
     |    @JSExportAll
     |    trait OuterClass extends InstanceAdapter[_root_.adapter.OuterClass] {
+    |      val Inner$a = Inner
     |      def x = $delegate.x.$res
+    |      @JSExportAll
+    |      trait Inner extends InstanceAdapter[_root_.adapter.OuterClass#Inner] {
+    |        def y = $delegate.y.$res
+    |      }
+    |      object Inner extends js.Object {
+    |        def newAdapter(delegate: _root_.adapter.OuterClass#Inner): Inner = new Inner {
+    |          override val $delegate = delegate
+    |        }
+    |        def newDelegate(y: String): _root_.adapter.OuterClass#Inner = new $delegate.Inner(y.$cnv[String])
+    |      }
     |    }
     |    object OuterClass extends js.Object {
     |      def newAdapter(delegate: _root_.adapter.OuterClass): OuterClass = new OuterClass {
     |        override val $delegate = delegate
     |      }
-    |      def newDelegate(x: Int) = new _root_.adapter.OuterClass(x.$cnv[Int])
-    |      @JSExportAll
-    |      trait Inner extends InstanceAdapter[_root_.adapter.OuterClass.Inner] {
-    |        def y = $delegate.y.$res
-    |      }
-    |      object Inner extends js.Object {
-    |        def newAdapter(delegate: _root_.adapter.OuterClass.Inner): Inner = new Inner {
-    |          override val $delegate = delegate
-    |        }
-    |        def newDelegate(y: String) = new _root_.adapter.OuterClass.Inner(y.$cnv[String])
-    |      }
+    |      def newDelegate(x: Int): _root_.adapter.OuterClass = new _root_.adapter.OuterClass(x.$cnv[Int])
     |    }
     |  }
     |}

@@ -19,9 +19,9 @@ object Output {
    *
    * @return Returns the derived unions and missing interfaces for union members.
    */
-  def unions(inputs: List[Input.Defn], namespace: Namespace, symTab: SymbolTable): (List[Union], List[Interface]) = {
+  def unions(inputs: Inputs, namespace: Namespace, symTab: SymbolTable): (List[Union], List[Interface]) = {
 
-    val sealedTraitExports = inputs.collect {
+    val sealedTraitExports = inputs.flattened.collect {
       case e: Input.Trait if e.tree.mods.exists(_.isInstanceOf[Mod.Sealed]) => e
     }
 

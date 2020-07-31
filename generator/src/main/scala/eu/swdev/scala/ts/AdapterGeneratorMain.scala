@@ -74,10 +74,10 @@ object AdapterGeneratorMain extends AdapterGeneratorMain {
           .filter(f => !config.exclude.matcher(f.toString).find())
           .flatMap(SemSource.locate(_, dialect))
 
-      val inputs = semSrcs.flatMap(Analyzer.analyze(_, symTab))
+      val inputs = Analyzer.analyze(semSrcs, symTab)
 
       def inputInfo =
-        inputs
+        inputs.flattened
           .groupBy(_.getClass.getSimpleName)
           .toList
           .sortBy(_._1)

@@ -47,7 +47,7 @@ trait AdapterFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { s
 
     val semSources = locateSemSources(metaInfPath, dialect).filter(_.td.symbols.map(_.symbol).exists(classSymbols.contains))
 
-    val inputs = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
+    val inputs = Analyzer.analyze(semSources, symTab)
 
     AdapterGenerator.generate(inputs, symTab, "Adapter").trim
   }

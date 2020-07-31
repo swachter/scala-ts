@@ -27,7 +27,7 @@ abstract class AbstractAutoDetectingTest extends AnyFunSuite with ScalaMetaHelpe
 
   val infos = dtsInfos()
 
-  private def check(inputs: List[Input.Defn], expectedDts: String): Unit = {
+  private def check(inputs: Inputs, expectedDts: String): Unit = {
     val generatedDts = Generator.generate(inputs, false, symTab, getClass.getClassLoader).trim
     generatedDts mustBe expectedDts
   }
@@ -36,18 +36,18 @@ abstract class AbstractAutoDetectingTest extends AnyFunSuite with ScalaMetaHelpe
 
     case (semSrc, ValidationInfo.Expected(expectedDts)) =>
       test(s"file: ${semSrc.td.uri}") {
-        val inputs = Analyzer.analyze(semSrc, symTab)
+        val inputs = Analyzer.analyze(List(semSrc), symTab)
         check(inputs, expectedDts)
       }
 
     case (_, ValidationInfo.ExpectedAndGroup(expectedDts, group)) =>
       test(s"group: $group") {
-        val inputs = infos
+        val semSrcs = infos
           .collect {
             case (semSrc, ValidationInfo.Group(`group`))          => semSrc
             case (semSrc, ValidationInfo.ExpectedAndGroup(_, `group`)) => semSrc
           }
-          .flatMap(Analyzer.analyze(_, symTab))
+        val inputs = Analyzer.analyze(semSrcs, symTab)
         check(inputs, expectedDts)
       }
 

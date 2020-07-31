@@ -10,13 +10,13 @@ object Generator {
 
   import TypeFormatter._
 
-  def generate(inputs: List[Input.Defn], addRootNamespace: Boolean, symTab: SymbolTable, classLoader: ClassLoader): String = {
+  def generate(inputs: Inputs, addRootNamespace: Boolean, symTab: SymbolTable, classLoader: ClassLoader): String = {
     val r = new Result.StringBuilderResult
     generate(inputs, addRootNamespace, symTab, classLoader, r)
     r.sb.toString()
   }
 
-  def generate(inputs: List[Input.Defn], addRootNamespace: Boolean, symTab: SymbolTable, classLoader: ClassLoader, result: Result): Unit = {
+  def generate(inputs: Inputs, addRootNamespace: Boolean, symTab: SymbolTable, classLoader: ClassLoader, result: Result): Unit = {
 
     val topLevelExports = Analyzer.topLevel(inputs)
 
@@ -38,7 +38,7 @@ object Generator {
     )
 
     // maps object symbols to exported static definitions
-    val statics = inputs.collect {
+    val statics = inputs.flattened.collect {
       case i: Input.Obj =>
         i.si.symbol -> i.member.collect {
           case i: Input.DefOrValOrVar if i.visibility.isStatic => i

@@ -25,6 +25,8 @@ object Analyzer {
   val jsAdaptConstructorSymbol = classSymbol[AdaptConstructor]
   val jsAdaptAllSymbol         = classSymbol[AdaptAll]
 
+  def analyze(semSrcs: List[SemSource], symTab: SymbolTable): Inputs = Inputs(semSrcs.flatMap(analyze(_, symTab)))
+
   /**
     * @return flattened list of all input definitions (nested input definitions are included in the list)
     */
@@ -267,35 +269,19 @@ object Analyzer {
 
     traverser.apply(semSrc.source)
 
-    val inputs = traverser.states.top.builder.result()
-
-    flatten(inputs)
+    traverser.states.top.builder.result()
   }
 
-  def topLevel(is: List[Input.Defn]): List[TopLevelExport] = {
-    is.collect {
+  def topLevel(is: Inputs): List[TopLevelExport] = {
+    is.flattened.collect {
       case i: Input.Exportable if i.isTopLevelExport => TopLevelExport(i.visibility.topLevelExportName.get, i)
     }
-  }
-
-  private def flatten(is: List[Input.Defn]): List[Input.Defn] = {
-    val b = List.newBuilder[Input.Defn]
-    def go(i: Input.Defn): Unit = {
-      b += i
-      i match {
-        case i: Input.ClsOrObj => i.member.foreach(go)
-        case i: Input.Trait    => i.member.foreach(go)
-        case _                 =>
-      }
-    }
-    is.foreach(go)
-    b.result()
   }
 
   /**
     * @param is flattened list of all input definitions
     */
-  def types(is: List[Input.Defn]): List[Input.Type] = is.collect {
+  def types(is: Inputs): List[Input.Type] = is.flattened.collect {
     case i: Input.Type => i
   }
 

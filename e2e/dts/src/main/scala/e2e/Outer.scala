@@ -6,9 +6,9 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 @JSExportTopLevel("OuterClass")
 class Outer extends js.Object {
   object mid extends js.Object {
-    object innerMost1 extends js.Object {
+//    object innerMost1 extends js.Object {
       var x = 1
-    }
+//    }
   }
 }
 

@@ -1,20 +1,13 @@
 import * as m from 'scala-adapter'
+import { newAdapter } from './util'
 
 describe('simple class', function () {
 
-  // simple class adapter
+  // class adapter
   const sca = m.Adapter.x.y.SimpleClass
 
-  // combine creation of delegate and its adapter
-  function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
-    a: { newInstance: (...args: ARGS) => DELEGATE, newAdapter: (d: DELEGATE) => ADAPTER },
-    ...args: ARGS
-  ): ADAPTER {
-    return a.newAdapter(a.newInstance(...args))
-  }
-
   it('access constructor var', function () {
-    const d = sca.newInstance([1, 2, 3])
+    const d = sca.newDelegate([1, 2, 3])
     const a = sca.newAdapter(d)
     expect(a.x).toStrictEqual([1, 2, 3])
     expect(a.sum).toBe(6)

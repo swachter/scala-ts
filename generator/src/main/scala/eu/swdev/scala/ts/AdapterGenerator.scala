@@ -3,20 +3,20 @@ package eu.swdev.scala.ts
 import eu.swdev.scala.ts
 import eu.swdev.scala.ts.Input.CtorParam
 
-import scala.meta.internal.semanticdb.{SymbolInformation, ValueSignature, Type => SdbType}
+import scala.meta.internal.semanticdb.{ValueSignature, Type => SdbType}
 import scala.meta.internal.symtab.SymbolTable
 
 object AdapterGenerator {
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable, adapterName: String): String = {
+  def generate(inputs: Inputs, symTab: SymbolTable, adapterName: String): String = {
     val r = new ts.Result.StringBuilderResult
     generate(inputs, symTab, adapterName, r)
     r.sb.toString()
   }
 
-  def generate(inputs: List[Input.Defn], symTab: SymbolTable, adapterName: String, result: Result): Unit = {
+  def generate(inputs: Inputs, symTab: SymbolTable, adapterName: String, result: Result): Unit = {
 
-    val root = AdapterObject(inputs)
+    val root = Adapter(inputs, adapterName)
 
     val unchangedTypeFormatter = new UnchangedTypeFormatter(symTab)
     val interopTypeFormatter   = new InteropTypeFormatter(symTab)
@@ -54,17 +54,16 @@ object AdapterGenerator {
       s"${si.displayName}$conv"
     }
 
-    def displayNameAndAccessName(input: Input, outerName: List[String]): (String, String) = {
+    def displayNameAndAccessName(input: Input, tracker: PathTracker): (String, String) = {
       val displayName = input.si.displayName
-      val accessName  = (displayName :: outerName).reverse.mkString(".")
+      val accessName  = s"${tracker.delegatePath}.$displayName"
       (displayName, accessName)
     }
 
     def resOrCnv(interopType: Option[String]) = interopType.fold(".$res")(s => s".$$cnv[$s]")
 
-    def outputDef(a: Adaption.Def, outerName: List[String]): Unit = {
-      val input                     = a.input
-      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+    def outputDef(input: Input.Def, tracker: PathTracker): Unit = {
+      val (displayName, accessName) = displayNameAndAccessName(input, tracker)
       val tparams                   = formatTParamSyms(input.methodSignature.typeParamSymbols)
       val (params, args) = if (input.methodSignature.parameterLists.isEmpty) {
         ("", "")
@@ -77,30 +76,39 @@ object AdapterGenerator {
       result.addLine(s"def $displayName$tparams$params = $accessName$args${resOrCnv(input.adapted.interopType)}")
     }
 
-    def doOutputVal(input: Input, outerName: List[String], interopType: Option[String]): Unit = {
-      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+    def doOutputVal(input: Input, tracker: PathTracker, interopType: Option[String]): Unit = {
+      val (displayName, accessName) = displayNameAndAccessName(input, tracker)
       result.addLine(s"def $displayName = $accessName${resOrCnv(interopType)}")
     }
 
-    def doOutputVar(input: Input, tpe: SdbType, outerName: List[String], interopType: Option[String]): Unit = {
-      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
+    def doOutputVar(input: Input, tpe: SdbType, tracker: PathTracker, interopType: Option[String]): Unit = {
+      val (displayName, accessName) = displayNameAndAccessName(input, tracker)
       val unchangedType             = unchangedTypeFormatter(tpe)
       val iopType                   = interopType.getOrElse(interopTypeFormatter(tpe))
       result.addLine(s"def $displayName = $accessName.$$cnv[$iopType]")
       result.addLine(s"def ${displayName}_=(value: $iopType) = $accessName = value.$$cnv[$unchangedType]")
     }
 
-    def outputVal(a: Adaption.Val, outerName: List[String]): Unit = doOutputVal(a.input, outerName, a.input.adapted.interopType)
+    def outputCtorVal(input: Input.CtorParam, tracker: PathTracker): Unit = doOutputVal(input, tracker, input.adapted.interopType)
 
-    def outputVar(a: Adaption.Var, outerName: List[String]): Unit = doOutputVar(a.input, a.input.methodSignature.returnType, outerName, a.input.adapted.interopType)
+    def outputCtorVar(input: Input.CtorParam, tracker: PathTracker): Unit =
+      doOutputVar(input, input.valueSignature.tpe, tracker, input.adapted.interopType)
 
-    def outputCtorVal(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVal(input, outerName, input.adapted.interopType)
+    def outputDefValVar(a: Adapter.DefValVar, tracker: PathTracker): Unit = {
+      a.input match {
+        case i: Input.Def => outputDef(i, tracker)
+        case i: Input.Val => doOutputVal(i, tracker, i.adapted.interopType)
+        case i: Input.Var => doOutputVar(i, i.methodSignature.returnType, tracker, i.adapted.interopType)
+      }
+    }
 
-    def outputCtorVar(input: Input.CtorParam, outerName: List[String]): Unit = doOutputVar(input, input.valueSignature.tpe, outerName, input.adapted.interopType)
+    def outputAdapterObjProp(prop: Adapter.AdapterObjProp, tracker: PathTracker): Unit = {
+      // assign a value to the adapter object; the adapter object can be referenced by its display name
+      result.addLine(s"val ${prop.name} = ${prop.input.si.displayName}")
+    }
 
-    def outputNewDelegate(a: Adaption.NewDelegate, outerName: List[String]): Unit = {
+    def outputNewDelegate(a: Adapter.NewDelegateDef, tracker: PathTracker): Unit = {
       val input                     = a.input
-      val (displayName, accessName) = displayNameAndAccessName(input, outerName)
       val (params, args) = if (input.ctorParams.isEmpty) {
         ("", "")
       } else {
@@ -112,38 +120,60 @@ object AdapterGenerator {
         )
       }
       val tparams = formatTParamSyms(input.classSignature.typeParamSymbols)
-      // TODO does not work for nested classes; the instance can not be created by "new FullName"; it must be "new $delegate.DisplayName"
-      result.addLine(s"def newDelegate$tparams$params = new _root_.${FullName(input.si)}$args")
+      result.addLine(s"def newDelegate$tparams$params: ${tracker.typePath} = new ${tracker.delegatePath}$args")
     }
 
-    def outputNewAdapter(a: Adaption.NewAdapter, outerName: List[String]): Unit = {
+    def outputNewAdapter(a: Adapter.NewAdapterDef, tracker: PathTracker): Unit = {
       val input       = a.input
       val displayName = input.si.displayName
-      // TODO does not work for nested classes; the delegate must be of type "$delegate.DisplayName"
-      result.openBlock(s"def newAdapter(delegate: _root_.${FullName(input.si)}): $displayName = new $displayName")
+      result.openBlock(s"def newAdapter(delegate: ${tracker.typePath}): $displayName = new $displayName")
       result.addLine("override val $delegate = delegate")
       result.closeBlock()
     }
 
-    def outputTrait(a: Adaption.Trait): Unit = {
-      val input = a.input
+    def outputNested(a: Adapter.Container[_], tracker: PathTracker): Unit = {
+      a.traits.values.foreach(a => outputTrait(a, tracker.nest(a)))
+      a.objs.values.foreach(a => outputObj(a, tracker.nest(a), false))
+    }
+
+    def outputTrait(a: Adapter.Trait, tracker: PathTracker): Unit = {
       result.addLine("@JSExportAll")
-      result.openBlock(s"trait ${input.si.displayName} extends InstanceAdapter[_root_.${FullName(input.si)}]")
-      input.ctorParams.foreach { ctp =>
-        if (ctp.adapted.isAdapted) {
-          ctp.mod match {
-            case _: Input.CtorParamMod.Val => outputCtorVal(ctp, List("$delegate"))
-            case _: Input.CtorParamMod.Var => outputCtorVar(ctp, List("$delegate"))
+      result.openBlock(s"trait ${a.name} extends InstanceAdapter[${tracker.typePath}]")
+      val tr = tracker.nest(a)
+      a.defs.values.foreach {
+        case a: Adapter.DefValVar      => outputDefValVar(a, tr)
+        case a: Adapter.AdapterObjProp => outputAdapterObjProp(a, tr)
+        case a: Adapter.CtorParam if a.input.adapted.isAdapted =>
+          a.input.mod match {
+            case _: Input.CtorParamMod.Val => outputCtorVal(a.input, tr)
+            case _: Input.CtorParamMod.Var => outputCtorVar(a.input, tr)
             case Input.CtorParamMod.Prv    =>
           }
-        }
       }
-      input.member.foreach {
-        case i: Input.Def if i.adapted.isAdapted => outputDef(Adaption.Def(i), List("$delegate"))
-        case i: Input.Val if i.adapted.isAdapted => outputVal(Adaption.Val(i), List("$delegate"))
-        case i: Input.Var if i.adapted.isAdapted => outputVar(Adaption.Var(i), List("$delegate"))
-        case _                                   =>
+
+      outputNested(a, tracker)
+      result.closeBlock()
+    }
+
+    def outputObj(a: Adapter.Obj, tracker: PathTracker, injectInstanceAdapterTrait: Boolean): Unit = {
+      result.openBlock(s"object ${a.name} extends js.Object")
+
+      if (injectInstanceAdapterTrait) {
+        result.addLine("@JSExportAll")
+        result.openBlock("trait InstanceAdapter[D]")
+        result.addLine("val $delegate: D")
+        result.closeBlock()
       }
+
+
+      a.defs.values.foreach {
+        case a: Adapter.DefValVar      => outputDefValVar(a, tracker)
+        case a: Adapter.NewDelegateDef => outputNewDelegate(a, tracker)
+        case a: Adapter.NewAdapterDef  => outputNewAdapter(a, tracker)
+        case a: Adapter.AdapterObjProp => outputAdapterObjProp(a, tracker)
+      }
+
+      outputNested(a, tracker)
       result.closeBlock()
     }
 
@@ -152,42 +182,23 @@ object AdapterGenerator {
     result.addLine("import eu.swdev.scala.ts.adapter._")
 
     result.addLine(s"""@JSExportTopLevel("$adapterName")""")
-    result.openBlock(s"object $adapterName extends js.Object")
+    outputObj(root, PathTracker(s"_root_", s"_root_", false), root.hasTraits)
 
-    if (root.hasTraits) {
-      result.addLine("@JSExportAll")
-      result.openBlock("trait InstanceAdapter[D]")
-      result.addLine("val $delegate: D")
-      result.closeBlock()
-    }
-
-    def outputAdapter(ao: AdapterObject, outerName: List[String]): Unit = {
-
-      ao.methods.values.foreach {
-        case a: Adaption.Def         => outputDef(a, outerName)
-        case a: Adaption.Val         => outputVal(a, outerName)
-        case a: Adaption.Var         => outputVar(a, outerName)
-        case a: Adaption.NewDelegate => outputNewDelegate(a, outerName)
-        case a: Adaption.NewAdapter  => outputNewAdapter(a, outerName)
-      }
-
-      ao.traits.values.foreach {
-        case a: Adaption.Trait => outputTrait(a)
-      }
-
-      ao.nested.foreach {
-        case (name, ao) =>
-          result.openBlock(s"object $name extends js.Object")
-          outputAdapter(ao, name :: outerName)
-          result.closeBlock()
-      }
-
-    }
-
-    outputAdapter(root, List("_root_"))
-
-    result.closeBlock()
   }
 
-  private def adapterId(si: SymbolInformation): String = FullName(si).toString.replace('.', '_')
+  case class PathTracker(delegatePath: String, typePath: String, inTraitNotInObject: Boolean) {
+    def nest(a: Adapter.Trait): PathTracker =
+      if (inTraitNotInObject) {
+        PathTracker("$delegate", s"$typePath#${a.name}", true)
+      } else {
+        PathTracker("$delegate", s"$typePath.${a.name}", true)
+      }
+    def nest(a: Adapter.Obj) =
+      if (inTraitNotInObject) {
+        PathTracker(s"$$delegate.${a.name}", s"$typePath#${a.name}", false)
+      } else {
+        PathTracker(s"$delegatePath.${a.name}", s"$typePath.${a.name}", false)
+      }
+  }
+
 }

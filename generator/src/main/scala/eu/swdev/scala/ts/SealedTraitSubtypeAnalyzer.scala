@@ -16,7 +16,7 @@ object SealedTraitSubtypeAnalyzer {
     */
   def subtypes(
       sealedTraits: List[Trait],
-      inputs: List[Input.Defn],
+      inputs: Inputs,
       symTab: SymbolTable,
   ): Map[Symbol, List[Subtype]] = {
 

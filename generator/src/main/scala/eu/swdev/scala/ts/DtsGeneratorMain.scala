@@ -97,10 +97,10 @@ object DtsGeneratorMain extends DtsGeneratorMain {
         SemSource.locate(config.compileClassDir, dialect)
       }
 
-      val inputs = semSrcs.flatMap(Analyzer.analyze(_, symTab))
+      val inputs = Analyzer.analyze(semSrcs, symTab)
 
       def inputInfo =
-        inputs
+        inputs.flattened
           .groupBy(_.getClass.getSimpleName)
           .toList
           .sortBy(_._1)

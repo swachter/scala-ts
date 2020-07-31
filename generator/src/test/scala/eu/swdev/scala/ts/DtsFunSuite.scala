@@ -54,7 +54,7 @@ trait DtsFunSuite extends AnyFunSuite with ScalaMetaHelper with Matchers { self 
     val allSemSources = locateSemSources(metaInfPath, dialect)
     val semSources = allSemSources.filter(_.td.symbols.map(_.symbol).exists(classSymbols.contains))
 
-    val inputs = semSources.sortBy(_.td.uri).flatMap(Analyzer.analyze(_, symTab))
+    val inputs = Analyzer.analyze(semSources.sortBy(_.td.uri), symTab)
 
     Generator.generate(inputs, addRootNamespace, symTab, getClass.getClassLoader).trim
   }

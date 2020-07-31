@@ -13,6 +13,8 @@ lazy val root = (project in file("."))
     organization := "eu.swdev",
     scalaTsModuleName := "scala-ts-mod",
     scalaTsValidate := true,
+    // enable adapter in order to include scala-ts-runtime library
+    scalaTsAdapterEnabled := true,
     (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module",
     // scalaTsChangeForkOptions := withDebugForkOptions(5005),

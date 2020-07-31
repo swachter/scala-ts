@@ -22,6 +22,7 @@ export namespace e2e {
     }
   }
 }
+import _root_e2e = e2e
 
  */
 

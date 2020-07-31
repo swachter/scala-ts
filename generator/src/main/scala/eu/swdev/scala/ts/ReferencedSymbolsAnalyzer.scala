@@ -35,7 +35,7 @@ object ReferencedSymbolsAnalyzer {
     *
     * The symbols of the top level exported items themselves are also included.
     */
-  def referencedTypeSymbols(inputs: List[Input.Defn], symTab: SymbolTable): Set[Symbol] = {
+  def referencedTypeSymbols(inputs: Inputs, symTab: SymbolTable): Set[Symbol] = {
 
     val topLevelExports = Analyzer.topLevel(inputs).map(_.exportable)
 
@@ -44,12 +44,12 @@ object ReferencedSymbolsAnalyzer {
     c.accu.filter(symTab.isType(_)).toSet
   }
 
-  class Collector(inputs: List[Input], symTab: SymbolTable) {
+  class Collector(inputs: Inputs, symTab: SymbolTable) {
 
     // symbols of all visited definitions (vals, vars, defs, traits, classes, or type aliases)
     val accu = mutable.Set.empty[Symbol]
 
-    val inputTypes = inputs.collect { case e: Input.Type => e.si.symbol -> e }.toMap
+    val inputTypes = inputs.flattened.collect { case e: Input.Type => e.si.symbol -> e }.toMap
 
     def collect(si: SymbolInformation): Unit = {
       val sym = si.symbol

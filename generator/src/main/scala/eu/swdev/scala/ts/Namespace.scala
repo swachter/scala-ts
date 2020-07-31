@@ -34,14 +34,11 @@ class Namespace(val name: String) {
 object Namespace {
 
   /**
-   * Constructs a namespace filled with interfaces and type aliases based in the given inputs.
-   *
-   * Interfaces for exported classes / objects are not included.
-   */
-  def apply(inputs: List[Input.Defn],
-                       symTab: SymbolTable,
-                       isKnownOrBuiltIn: Symbol => Boolean,
-                       nativeAnalyzer: NativeSymbolAnalyzer): Namespace = {
+    * Constructs a namespace filled with interfaces and type aliases based in the given inputs.
+    *
+    * Interfaces for exported classes / objects are not included.
+    */
+  def apply(inputs: Inputs, symTab: SymbolTable, isKnownOrBuiltIn: Symbol => Boolean, nativeAnalyzer: NativeSymbolAnalyzer): Namespace = {
 
     val rootNamespace = new Namespace("")
 

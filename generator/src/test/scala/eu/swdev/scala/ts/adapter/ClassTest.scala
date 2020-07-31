@@ -17,14 +17,14 @@ class ClassTest extends AdapterFunSuite {
     |  object test extends js.Object {
     |    @JSExportAll
     |    trait AdaptedClass extends InstanceAdapter[_root_.test.AdaptedClass] {
-    |      def x = $delegate.x.$res
     |      def sum = $delegate.sum.$res
+    |      def x = $delegate.x.$res
     |    }
     |    object AdaptedClass extends js.Object {
     |      def newAdapter(delegate: _root_.test.AdaptedClass): AdaptedClass = new AdaptedClass {
     |        override val $delegate = delegate
     |      }
-    |      def newDelegate(x: Int, y: Int) = new _root_.test.AdaptedClass(x.$cnv[Int], y.$cnv[Int])
+    |      def newDelegate(x: Int, y: Int): _root_.test.AdaptedClass = new _root_.test.AdaptedClass(x.$cnv[Int], y.$cnv[Int])
     |    }
     |  }
     |}
