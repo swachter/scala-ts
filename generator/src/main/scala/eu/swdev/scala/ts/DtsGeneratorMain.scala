@@ -21,7 +21,7 @@ object DtsGeneratorMain extends DtsGeneratorMain {
 
   case class Config(
       jsFile: File,
-      addRootNamespace: Boolean,
+      preventTypeShadowing: Boolean,
       moduleName: String,
       moduleVersion: String,
       considerFullCompileClasspath: Boolean,
@@ -35,7 +35,7 @@ object DtsGeneratorMain extends DtsGeneratorMain {
 
     def asEnvVars = Map(
       kJsFile                       -> jsFile.toString,
-      kAddRootNamespace             -> addRootNamespace.toString,
+      kPreventTypeShadowing         -> preventTypeShadowing.toString,
       kModuleName                   -> moduleName,
       kModuleVersion                -> moduleVersion,
       kConsiderFullCompileClassPath -> considerFullCompileClasspath.toString,
@@ -50,7 +50,7 @@ object DtsGeneratorMain extends DtsGeneratorMain {
   object Config {
 
     val kJsFile                       = "JS_FILE"
-    val kAddRootNamespace             = "ADD_ROOT_NAMESPACE"
+    val kPreventTypeShadowing         = "PREVENT_TYPE_SHADOWING"
     val kModuleName                   = "MODULE_NAME"
     val kModuleVersion                = "MODULE_VERSION"
     val kConsiderFullCompileClassPath = "CONSIDER_FULL_COMPILE_CLASS_PATH"
@@ -62,7 +62,7 @@ object DtsGeneratorMain extends DtsGeneratorMain {
 
     def fromEnvVars = Config(
       jsFile = new File(System.getenv(kJsFile)),
-      addRootNamespace = System.getenv(kAddRootNamespace).toBoolean,
+      preventTypeShadowing = System.getenv(kPreventTypeShadowing).toBoolean,
       moduleName = System.getenv(kModuleName),
       moduleVersion = System.getenv(kModuleVersion),
       considerFullCompileClasspath = System.getenv(kConsiderFullCompileClassPath).toBoolean,
@@ -111,7 +111,7 @@ object DtsGeneratorMain extends DtsGeneratorMain {
 
       System.out.println(s"ScalaTs input : $inputInfo")
 
-      val output = Generator.generate(inputs, config.addRootNamespace, symTab, getClass.getClassLoader)
+      val output = Generator.generate(inputs, config.preventTypeShadowing, symTab, getClass.getClassLoader)
 
       System.out.println(s"ScalaTs output: $dtsPath")
 
@@ -132,7 +132,7 @@ object DtsGeneratorMain extends DtsGeneratorMain {
       Files.write(packageJsonPath, content.getBytes(StandardCharsets.UTF_8))
 
       if (config.validate) {
-        validate(semSrcs, symTab, Generator.generate(_, config.addRootNamespace, symTab, getClass.getClassLoader))
+        validate(semSrcs, symTab, Generator.generate(_, config.preventTypeShadowing, symTab, getClass.getClassLoader))
       }
 
     } catch {

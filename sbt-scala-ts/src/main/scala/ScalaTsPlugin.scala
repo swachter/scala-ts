@@ -19,7 +19,7 @@ object ScalaTsPlugin extends AutoPlugin {
     val scalaTsModuleVersion =
       settingKey[String => String]("Maps the project version into a node module version (default: identity function with check)")
 
-    val scalaTsAddRootNamespace = settingKey[Boolean]("Determines if a out root namespace is added (default: false)")
+    val scalaTsPreventTypeShadowing = settingKey[Boolean]("Determines if type shadowing is prevented (default: false)")
     val scalaTsConsiderFullCompileClassPath = settingKey[Boolean](
       "Determines if the full compile class path or only the classes of the current project are considered (default: false)")
     val scalaTsInclude = settingKey[Pattern]("RegEx that filters entries from the full compile class path (default: .)")
@@ -28,7 +28,7 @@ object ScalaTsPlugin extends AutoPlugin {
     val scalaTsFastOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fastOptJS output")
     val scalaTsFullOpt = taskKey[Unit]("Generate node module including typescript declaration file based on the fullOptJS output")
 
-    val scalaTsAdapterEnabled = settingKey[Boolean]("Determines if adapter code is generated; implies considerFullCompileClassPath and addRootNamespace; (default: false)")
+    val scalaTsAdapterEnabled = settingKey[Boolean]("Determines if adapter code is generated (default: false)")
     val scalaTsAdapterName    = settingKey[String]("Name of adapter (default: Adapter)")
 
     // development support settings
@@ -42,7 +42,7 @@ object ScalaTsPlugin extends AutoPlugin {
   import autoImport._
 
   override lazy val globalSettings = Seq(
-    scalaTsAddRootNamespace := false,
+    scalaTsPreventTypeShadowing := false,
     scalaTsModuleVersion := semanticVersionCheck,
     scalaTsConsiderFullCompileClassPath := false,
     scalaTsInclude := Pattern.compile("."),
@@ -67,7 +67,7 @@ object ScalaTsPlugin extends AutoPlugin {
   )
 
   lazy val annotationDependency = "eu.swdev" %% "scala-ts-generator" % BuildInfo.version
-  
+
   lazy val adapterSettings = Seq(
     libraryDependencies += annotationDependency,
   )
@@ -92,8 +92,8 @@ object ScalaTsPlugin extends AutoPlugin {
           (dependencyClasspath in Compile).value.map(_.data).toList,
           scalaTsValidate.value,
         ),
-       scalaTsChangeForkOptions.value,
-       streams.value.log
+        scalaTsChangeForkOptions.value,
+        streams.value.log
       )
     }.taskValue,
     // the scala-ts-generator is availabble in the jcenter repo
@@ -103,7 +103,7 @@ object ScalaTsPlugin extends AutoPlugin {
       forkDtsGenerator(
         DtsGeneratorMain.Config(
           (artifactPath in fastOptJS in Compile).value,
-          scalaTsAddRootNamespace.value || scalaTsAdapterEnabled.value,
+          scalaTsPreventTypeShadowing.value || scalaTsAdapterEnabled.value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
           scalaTsConsiderFullCompileClassPath.value || scalaTsAdapterEnabled.value,
@@ -122,7 +122,7 @@ object ScalaTsPlugin extends AutoPlugin {
       forkDtsGenerator(
         DtsGeneratorMain.Config(
           (artifactPath in fullOptJS in Compile).value,
-          scalaTsAddRootNamespace.value || scalaTsAdapterEnabled.value,
+          scalaTsPreventTypeShadowing.value || scalaTsAdapterEnabled.value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
           scalaTsConsiderFullCompileClassPath.value || scalaTsAdapterEnabled.value,
@@ -163,10 +163,10 @@ object ScalaTsPlugin extends AutoPlugin {
     )
   }
 
-  def generateAdapter(enabled: Boolean, config: AdapterGeneratorMain.Config,
+  def generateAdapter(enabled: Boolean,
+                      config: AdapterGeneratorMain.Config,
                       changeForkOptions: ForkOptions => ForkOptions,
-                      log: ManagedLogger
-                     ): Seq[File] = {
+                      log: ManagedLogger): Seq[File] = {
     if (enabled) {
       forkAdapterGenerator(config, changeForkOptions, log)
       Seq(config.adapterFile)

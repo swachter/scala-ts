@@ -25,7 +25,7 @@ import scala.meta.internal.{semanticdb => isb}
   * formatter that formats every other type returning "any" as a last resort.
   */
 class TypeFormatter(
-    addRootNamespace: Boolean,
+    preventTypeShadowing: Boolean,
     nativeSymbolAnalyzer: NativeSymbolAnalyzer,
     symTab: SymbolTable
 ) extends (Type => String) {
@@ -107,7 +107,7 @@ class TypeFormatter(
 
   }
 
-  val rootPrefix = if (addRootNamespace) "_root_" else ""
+  val rootPrefix = if (preventTypeShadowing) "_root_" else ""
 
   val catchAllFormatterCreator: CTypeFormatter = formatType => {
 
@@ -118,7 +118,7 @@ class TypeFormatter(
     case TypeRef(prefix, symbol, tArgs) =>
       val tas = formatTypeNames(tArgs.map(formatType))
       val idx = symbol.dropRight(1).lastIndexOf('#')
-      val sn = FullName.fromSimpleName(symbol.dropRight(1).substring(idx + 1))
+      val sn  = FullName.fromSimpleName(symbol.dropRight(1).substring(idx + 1))
       s"${formatType(prefix)}.$sn$tas"
 
     case SingleType(isb.Type.Empty, symbol) =>

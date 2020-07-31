@@ -1,6 +1,8 @@
-## ScalaTsPlugin
+# ScalaTsPlugin
 
 The `ScalaTsPlugin` processes [ScalaJS](https://www.scala-js.org/) sources, generates a corresponding [TypeScript Declaration File](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html), and bundles its output and the output of ScalaJS to form a Node module.
+
+Built ontop of that functionality an adapter can be provided that allows to access ScalaJS code while converting between specific interoperability types and certain standard Scala types.
 
 ### Usage
 
@@ -16,14 +18,18 @@ and enable the `ScalaTsPlugin` in `build.sbt`
 ```
 enablePlugins(ScalaTsPlugin)
 ```
- 
-No further configuration is required. In particular, no additional annotations or other kind of information must be provided.
+
+If no adapter code should be generated then no further configuration is required. In particular, no additional annotations or other kind of information must be provided.
+
+If adapter code should be generated then additional configuration and some source annotations are required.
 
 ### How does it work?
 
 The implementation is based on [Scalameta](https://scalameta.org/). Information about ScalaJS sources is collected by traversing source trees and retrieving symbol information from `SemanticDB`. Accordingly, ScalaJS sources must be compiled with the `SemanticDB` compiler plugin being activated. In addition, the `ScalaJSPlugin` must be configured to emit an ECMAScript module. The `ScalaTsPlugin` takes care for all this configuration.
 
 Side note: `ScalaJS` export annotations (e.g. `@JSExportTopLevel`) are available at compile time only. SemanticDB files do not include annotation values either. Therefore, the `ScalaTsPlugin` needs to process sources in order to access export information. The SemanticDB compiler plugin option `-P:semanticdb:text:on` is used to include sources in SemanticDB files. In addition, the Scala compiler option `-Yrangepos` must be set to allow matching source file locations with symbol information from SemanticDB.
+
+The adapter is realized by source code generation. The source code of a Scala adapter object is generated. The adapter object in turn, is processed by the `ScalaTsPlugin` like all other sources to yielding corresponding TypeScript declarations.
 
 ### SBT settings and tasks
 
@@ -35,6 +41,7 @@ Main settings and tasks are:
 | `scalaTsModuleVersion` | Setting: Function that transforms the project version into a node module version (default: identity function that checks if the result is a valid [semantic version](https://docs.npmjs.com/about-semantic-versioning)) |
 | `scalaTsFastOpt` | Task: Generate node module including typescript declaration file based on the fastOptJS output |
 | `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |
+| `scalaTsAdapterEnabled` | Setting: Determines if adapter code is generated (default: false) |
 
 In its default configuration the `ScalaTsPlugin` considers only the sources of the project where it is enabled. If library dependencies should also be considered then the setting `scalaTsConsiderFullCompileClassPath` must be set to `true`. In that case all SemanticDB information available on the compile classpath can be used. Parts of the compile class path can be filtered by specifying regular expressions for the `scalaTsInclude` and `scalaTsExclude` settings. In order for a class path part to be considered it must match the regular expression for inclusion and not match the regular expression for exclusion. The relevant settings are:
 
@@ -43,6 +50,7 @@ In its default configuration the `ScalaTsPlugin` considers only the sources of t
 | `scalaTsConsiderFullCompileClassPath` | Determines if the full compile class path or only the classes of the current project are considered (default: false) |
 | `scalaTsInclude` | RegEx that filters entries from the full compile class path (default: `.`) |
 | `scalaTsExclude` | RegEx that filters entries from the full compile class path (default: `(?!.).`) |
+| `scalaTsPreventTypeShadowing` | see description below (default: false) | 
 
 A common situation for a library dependency that must be considered is a cross project (named `shared`) with shared sources for client and server. For the `shared.js` project the generation of `SemanticDB` information must be activated. This can be done by invoking `.jsSettings(ScalaTsPlugin.semanticDbSettings)` on the cross project. A dedicated `client` project depends on the `shared.js` project and has the `ScalaTsPlugin` enabled. The [example/angular](example/angular) folder shows this setup.    
 
@@ -68,6 +76,33 @@ To use version `4.3.20` the following setting must be included:
 semanticdbVersion := "4.3.20"
 ```
 
+#### Type shadowing
+
+TypeScript allows nested namespaces. Consider the following situation:
+
+```
+namespace x {
+  interface I {}                    // interface x.I
+}
+namespace ns {
+  namespace x {
+    interface I {}                  // interface ns.x.I
+    declare function f(): I         // resolves to ns.x.I
+    declare function g(): x.I       // resolves to ns.x.I
+    declare function h(): _root_x.I // resolves to x.I
+  }
+  interface X {}
+}
+import _root_x = x
+```
+
+Without additional measures, it is not possible to access the interface `x.I` from declarations inside the namespace `ns.x`. The reason is the existence of the interface `ns.x.I` which shadows the interface `x.I`.
+ 
+TypeScript does not offer a 'root' namespace indicator comparable to the `_root_` package indicator available in Scala. However, using namespace imports it is possible to define namespace aliases for all top-level packages.
+
+If the setting `scalaTsPreventTypeShadowing` is enabled then namespace aliases are emitted for all top-level packages. Types are referenced using these aliases.
+
+## TypeScript declaration file generation
 ### Type mapping
 
 Primitive types
@@ -186,7 +221,7 @@ Note that the type parameters of a union type must not match the type parameters
 
 ### Discriminated Union Types
 
-If all union cases have a common _discrimantor_ property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks. (Note: `instanceof` checks are currently not supported for case classes; cf. [scala-js / 4062](https://github.com/scala-js/scala-js/issues/4062).)
+If all union cases have a common _discrimantor_ property that has a literal type then _Flow Typing_ can be used for exhaustiveness checks. (Note: `instanceof` checks are currently not supported for case classes; cf. [ScalaJS/4062](https://github.com/scala-js/scala-js/issues/4062).)
 
 Example Scala code (without `JSExport` annotations):
 
@@ -217,6 +252,82 @@ function match(t: T$u): number | string {
 ### Generated Interface Hierarchy
 
 In addition to the interfaces that are generated for _opaque_ types, interfaces are generated for all traits in the processed sources that are base types of exported classes or objects. Finally, interfaces are generated for all types 'between' these interfaces and all exported classes and objects. The generated interfaces form an inheritance hierarchy, thereby supporting polymorphism.
+
+## Adapter Code Generation
+
+The `ScalaTsPlugin` generates adapter code only for the **dependencies** of a project for which the `ScalaTsPlugin` is enabled. The reason is that adapter code generation needs the compilation result of the classes that should be adapted. The compilation result however, is not available at the source code generation stage of a project when the adapter code is generated.
+
+Considering only the dependencies of a project for adapter code generation seems to be a big disadvantage at first. However, the adapter code generation offers its most benefit in project setups that have shared code between backend and frontend.
+ 
+In projects that contain ScalaJS code only that code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr`. In projects with shared code however, that shared code can not use the interoperability types because they are not available on the backend. Therefore adapter code is needed to convert between standard Scala types and interoperability types.
+
+### Configuration
+
+Adapter code generation is an opt-in feature. First, the setting
+
+```
+scalaTsAdapterEnabled := true
+```
+
+must be defined. This setting automatically implies
+
+```
+scalaTsConsiderFullCompileClassPath := true // automatically implied
+scalaTsPreventTypeShadowing := true         // automatically implied 
+```
+ 
+Second, classes, objects, vals, vars, and defs must be annotated if adapter code should be generated for the corresponding entities. The annotations are:
+
+| Annotation | Description |
+| --- | --- |
+| `@Adapt` | can be used with defs, vals, vars, and constructor parameters (that are exposed as vals or vars); triggers code generation to access the annotated entity |
+| `@Adapt('interop type')` | allows to specify the exposed interoperability type; must be a valid Scala type (e.g. 'js.Array[Double]'; the `js` package is in scope) |
+| `@AdaptConstructor` | can be used with classes; adapter code for invoking the class constructor is generated |
+| `@AdaptMembers` | can be used with classes and objects; adapter code for all members (defs, vals, and vars) is generated |
+| `@AdaptAll` | is the same as `@AdaptConstructor` and `@AdaptMembers` |
+
+### Generated Adapter Code
+
+The adapter code contains two kinds of adapters:
+
+1. Class adapters: they allow to create instances and instance adapters
+1. Instance adapters: they allow to access the defs, vals, and vars of instances
+
+In addition, defs, vals, and vars of companion objects or package objects can also be accessed.
+
+#### Class Adapters
+
+Class adapters are represented by Scala objects. They are named like the class they are adapting. They have the following structure (assuming the the class `x.y.SomeClass` is adapted):
+
+```
+object SomeClass {
+  // create an instance; generated iff @AdaptConstructor is present
+  def newDelegate(...): _root_x.y.SomeClass                 
+  // create an adapter wrapping the given delegate
+  def newAdapter(delegate: _root_x.y.SomeClass): SomeClass  
+}
+```
+
+On the TypeScript side the two methods can conveniently be combined, i.e. given the necessary constructor parameters returning an adapter for a newly created instance:
+
+```
+function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
+    classAdapter: { newDelegate: (...args: ARGS) => DELEGATE, newAdapter: (d: DELEGATE) => ADAPTER },
+    ...args: ARGS
+  ): ADAPTER {
+    return classAdapter.newAdapter(classAdapter.newDelegate(...args))
+  }
+```
+
+#### Instance Adapters
+
+Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. Access to an underlying `val` is implemented by a `def` without parameters that takes care of the necessary conversion. Access to an underlying `var` is implemented by a pair of `def`s being getter/setter of the `var`.
+
+#### Support for Inner Classes 
+
+Instance adapters may also contain class adapters of inner classes. Because of a current limitation of ScalaJS (cf. [ScalaJS/4142](https://github.com/scala-js/scala-js/issues/4142)) an additional field for the class adapter must be generated. The field is named like the adapted class with an `$a` suffix. The class adapter can be used to instantiate classes and adapters like normal classes.
+
+## Appendix
 
 ### Folder Contents
 
