@@ -35,7 +35,7 @@ lazy val root = (project in file("."))
       // -> remove the node_modules folder and run "npm i" before executing the tests
       val r = (
         Process("rm" :: "-rf" :: "node_modules" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
-          Process("rm" :: "package-lock.json" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
+          Process("rm" :: "-f" :: "package-lock.json" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
           Process("npm" :: "i" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) #&&
           Process("npm" :: "t" :: Nil, baseDirectory.value, "PATH" -> System.getenv("PATH")) !
         )
