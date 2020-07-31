@@ -15,8 +15,8 @@ package x {
   }
 }
 
-@JSExportTopLevel("adapter")
-object Adapter extends js.Object {
+@JSExportTopLevel("Adapter1")
+object Adapter1 extends js.Object {
 
   @JSExportAll
   trait InstanceAdapter[D] {
