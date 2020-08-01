@@ -11,6 +11,7 @@
   "dependencies": {
     "js-joda": "^1.11.0"
   },
+  "comment": "scala-ts-mod is configured as a devDependecy -> cf. comment of externalNpm in build.sbt",
   "devDependencies": {
     "@types/jest": "^25.2.3",
     "@types/node": "^14.0.5",
