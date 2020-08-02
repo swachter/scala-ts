@@ -37,8 +37,8 @@ abstract class AdapterTypeFormatter(symTab: SymbolTable) extends (Type => String
       } else {
         targs.map(formatType).mkString("[", ",", "]")
       }
-      s"${FullName.fromSymbol(sym)}$ts"
-    case SingleType(Type.Empty, symbol)       => s"${FullName.fromSymbol(symbol)}"
+      s"_root_.${FullName.fromSymbol(sym)}$ts"
+    case SingleType(Type.Empty, symbol)       => s"_root_.${FullName.fromSymbol(symbol)}"
     case ConstantType(BooleanConstant(value)) => String.valueOf(value)
     case ConstantType(ByteConstant(value))    => String.valueOf(value)
     case ConstantType(CharConstant(value))    => s"'${new Character(value.toChar)}'"
@@ -107,15 +107,15 @@ class InteropTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(sym
   }
 
   val simpleReplacements = Map(
-    "java/util/Date#"                  -> "js.Date",
-    "scala/Array#"                     -> "js.Array",
-    "scala/Option#"                    -> "js.UndefOr",
-    "scala/collection/immutable/List#" -> "js.Array",
-    "scala/concurrent/Future#"         -> "js.Promise"
+    "java/util/Date#"                  -> "_root_.scala.scalajs.js.Date",
+    "scala/Array#"                     -> "_root_.scala.scalajs.js.Array",
+    "scala/Option#"                    -> "_root_.scala.scalajs.js.UndefOr",
+    "scala/collection/immutable/List#" -> "_root_.scala.scalajs.js.Array",
+    "scala/concurrent/Future#"         -> "_root_.scala.scalajs.js.Promise"
   )
 
   val complexReplacment: PartialFunction[String, String] = {
-    case sym if sym matches "scala/Function\\d+#" => s"js.Function${sym.dropRight(1).substring(14)}"
-    case sym if sym matches "scala/Tuple\\d+#"    => s"js.Tuple${sym.dropRight(1).substring(11)}"
+    case sym if sym matches "scala/Function\\d+#" => s"_root_.scala.scalajs.js.Function${sym.dropRight(1).substring(14)}"
+    case sym if sym matches "scala/Tuple\\d+#"    => s"_root_.scala.scalajs.js.Tuple${sym.dropRight(1).substring(11)}"
   }
 }

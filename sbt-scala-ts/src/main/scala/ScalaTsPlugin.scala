@@ -66,11 +66,22 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaJSUseMainModuleInitializer := false,
   )
 
-  lazy val annotationDependency = "eu.swdev" %% "scala-ts-generator" % BuildInfo.version
+  lazy val generatorDependency = "eu.swdev" %% "scala-ts-generator" % BuildInfo.version
 
-  lazy val adapterSettings = Seq(
-    libraryDependencies += annotationDependency,
-  )
+  // '%%%' combinator is is only allowed in task or settings
+  // lazy val annotationDependency = "eu.swdev" %%% "scala-ts-annotations" % BuildInfo.version
+  // lazy val runtimeDependency    = "eu.swdev" %%% "scala-ts-runtime"     % BuildInfo.version
+
+  // settings for cross projects
+  object crossProject {
+
+    // TODO: check if annotation dependency can be supplied somehow
+//    lazy val settings = Seq(
+//      libraryDependencies += annotationDependency % "provided",
+//    )
+
+    lazy val jsSettings = semanticDbSettings
+  }
 
   override lazy val projectSettings: Seq[Setting[_]] = semanticDbSettings ++ scalaJsSettings ++ Seq(
     scalaTsModuleName := name.value,
@@ -79,7 +90,7 @@ object ScalaTsPlugin extends AutoPlugin {
     // -> fork a Scala process for the scala-ts generator for the required Scala version
     // -> add the scala-ts-generator jar as a dependency to the project in order to have it on the classpath
     // -> use (classDirectory +: fullClassPath) as the classpath for the forked process
-    libraryDependencies += "eu.swdev" %% "scala-ts-generator" % BuildInfo.version,
+    libraryDependencies += generatorDependency,
     libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("eu.swdev" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
     Compile / sourceGenerators += Def.task {
       generateAdapter(

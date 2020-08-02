@@ -6,22 +6,16 @@ val npmReinstallAndTest = taskKey[Unit]("Reinstalls node modules and executes te
 
 val shared =
   crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure).settings(
-    // the shared project contains classes that may use the @AdaptXXX annotations
-    ScalaTsPlugin.adapterSettings
+    libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % eu.swdev.scala.ts.BuildInfo.version % "provided"
   ).jvmSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",
   ).jsSettings(
-    // the shared project contains classes (i.e. Counter and Increment) that are referenced in the exported API of the client project
-    // -> semantic db information is required for these classes
-    // -> configure the semanticdb compiler plugin
-    ScalaTsPlugin.semanticDbSettings
+    // adds semantic db settings
+    ScalaTsPlugin.crossProject.jsSettings
   )
 
-val sharedJS = shared.js
-val sharedJVM = shared.jvm
-
 val client =
-  project.enablePlugins(ScalaTsPlugin).settings(
+  project.enablePlugins(ScalaTsPlugin).dependsOn(shared.js).settings(
     version := "0.0.1-SNAPSHOT",
     name := "scala-ts-e2e-adapter",
     organization := "eu.swdev",
@@ -58,10 +52,10 @@ val client =
     },
 
 
-  ).dependsOn(sharedJS)
+  )
 
 lazy val root = project.in(file(".")).
-  aggregate(client, sharedJS, sharedJVM).
+  aggregate(client, shared.js, shared.jvm).
   settings(
     name := "scala-ts-e2e-adapter",
     publish := {},

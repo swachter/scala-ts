@@ -29,7 +29,7 @@ The implementation is based on [Scalameta](https://scalameta.org/). Information 
 
 Side note: `ScalaJS` export annotations (e.g. `@JSExportTopLevel`) are available at compile time only. SemanticDB files do not include annotation values either. Therefore, the `ScalaTsPlugin` needs to process sources in order to access export information. The SemanticDB compiler plugin option `-P:semanticdb:text:on` is used to include sources in SemanticDB files. In addition, the Scala compiler option `-Yrangepos` must be set to allow matching source file locations with symbol information from SemanticDB.
 
-The adapter is realized by source code generation. The source code of a Scala adapter object is generated. The adapter object in turn, is processed by the `ScalaTsPlugin` like all other sources to yielding corresponding TypeScript declarations.
+The adapter is realized by source code generation of a file containing a Scala object. This adapter object in turn, is processed by the `ScalaTsPlugin` like all other sources yielding corresponding TypeScript declarations. The adapter uses implicitly derived converters that convert between interoperability types and standard Scala types in both directions.
 
 ### SBT settings and tasks
 
@@ -98,7 +98,7 @@ import _root_x = x
 
 Without additional measures, it is not possible to access the interface `x.I` from declarations inside the namespace `ns.x`. The reason is the existence of the interface `ns.x.I` which shadows the interface `x.I`.
  
-TypeScript does not offer a 'root' namespace indicator comparable to the `_root_` package indicator available in Scala. However, using namespace imports it is possible to define namespace aliases for all top-level packages.
+TypeScript does not offer a 'root' namespace indicator comparable to the `_root_` package indicator available in Scala. However, using namespace imports it is possible to define namespace aliases for all top-level packages as seen above.
 
 If the setting `scalaTsPreventTypeShadowing` is enabled then namespace aliases are emitted for all top-level packages. Types are referenced using these aliases.
 
@@ -255,15 +255,27 @@ In addition to the interfaces that are generated for _opaque_ types, interfaces 
 
 ## Adapter Code Generation
 
-The `ScalaTsPlugin` generates adapter code only for the **dependencies** of a project for which the `ScalaTsPlugin` is enabled. The reason is that adapter code generation needs the compilation result of the classes that should be adapted. The compilation result however, is not available at the source code generation stage of a project when the adapter code is generated.
+The `ScalaTsPlugin` generates adapter code **only for the dependencies** of a project for which the `ScalaTsPlugin` is enabled. The reason is that adapter code generation needs the compilation result of the classes that should be adapted. The compilation result however, is not available at the source code generation stage of a project.
 
 Considering only the dependencies of a project for adapter code generation seems to be a big disadvantage at first. However, the adapter code generation offers its most benefit in project setups that have shared code between backend and frontend.
  
-In projects that contain ScalaJS code only that code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr`. In projects with shared code however, that shared code can not use the interoperability types because they are not available on the backend. Therefore adapter code is needed to convert between standard Scala types and interoperability types.
+In projects that contain ScalaJS code only that code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr`. In projects with shared code however, that shared code can not use the interoperability types because they are not available on the backend. Therefore, adapter code is needed to convert between standard Scala types and interoperability types.
 
 ### Configuration
 
-Adapter code generation is an opt-in feature. First, the setting
+Adapter code generation is an opt-in feature:
+ 
+First, classes, objects, vals, vars, and defs must be annotated if adapter code should be generated for the corresponding entities. The annotations are:
+
+| Annotation | Description |
+| --- | --- |
+| `@Adapt` | can be used with defs, vals, vars, and constructor parameters (that are exposed as vals or vars); triggers code generation to access the annotated entity |
+| `@Adapt('interop type')` | allows to specify the exposed interoperability type; must be a valid Scala type (e.g. 'js.Array[Double]'; the `js` package is in scope) |
+| `@AdaptConstructor` | can be used with classes; adapter code for invoking the class constructor is generated |
+| `@AdaptMembers` | can be used with classes and objects; adapter code for all members (defs, vals, and vars) is generated |
+| `@AdaptAll` | is the same as `@AdaptConstructor` and `@AdaptMembers` |
+
+Second, the setting
 
 ```
 scalaTsAdapterEnabled := true
@@ -275,16 +287,36 @@ must be defined. This setting automatically implies
 scalaTsConsiderFullCompileClassPath := true // automatically implied
 scalaTsPreventTypeShadowing := true         // automatically implied 
 ```
- 
-Second, classes, objects, vals, vars, and defs must be annotated if adapter code should be generated for the corresponding entities. The annotations are:
 
-| Annotation | Description |
-| --- | --- |
-| `@Adapt` | can be used with defs, vals, vars, and constructor parameters (that are exposed as vals or vars); triggers code generation to access the annotated entity |
-| `@Adapt('interop type')` | allows to specify the exposed interoperability type; must be a valid Scala type (e.g. 'js.Array[Double]'; the `js` package is in scope) |
-| `@AdaptConstructor` | can be used with classes; adapter code for invoking the class constructor is generated |
-| `@AdaptMembers` | can be used with classes and objects; adapter code for all members (defs, vals, and vars) is generated |
-| `@AdaptAll` | is the same as `@AdaptConstructor` and `@AdaptMembers` |
+A typical project setup consisting of shared sources and a frontend that uses an adapter is:
+
+```
+lazy val shared = crossProject(JSPlatform, JVMPlatform)
+  .settings(
+    libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % eu.swdev.scala.ts.BuildInfo.version % "provided"
+  ).jvmSettings(
+    libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",
+  ).jsSettings(
+    // adds semantic db settings
+    ScalaTsPlugin.crossProject.jsSettings
+  )
+
+lazy val frontend = project.enablePlugins(ScalaTsPlugin).dependsOn(shared.js).settings(
+  scalaTsAdapterEnabled := true,
+)
+```
+ 
+### Dependencies
+
+Adapter Code Generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides the converters.
+
+#### Annotation Library
+
+The annotations library has the module identifier `"eu.swdev" %%% "scala-ts-annotations" % version`. The annotations library should be added to the "provided" scope because it is not required at runtime. Cross projects can add it to their common settings because the library is available both, for the `JSPlatform` and for the `JVMPlatform`.
+
+#### Runtime Library
+
+The runtime library is available for the `JSPlatform` only.  Its module identifier is: `"eu.swdev" %%% "scala-ts-runtime" % version`. This dependency is added by the `ScalaTsPlugin` automatically if adapter code generation is enabled.
 
 ### Generated Adapter Code
 
@@ -297,7 +329,7 @@ In addition, defs, vals, and vars of companion objects or package objects can al
 
 #### Class Adapters
 
-Class adapters are represented by Scala objects. They are named like the class they are adapting. They have the following structure (assuming the the class `x.y.SomeClass` is adapted):
+Class adapters are represented by Scala objects. They are named like the class they are adapting. They have the following structure (assuming the class `x.y.SomeClass` is adapted):
 
 ```
 object SomeClass {
@@ -307,8 +339,9 @@ object SomeClass {
   def newAdapter(delegate: _root_x.y.SomeClass): SomeClass  
 }
 ```
+(Note the usage of the `_root_x` namespace identifier that is the result of the 'prevent type shadowing feature' explained above.)
 
-On the TypeScript side the two methods can conveniently be combined, i.e. given the necessary constructor parameters returning an adapter for a newly created instance:
+The two methods can conveniently be combined on the TypeScript side. A function that constructs an instance adapter given a class adapter and the necessary constructor parameters can be implemented by:
 
 ```
 function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
@@ -321,7 +354,7 @@ function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
 
 #### Instance Adapters
 
-Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. Access to an underlying `val` is implemented by a `def` without parameters that takes care of the necessary conversion. Access to an underlying `var` is implemented by a pair of `def`s being getter/setter of the `var`.
+Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. Access to an underlying `val` is implemented by a `def` without parameters that takes care of the necessary conversion. Access to an underlying `var` is implemented by a getter/setter pair of `def`s, doing the necessary conversion in both directions.
 
 #### Support for Inner Classes 
 
@@ -331,7 +364,7 @@ Instance adapters may also contain class adapters of inner classes. Because of a
 
 ### Folder Contents
 
-- `e2e`: standalone SBT projects for end-2-end tests ([`readme`](e2e/readme.md))
+- `e2e`: standalone SBT projects for end-2-end tests ([e2e/dts](e2e/dts/readme.md), [e2e/adapter](e2e/adapter/readme.md))
 - `explore`: a `ScalaJS` project for exploration
 - `generator`: a library module that contains the code generator
 - `sbt-scala-ts`: contains the `ScalaTsPlugin`

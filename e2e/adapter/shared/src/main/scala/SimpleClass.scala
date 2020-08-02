@@ -1,6 +1,6 @@
 package x.y
 
-import eu.swdev.scala.ts.annotation.AdaptAll
+import eu.swdev.scala.ts.annotation.{Adapt, AdaptAll}
 
 @AdaptAll
 class SimpleClass(var x: Array[Int]) {
@@ -9,4 +9,10 @@ class SimpleClass(var x: Array[Int]) {
 
   def filter(p: Int => Boolean) = x =  x.filter(p)
 
+}
+
+object SimpleClass {
+
+  @Adapt
+  def fromInt(int: Int) = new SimpleClass(Array(int))
 }

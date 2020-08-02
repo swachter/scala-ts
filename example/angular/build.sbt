@@ -3,6 +3,7 @@ ThisBuild / scalaVersion := "2.13.3"
 val shared =
   crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure).settings(
     libraryDependencies ++= Seq(
+      "eu.swdev" %%% "scala-ts-annotations" % eu.swdev.scala.ts.BuildInfo.version % "provided",
       "org.endpoints4s" %%% "algebra" % "1.0.0",
       "org.endpoints4s" %%% "json-schema-generic" % "1.0.0",
     )
@@ -12,7 +13,7 @@ val shared =
     // the shared project contains classes (i.e. Counter and Increment) that are referenced in the exported API of the client project
     // -> semantic db information is required for these classes
     // -> configure the semanticdb compiler plugin
-    ScalaTsPlugin.semanticDbSettings
+    ScalaTsPlugin.crossProject.jsSettings
   )
 
 val sharedJS = shared.js

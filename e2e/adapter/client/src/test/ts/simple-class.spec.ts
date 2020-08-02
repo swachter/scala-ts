@@ -23,4 +23,10 @@ describe('simple class', function () {
     expect(c.sum).toBe(15)
   })
 
+  it('acceess method in companion object', () => {
+    const d = sca.fromInt(7)
+    const a = sca.newAdapter(d)
+    expect(a.sum).toBe(7)
+  })
+
 })
