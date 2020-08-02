@@ -10,7 +10,7 @@ Add the following lines to `project/plugins.sbt`
 
 ```
 resolvers += Resolver.jcenterRepo
-addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.9")
+addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.10")
 ```
 
 and enable the `ScalaTsPlugin` in `build.sbt`
@@ -293,6 +293,7 @@ A typical project setup consisting of shared sources and a frontend that uses an
 ```
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .settings(
+    resolvers += Resolver.jcenterRepo,
     libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % eu.swdev.scala.ts.BuildInfo.version % "provided"
   ).jvmSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",
@@ -308,7 +309,7 @@ lazy val frontend = project.enablePlugins(ScalaTsPlugin).dependsOn(shared.js).se
  
 ### Dependencies
 
-Adapter Code Generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides the converters.
+Adapter Code Generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides the converters. These libraries are available at the [JCenter repository](https://bintray.com/beta/#/bintray/jcenter) whose SBT resolver has to be added.
 
 #### Annotation Library
 

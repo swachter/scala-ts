@@ -6,6 +6,7 @@ val npmReinstallAndTest = taskKey[Unit]("Reinstalls node modules and executes te
 
 val shared =
   crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure).settings(
+    resolvers += Resolver.jcenterRepo,
     libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % eu.swdev.scala.ts.BuildInfo.version % "provided"
   ).jvmSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",

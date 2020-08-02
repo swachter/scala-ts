@@ -14,7 +14,7 @@
 
     sbt> +publish
 
-    - set next snapshot version in build.sbt and in e2e/project/plugins.sbt
+    - set next snapshot version in build.sbt and in e2e/ * /project/plugins.sbt
  */
 
 import sbt.internal.inc.ScalaInstance
@@ -32,7 +32,7 @@ lazy val scala213 = "2.13.2"
 
 lazy val commonSettings = Seq(
   organization := "eu.swdev",
-  version := "0.10-SNAPSHOT",
+  version := "0.10",
   bintrayPackageLabels := Seq("sbt","plugin"),
   bintrayVcsUrl := Some("""https://github.com/swachter/scala-ts.git"""),
   bintrayOrganization := None, // TODO: what is the organization for
@@ -45,7 +45,7 @@ lazy val annotations = crossProject(JSPlatform, JVMPlatform).crossType(CrossType
     name := "scala-ts-annotations",
     description := "compile time only library including annotations for ScalaTs",
     crossScalaVersions := List(scala212, scala213),
-    publishMavenStyle := false,
+    bintrayRepository := "maven",
   )
 
 lazy val runtime = project
@@ -56,6 +56,7 @@ lazy val runtime = project
     description := "runtime library that contains conversion logic when using adapters",
     crossScalaVersions := List(scala212, scala213),
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.0" % "test",
+    bintrayRepository := "maven",
 //    scalacOptions += "-Xlog-implicits"
   ).enablePlugins(ScalaJSPlugin)
 
