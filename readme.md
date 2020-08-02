@@ -259,7 +259,7 @@ The `ScalaTsPlugin` generates adapter code **only for the dependencies** of a pr
 
 Considering only the dependencies of a project for adapter code generation seems to be a big disadvantage at first. However, the adapter code generation offers its most benefit in project setups that have shared code between backend and frontend.
  
-In projects that contain ScalaJS code only that code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr`. In projects with shared code however, that shared code can not use the interoperability types because they are not available on the backend. Therefore, adapter code is needed to convert between standard Scala types and interoperability types.
+In projects that contain ScalaJS code only that code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr` and the accompanying implicit conversions. In projects with shared code however, the shared code can not use the interoperability types because they are not available on the backend. Therefore, adapter code is needed to convert between standard Scala types and interoperability types.
 
 ### Configuration
 
@@ -323,7 +323,7 @@ The runtime library is available for the `JSPlatform` only.  Its module identifi
 
 The adapter code contains two kinds of adapters:
 
-1. Class adapters: they allow to create instances and instance adapters
+1. Class adapters: they allow to create instances of ScalaJS classes and instance adapters
 1. Instance adapters: they allow to access the defs, vals, and vars of instances
 
 In addition, defs, vals, and vars of companion objects or package objects can also be accessed.
@@ -355,7 +355,17 @@ function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
 
 #### Instance Adapters
 
-Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. Access to an underlying `val` is implemented by a `def` without parameters that takes care of the necessary conversion. Access to an underlying `var` is implemented by a getter/setter pair of `def`s, doing the necessary conversion in both directions.
+Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. Translatation rules are:
+
+| Accessed ScalaJS | Adapter Code |
+| --- | --- |
+| `def m(p1: S1, ...): SR` | `def m(p1: T1, ...): TR = $delegate.method(p1.$cnv[S1], ...).$cnv[SR]` |
+| `val value: S` | `def value: T = $delegate.value.$cnv[T]` |
+| `var value: S` | `def value: T = $delegate.value.$cnv[T]`<br>`def value_=(v: T) = $delegate.value = v.$cnv[S]` |
+
+The `$cnv` method takes care of the necessary conversion. Note that conversions may happen recursively, e.g. a ScalaJS `List[Option[Int]]` corresponds to the interoperability type `js.Array[js.UndefOr[Int]]`.
+
+#### Supported Conversions
 
 #### Support for Inner Classes 
 
