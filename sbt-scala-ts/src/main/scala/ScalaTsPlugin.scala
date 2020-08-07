@@ -68,17 +68,13 @@ object ScalaTsPlugin extends AutoPlugin {
 
   lazy val generatorDependency = "eu.swdev" %% "scala-ts-generator" % BuildInfo.version
 
-  // '%%%' combinator is is only allowed in task or settings
-  // lazy val annotationDependency = "eu.swdev" %%% "scala-ts-annotations" % BuildInfo.version
-  // lazy val runtimeDependency    = "eu.swdev" %%% "scala-ts-runtime"     % BuildInfo.version
-
   // settings for cross projects
   object crossProject {
 
-    // TODO: check if annotation dependency can be supplied somehow
-//    lazy val settings = Seq(
-//      libraryDependencies += annotationDependency % "provided",
-//    )
+    lazy val settings = Def.settings(
+      resolvers += Resolver.jcenterRepo,
+      libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % BuildInfo.version % "provided"
+    )
 
     lazy val jsSettings = semanticDbSettings
   }

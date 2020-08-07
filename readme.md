@@ -281,20 +281,20 @@ Second, the setting
 scalaTsAdapterEnabled := true
 ```
 
-must be defined. This setting automatically implies
+must be defined. This setting automatically implies:
 
 ```
 scalaTsConsiderFullCompileClassPath := true // automatically implied
 scalaTsPreventTypeShadowing := true         // automatically implied 
 ```
 
-A typical project setup consisting of shared sources and a frontend that uses an adapter is:
+The `ScalaTsPlugin` provides the constants `ScalaTsPlugin.crossProject.settings` and `ScalaTsPlugin.crossProject.jsSettings` that ease the setup of cross projects containing shared sources for which adapter code should be generated. A typical cross project and accompanying frontend project setup looks like: 
 
 ```
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
   .settings(
-    resolvers += Resolver.jcenterRepo,
-    libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % eu.swdev.scala.ts.BuildInfo.version % "provided"
+    // add JCenter repo + annotations dependency
+    ScalaTsPlugin.crossProject.settings
   ).jvmSettings(
     libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "provided",
   ).jsSettings(
@@ -313,7 +313,7 @@ Adapter Code Generation involves two dependencies: A library that contains annot
 
 #### Annotation Library
 
-The annotations library has the module identifier `"eu.swdev" %%% "scala-ts-annotations" % version`. The annotations library should be added to the "provided" scope because it is not required at runtime. Cross projects can add it to their common settings because the library is available both, for the `JSPlatform` and for the `JVMPlatform`.
+The annotations library has the module identifier `"eu.swdev" %%% "scala-ts-annotations" % version`. The annotations library should be added to the "provided" scope because it is not required at runtime. Cross projects can add it to their common settings because the library is available both, for the `JSPlatform` and for the `JVMPlatform`. The settings constant `ScalaTsPlugin.crossProject.settings` contains the necessary settings.
 
 #### Runtime Library
 
