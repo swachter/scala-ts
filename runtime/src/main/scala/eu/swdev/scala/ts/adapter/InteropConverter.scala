@@ -23,13 +23,28 @@ trait LowPrio {
 
 }
 
+/* TODO: Provide a JavaScript proxy for improved array interop
+   -> the JavaScript proxy could mimic a JavaScript array and support contrained modifications
+      an underlying Scala array (as long as the array length does not change)
+val handler = new js.Object {
+  def get(target: Any, prop: Any, receiver: Any): Any = ???
+  def set(target: Any, prop: Any, value: Any, receiver: Any): Unit = ???
+}
+ */
+
 object InteropConverter extends LowPrio {
 
-  implicit def jsArray2ScalaArray[X: ClassTag, Y: ClassTag](implicit ev: C[X, Y]): C[js.Array[X], Array[Y]] = _.toArray.map(ev(_))
-  implicit def jsArray2ScalaList[X, Y](implicit ev: C[X, Y]): C[js.Array[X], List[Y]] = _.toList.map(ev(_))
+  implicit def jsIterable2ScalaArray[X: ClassTag, Y: ClassTag](implicit ev: C[X, Y]): C[js.Iterable[X], Array[Y]] = _.iterator.map(ev(_)).toArray
+  implicit def scalaArray2JsIterable[X, Y](implicit ev: C[X, Y]): C[Array[X], js.Iterable[Y]] = new InteropIterable(_, ev(_))
 
-  implicit def scalaArray2JsArray[X, Y](implicit ev: C[X, Y]): C[Array[X], js.Array[Y]] = _.toJSArray.map(ev(_))
-  implicit def scalaList2JsArray[X, Y](implicit ev: C[X, Y]): C[List[X], js.Array[Y]] = _.toJSArray.map(ev(_))
+  implicit def jsArray2ScalaArray[X: ClassTag, Y: ClassTag](implicit ev: C[X, Y]): C[js.Array[X], Array[Y]] = _.iterator.map(ev(_)).toArray
+  implicit def scalaArray2JsArray[X, Y](implicit ev: C[X, Y]): C[Array[X], js.Array[Y]] = _.iterator.map(ev(_)).toJSArray
+
+  implicit def jsArray2ScalaList[X, Y](implicit ev: C[X, Y]): C[js.Array[X], List[Y]] = _.iterator.map(ev(_)).toList
+  implicit def scalaList2JsArray[X, Y](implicit ev: C[X, Y]): C[List[X], js.Array[Y]] = _.iterator.map(ev(_)).toJSArray
+
+  implicit def jsIterable2ScalaList[X, Y](implicit ev: C[X, Y]): C[js.Iterable[X], List[Y]] = _.iterator.map(ev(_)).toList
+  implicit def scalaList2JsIterable[X, Y](implicit ev: C[X, Y]): C[List[X], js.Iterable[Y]] = new InteropIterable(_, ev(_))
 
   implicit def undefOr2Option[X, Y](implicit ev: C[X, Y]): C[js.UndefOr[X], Option[Y]] = _.toOption.map(ev(_))
   implicit def option2undefOr[X, Y](implicit ev: C[X, Y]): C[Option[X], js.UndefOr[Y]] = _.orUndefined.map(ev(_))
@@ -39,6 +54,9 @@ object InteropConverter extends LowPrio {
 
   implicit val jsDate2Date: C[js.Date, Date] = d => new Date(d.getTime().toLong)
   implicit val date2JsDate: C[Date, js.Date] = d => new js.Date(d.getTime())
+
+  implicit val date2Double: C[Date, Double] = d => d.getTime().toDouble
+  implicit val double2Date: C[Double, Date] = d => new Date(d.toLong)
 
   implicit def jsf0[F, T](implicit r: C[F, T]): C[js.Function0[F], () => T] = f => () => r(f())
   implicit def jsf1[F0, T0, F, T](implicit r: C[F, T], c0: C[T0, F0]): C[js.Function1[F0, F], (T0) => T] = f => p0 => r(f(c0(p0)))

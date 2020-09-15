@@ -17,8 +17,8 @@ class ClassTest extends AdapterFunSuite {
     |  object test extends js.Object {
     |    @JSExportAll
     |    trait AdaptedClass extends InstanceAdapter[_root_.test.AdaptedClass] {
-    |      def sum = $delegate.sum.$res
-    |      def x = $delegate.x.$res
+    |      def sum = $delegate.sum.$cnv[Int]
+    |      def x = $delegate.x.$cnv[Int]
     |    }
     |    object AdaptedClass extends js.Object {
     |      def newAdapter(delegate: _root_.test.AdaptedClass): AdaptedClass = new AdaptedClass {

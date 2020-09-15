@@ -12,8 +12,8 @@ class ObjectDefValVarTest extends AdapterFunSuite {
     |object Adapter extends js.Object {
     |  object test extends js.Object {
     |    object ObjectDefValVarTest extends js.Object {
-    |      def method(x: Int) = _root_.test.ObjectDefValVarTest.method(x).$res
-    |      def value = _root_.test.ObjectDefValVarTest.value.$res
+    |      def method(x: Int) = _root_.test.ObjectDefValVarTest.method(x).$cnv[Boolean]
+    |      def value = _root_.test.ObjectDefValVarTest.value.$cnv[String]
     |      def variable = _root_.test.ObjectDefValVarTest.variable.$cnv[Boolean]
     |      def variable_=(value: Boolean) = _root_.test.ObjectDefValVarTest.variable = value.$cnv[Boolean]
     |    }

@@ -33,7 +33,7 @@ The adapter is realized by source code generation of a file containing a Scala o
 
 ### SBT settings and tasks
 
-Main settings and tasks are:
+#### Main settings and tasks
 
 | Key | Description |
 | --- | --- |
@@ -43,6 +43,8 @@ Main settings and tasks are:
 | `scalaTsFullOpt` | Task: Generate node module including typescript declaration file based on the fullOptJS output |
 | `scalaTsAdapterEnabled` | Setting: Determines if adapter code is generated (default: false) |
 
+#### Dependencies
+
 In its default configuration the `ScalaTsPlugin` considers only the sources of the project where it is enabled. If library dependencies should also be considered then the setting `scalaTsConsiderFullCompileClassPath` must be set to `true`. In that case all SemanticDB information available on the compile classpath can be used. Parts of the compile class path can be filtered by specifying regular expressions for the `scalaTsInclude` and `scalaTsExclude` settings. In order for a class path part to be considered it must match the regular expression for inclusion and not match the regular expression for exclusion. The relevant settings are:
 
 | Key | Description |
@@ -50,9 +52,10 @@ In its default configuration the `ScalaTsPlugin` considers only the sources of t
 | `scalaTsConsiderFullCompileClassPath` | Determines if the full compile class path or only the classes of the current project are considered (default: false) |
 | `scalaTsInclude` | RegEx that filters entries from the full compile class path (default: `.`) |
 | `scalaTsExclude` | RegEx that filters entries from the full compile class path (default: `(?!.).`) |
-| `scalaTsPreventTypeShadowing` | see description below (default: false) | 
 
-A common situation for a library dependency that must be considered is a cross project (named `shared`) with shared sources for client and server. For the `shared.js` project the generation of `SemanticDB` information must be activated. This can be done by invoking `.jsSettings(ScalaTsPlugin.semanticDbSettings)` on the cross project. A dedicated `client` project depends on the `shared.js` project and has the `ScalaTsPlugin` enabled. The [example/angular](example/angular) folder shows this setup.    
+A common situation for a library dependency that must be considered is a cross project (named `shared`) with shared sources for client and server. For the `shared.js` project the generation of `SemanticDB` information must be activated. This can be done by invoking `.jsSettings(ScalaTsPlugin.crossProject.jsSettings)` on the cross project. A dedicated `client` project depends on the `shared.js` project and has the `ScalaTsPlugin` enabled. The [example/angular](example/angular) folder shows this setup.
+
+#### Target directory    
 
 The output directory of the generated node module can be configured by the `crossTarget` setting for the `fastOptJS` or `fullOptJS` tasks, respectively. E.g.:
 
@@ -60,6 +63,8 @@ The output directory of the generated node module can be configured by the `cros
 (crossTarget in fastOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
 (crossTarget in fullOptJS) := (baseDirectory in Compile).value / "target" / "node_module"
 ```
+
+#### SemanticDB version
 
 The `ScalaTsPlugin` uses SBT's built-in [SemanticDB support](https://www.scala-sbt.org/1.x/docs/sbt-1.3-Release-Notes.html#SemanticDB+support) for generating the required SemanticDB files. The `ScalaTsPlugin` uses a default SemanticDB version. In case that the corresponding `semanticdb-scalac` compiler plugin is not available for the used Scala version, an available SemanticDB version must be configured. The `complete` command of the [Coursier](https://github.com/coursier/coursier) commandline client can be used to determine available versions. The following example shows the available versions for Scala 2.13.3 at the time of this writing:
 
@@ -77,6 +82,10 @@ semanticdbVersion := "4.3.20"
 ```
 
 #### Type shadowing
+
+| Key | Description |
+| --- | --- |
+| `scalaTsPreventTypeShadowing` | see description below (default: false) | 
 
 TypeScript allows nested namespaces. Consider the following situation:
 
@@ -103,18 +112,20 @@ TypeScript does not offer a 'root' namespace indicator comparable to the `_root_
 If the setting `scalaTsPreventTypeShadowing` is enabled then namespace aliases are emitted for all top-level packages. Types are referenced using these aliases.
 
 ## TypeScript declaration file generation
-### Type mapping
+### Type correspondences
 
-Primitive types
+ScalaJS types are mapped into corresponding TypeScript types. ScalaJS defines type correspondences for all primitive types and provides a couple of interoperability and facade types (cf. [types](https://www.scala-js.org/doc/interoperability/types.html)). Additional facade types can be defined based on native symbols from global scope or from imported libraries. Finally, all other types are mapped into marker interfaces.
 
-| Scala Type | TypeScript Type |
+#### Primitive and literal types
+
+| ScalaJS Type | TypeScript Type |
 | --- | --- |
 | `String` | `string` |
 | `Boolean` | `boolean` |
 | `Byte`, `Double`, `Float`, `Int`, `Short` | `number` |
 | `literal type` | `literal type` |
 
-Supported ScalaJS Interoperability Types
+#### Interoperability types
 
 | ScalaJS Type | TypeScript Type |
 | --- | --- |
@@ -127,31 +138,44 @@ Supported ScalaJS Interoperability Types
 | `js.TupleN[T1, ... TN]` | `[T1, ... TN]` |
 | <code>js.&#124;[T1, T2]</code> | `T1 `<code>&#124;</code>` T2` |
 | `js.Dictionary[T]` | `{ [key: string]: T }` |
-| `js.Promise[T]` | `Promise<T>` |
-| `js.Thenable[T]` | `PromiseLike<T>` |
 | `js.Iterable[T]` | `Iterable<T>` |
 | `js.Iterator[T]` | `Iterator<T>` |
+| `js.Thenable[T]` | `PromiseLike<T>` |
+|  `eu.swdev.scala.ts.tpe.ReadOnlyArray[X]` | `ReadonlyArray<X>` |
+
+Note: The type `eu.swdev.scala.ts.tpe.ReadOnlyArray` is a type alias for `js.Array` that is part of the [adapter runtime library](#runtime-library) and that is treated differently during TypeScript declaration file generation.
+  
+#### Facade types
+
+[Facade types](https://www.scala-js.org/doc/interoperability/facade-types.html) are based on underlying native JavaScript types. Facade types can be defined based on global symbols or by importing native JavaScript libraries. Facade types are mapped into the corresponding global or imported native symbol. This supports seamless interoperability for native types. In case of imported types a corresponding `import` statement is included in the generated declaration file. Default imports are supported.
+ 
+ScalaJS includes the following facade types based on global symbols:
+ 
+| ScalaJS Type | TypeScript Type |
+| --- | --- |
+| `js.Promise[T]` | `Promise<T>` |
 | `js.Date` | `Date` |
 | `js.RegExp` | `RegExp` |
 | `js.Symbol` | `symbol` |
 | `js.BigInt` | `bigint` |
 
-Scala types that are referenced in exported definitions (i.e. classes, objects, vals, vars, or methods) but are not exported themselves are called _opaque_ types. Three kinds of opaque types are distinguished:
+Examples for custom facade types that reference global or imported symbols:
 
-1. Types that reference global types (i.e. types that are annotated with `@JSGlobal`)
-1. Types that reference imported types (i.e. types that are annotated with `@JSImport`)
-1. Types that do not reference a global or an imported type
- 
-Scala types that reference a global or an imported TypeScript type (so called facade types) are represented by the corresponding global or imported symbol. This supports seamless interoperability for TypeScript types from external libraries or from global scope. In case of imported types a corresponding `import` statement is included in the generated declaration file. Default imports are supported.
-
-In order to keep type safety for opaque types that do not reference a global or imported type a corresponding marker interface is exported. Each marker interface contains a property with a name that is equal to the fully qualified type name and the value `never`. This simulates some kind of _nominal_ typing for these types instead of _structural_ typing. In order to avoid name clashes, interfaces of opaque types are included in namespaces that match their package structure. Example:
-
-| Referenced Type | TypeScript Declaration |
+| ScalaJS Type | TypeScript Declaration |
 | --- | --- |
 | `@JSGlobal`<br>`class WeakMap[K <: js.Object, V]` | `WeakMap<K extends object, V>` |
 | `@JSImport('module', 'ImportedType')`<br>`class SomeClass` | `import * as $module from 'module'`<br>`...`<br>`$module.ImportedType` |
 | `@JSImport('module', JSImport.Default)`<br>`class SomeClass` | `import $module_ from 'module'`<br>`...`<br>`$module_` |
 | `@JSImport('mod', JSImport.Namespace)` <br>`object o extends js.Object { class C }` | `import * as $mod from 'mod'`<br>`...`<br>`$mod.C` |
+
+#### Opaque types
+
+All other ScalaJS types are called _opaque_ types because their structure is not exposed to JavaScript. In order to preserve typesafety for opaque types a marker interface is exported for each opaque type that is referenced in an exported definition. Exported definitions reference these marker interfaces.
+ 
+Each marker interface contains a property with a name that is equal to the fully qualified type name and the value `never`. This simulates some kind of _nominal_ typing for these types instead of _structural_ typing. In order to avoid name clashes, interfaces of opaque types are included in namespaces that match their package structure. Example:
+
+| ScalaJS Type | TypeScript Declaration |
+| --- | --- |
 | `scala.Option[X]` | `namespace scala { interface Option<X> { 'scala.Option': never } }` |
  
 ### Translation rules
@@ -269,26 +293,28 @@ First, classes, objects, vals, vars, and defs must be annotated if adapter code 
 
 | Annotation | Description |
 | --- | --- |
-| `@Adapt` | can be used with defs, vals, vars, and constructor parameters (that are exposed as vals or vars); triggers code generation to access the annotated entity |
+| `@Adapt` | can be applied on defs, vals, vars, and constructor parameters (that are exposed as vals or vars); triggers code generation to access the annotated entity |
 | `@Adapt('interop type')` | allows to specify the exposed interoperability type; must be a valid Scala type (e.g. 'js.Array[Double]'; the `js` package is in scope) |
-| `@AdaptConstructor` | can be used with classes; adapter code for invoking the class constructor is generated |
-| `@AdaptMembers` | can be used with classes and objects; adapter code for all members (defs, vals, and vars) is generated |
+| `@AdaptConstructor` | can be applied on classes; adapter code for invoking the class constructor is generated |
+| `@AdaptMembers` | can be applied on classes and objects; adapter code for all members (defs, vals, and vars) is generated |
 | `@AdaptAll` | is the same as `@AdaptConstructor` and `@AdaptMembers` |
 
-Second, the setting
+Second, adapter code generation must be enabled. Settings for adapter code generation are:
 
-```
-scalaTsAdapterEnabled := true
-```
+| Key | Description |
+| --- | --- |
+| `scalaTsAdapterEnabled` | Determines if adapter code is generated (default: false) |
+| `scalaTsAdapterName` | Determines the name of the adapter object and its top-level export name (default: Adapter) | 
 
-must be defined. This setting automatically implies:
+The setting `scalaTsAdapterEnabled := true` implies:
 
 ```
 scalaTsConsiderFullCompileClassPath := true // automatically implied
 scalaTsPreventTypeShadowing := true         // automatically implied 
 ```
+#### Configuration of cross projects
 
-The `ScalaTsPlugin` provides the constants `ScalaTsPlugin.crossProject.settings` and `ScalaTsPlugin.crossProject.jsSettings` that ease the setup of cross projects containing shared sources for which adapter code should be generated. A typical cross project and accompanying frontend project setup looks like: 
+The `ScalaTsPlugin` provides constants that ease the setup of cross projects. In the following example project setup the sources of the `shared` cross project may use adapter annotations. The `frontend` project that depends on the shared sources enables adapter generation: 
 
 ```
 lazy val shared = crossProject(JSPlatform, JVMPlatform)
@@ -309,7 +335,7 @@ lazy val frontend = project.enablePlugins(ScalaTsPlugin).dependsOn(shared.js).se
  
 ### Dependencies
 
-Adapter Code Generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides the converters. These libraries are available at the [JCenter repository](https://bintray.com/beta/#/bintray/jcenter) whose SBT resolver has to be added.
+Adapter code generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides converters. These libraries are available at the [JCenter repository](https://bintray.com/beta/#/bintray/jcenter) whose SBT resolver has to be added. The `ScalaTsPlugin` and its cross project settings constants take care of the necessary settings.
 
 #### Annotation Library
 
@@ -321,13 +347,34 @@ The runtime library is available for the `JSPlatform` only.  Its module identifi
 
 ### Generated Adapter Code
 
-The adapter code contains two kinds of adapters:
+The adapter code contains three kinds of adapters:
 
 1. Class adapters: they allow to create instances of ScalaJS classes and instance adapters
-1. Instance adapters: they allow to access the defs, vals, and vars of instances
+1. Instance adapters: they allow to access defs, vals, and vars of instances
+1. Object adapters: they allow to access defs, vals, and vars of objects and package objects
 
-In addition, defs, vals, and vars of companion objects or package objects can also be accessed.
+#### Overall structure of adapter code
 
+A single top level `js.Object` called adapter object is exported. It gives access to all adapted entities. It contains nested objects for all packages and object adapters.
+ 
+For example if the package `eu.swdev` and the object `eu.Util` contain adapted entities then the following adapter structure results:
+
+```
+@JSExportTopLevel("Adapter")
+object Adapter extends js.Object {
+  object eu extends js.Object { // nested package
+    object swdev extends js.Object { // nested package
+      ...
+    }
+    object Util extends js.Object { // object adapter
+      ...
+    }
+  }
+}
+```
+
+These objects give access to class adapters and adapted defs, vals, and vars of objects and package objects. 
+    
 #### Class Adapters
 
 Class adapters are represented by Scala objects. They are named like the class they are adapting. They have the following structure (assuming the class `x.y.SomeClass` is adapted):
@@ -342,7 +389,7 @@ object SomeClass {
 ```
 (Note the usage of the `_root_x` namespace identifier that is the result of the 'prevent type shadowing feature' explained above.)
 
-The two methods can conveniently be combined on the TypeScript side. A function that constructs an instance adapter given a class adapter and the necessary constructor parameters can be implemented by:
+The two methods `newDelegate` and `newAdapter` can conveniently be combined on the TypeScript side. A function that constructs an instance adapter given a class adapter and the necessary constructor parameters can be implemented by:
 
 ```
 function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
@@ -355,21 +402,39 @@ function newAdapter<ARGS extends any[], DELEGATE, ADAPTER>(
 
 #### Instance Adapters
 
-Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. Translatation rules are:
+Instance adapters are represented by Scala traits. They allow to access the defs, vals, and vars of their underlying delegates. The underlying delegate of an instance adapter can be accessed by its `$delegate` property. Translatation rules are:
 
 | Accessed ScalaJS | Adapter Code |
 | --- | --- |
-| `def m(p1: S1, ...): SR` | `def m(p1: T1, ...): TR = $delegate.method(p1.$cnv[S1], ...).$cnv[SR]` |
-| `val value: S` | `def value: T = $delegate.value.$cnv[T]` |
-| `var value: S` | `def value: T = $delegate.value.$cnv[T]`<br>`def value_=(v: T) = $delegate.value = v.$cnv[S]` |
+| `def m(p1: S1, ...): SR` | `def m(p1: I1, ...): IR = $delegate.method(p1.$cnv[S1], ...).$cnv[IR]` |
+| `val value: S` | `def value: I = $delegate.value.$cnv[I]` |
+| `var value: S` | `def value: I = $delegate.value.$cnv[I]`<br>`def value_=(v: I) = $delegate.value = v.$cnv[S]` |
 
-The `$cnv` method takes care of the necessary conversion. Note that conversions may happen recursively, e.g. a ScalaJS `List[Option[Int]]` corresponds to the interoperability type `js.Array[js.UndefOr[Int]]`.
+In the translation rules above type parameters starting with `S` denote arbitrary Scala types whereas type parameter starting with `I` denote interoperability types.
+ 
+The `$cnv` method takes care of the necessary conversion. Note that conversions may happen recursively, e.g. a Scala `List[Option[Int]]` corresponds to the interoperability type `js.Iterable[js.UndefOr[Int]]`.
+
+#### Object Adapters
+
+The translation rules for object adapters are nearly the same as for instance adapters. The only difference is that there is no underlying delegate. Instead, defs, vals, and vars of objects and package objects are accessed.
 
 #### Supported Conversions
 
+| Scala/Java Type | Interop Type<br>(default) | Additional Interop Types<br>(specified by `@Adapt`) |
+| --- | --- | --- |
+| `Array` | `eu.swdev.scala.ts.tpe.ReadOnlyArray` | `js.Array` |
+| `List` | `js.Iterable` | `eu.swdev.scala.ts.tpe.ReadOnlyArray`, `js.Array` |
+| `Option` | `js.UndefOr` | |
+| `Future` | `js.Promise` | |
+| `java.util.Date` | `js.Date` | `Double` |
+| `FunctionX` | `js.FunctionX` | |
+| `TupleX` | `js.TupleX` | |
+
+Note that modifications of adapted arrays are not reflected in the underlying Scala array. Therefore, the default interop type for an array is `eu.swdev.scala.ts.tpe.ReadOnlyArray`. That type corresponds to TypeScript's `ReadonlyArray`.
+
 #### Support for Inner Classes 
 
-Instance adapters may also contain class adapters of inner classes. Because of a current limitation of ScalaJS (cf. [ScalaJS/4142](https://github.com/scala-js/scala-js/issues/4142)) an additional field for the class adapter must be generated. The field is named like the adapted class with an `$a` suffix. The class adapter can be used to instantiate classes and adapters like normal classes.
+Instance adapters may also contain class adapters of inner classes. Because of a current limitation of ScalaJS (cf. [ScalaJS/4142](https://github.com/scala-js/scala-js/issues/4142)) an additional field for the class adapter must be generated. The field is named like the adapted class with an `$a` suffix. The class adapter can be used to instantiate classes and adapters like a normal (i.e. non-inner) classes.
 
 ## Appendix
 

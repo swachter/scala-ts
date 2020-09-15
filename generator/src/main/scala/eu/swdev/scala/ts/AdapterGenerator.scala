@@ -60,10 +60,11 @@ object AdapterGenerator {
       (displayName, accessName)
     }
 
-    def resOrCnv(interopType: Option[String]) = interopType.fold(".$res")(s => s".$$cnv[$s]")
+    def interopType(tpe: SdbType, adaptType: Option[String]): String = adaptType.getOrElse(interopTypeFormatter(tpe))
 
     def outputDef(input: Input.Def, tracker: PathTracker): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, tracker)
+      val iopType                   = interopType(input.methodSignature.returnType, input.adapted.interopType)
       val tparams                   = formatTParamSyms(input.methodSignature.typeParamSymbols)
       val (params, args) = if (input.methodSignature.parameterLists.isEmpty) {
         ("", "")
@@ -73,23 +74,25 @@ object AdapterGenerator {
           input.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodArg(_, input))).mkString("(", ", ", ")")
         )
       }
-      result.addLine(s"def $displayName$tparams$params = $accessName$args${resOrCnv(input.adapted.interopType)}")
+      result.addLine(s"def $displayName$tparams$params = $accessName$args.$$cnv[$iopType]")
     }
 
-    def doOutputVal(input: Input, tracker: PathTracker, interopType: Option[String]): Unit = {
+    def doOutputVal(input: Input, tpe: SdbType, tracker: PathTracker, adaptType: Option[String]): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, tracker)
-      result.addLine(s"def $displayName = $accessName${resOrCnv(interopType)}")
+      val iopType                   = interopType(tpe, adaptType)
+      result.addLine(s"def $displayName = $accessName.$$cnv[$iopType]")
     }
 
-    def doOutputVar(input: Input, tpe: SdbType, tracker: PathTracker, interopType: Option[String]): Unit = {
+    def doOutputVar(input: Input, tpe: SdbType, tracker: PathTracker, adaptType: Option[String]): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, tracker)
       val unchangedType             = unchangedTypeFormatter(tpe)
-      val iopType                   = interopType.getOrElse(interopTypeFormatter(tpe))
+      val iopType                   = interopType(tpe, adaptType)
       result.addLine(s"def $displayName = $accessName.$$cnv[$iopType]")
       result.addLine(s"def ${displayName}_=(value: $iopType) = $accessName = value.$$cnv[$unchangedType]")
     }
 
-    def outputCtorVal(input: Input.CtorParam, tracker: PathTracker): Unit = doOutputVal(input, tracker, input.adapted.interopType)
+    def outputCtorVal(input: Input.CtorParam, tracker: PathTracker): Unit =
+      doOutputVal(input, input.valueSignature.tpe, tracker, input.adapted.interopType)
 
     def outputCtorVar(input: Input.CtorParam, tracker: PathTracker): Unit =
       doOutputVar(input, input.valueSignature.tpe, tracker, input.adapted.interopType)
@@ -97,7 +100,7 @@ object AdapterGenerator {
     def outputDefValVar(a: Adapter.DefValVar, tracker: PathTracker): Unit = {
       a.input match {
         case i: Input.Def => outputDef(i, tracker)
-        case i: Input.Val => doOutputVal(i, tracker, i.adapted.interopType)
+        case i: Input.Val => doOutputVal(i, i.methodSignature.returnType, tracker, i.adapted.interopType)
         case i: Input.Var => doOutputVar(i, i.methodSignature.returnType, tracker, i.adapted.interopType)
       }
     }

@@ -1,9 +1,8 @@
-import scala.annotation.meta.getter
 import scala.collection.mutable
 import scala.concurrent.Promise
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
-import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportStatic, JSExportTopLevel, JSName}
+import scala.scalajs.js.annotation._
 import scala.scalajs.js.{Dictionary, UndefOr}
 import scala.util.{Failure, Random, Success}
 

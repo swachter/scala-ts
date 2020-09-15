@@ -108,9 +108,9 @@ class InteropTypeFormatter(symTab: SymbolTable) extends AdapterTypeFormatter(sym
 
   val simpleReplacements = Map(
     "java/util/Date#"                  -> "_root_.scala.scalajs.js.Date",
-    "scala/Array#"                     -> "_root_.scala.scalajs.js.Array",
+    "scala/Array#"                     -> "_root_.eu.swdev.scala.ts.tpe.ReadOnlyArray",
     "scala/Option#"                    -> "_root_.scala.scalajs.js.UndefOr",
-    "scala/collection/immutable/List#" -> "_root_.scala.scalajs.js.Array",
+    "scala/collection/immutable/List#" -> "_root_.scala.scalajs.js.Iterable",
     "scala/concurrent/Future#"         -> "_root_.scala.scalajs.js.Promise"
   )
 

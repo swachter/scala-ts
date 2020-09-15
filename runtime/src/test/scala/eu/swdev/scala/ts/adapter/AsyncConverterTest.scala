@@ -12,7 +12,7 @@ class AsyncConverterTest extends AsyncFunSuite with Matchers {
 
   test("Promise<->Future") {
     def method[X](a: Future[X]) = a
-    val r: js.Promise[Int]      = method(js.Promise.resolve[Int](1).$cnv/*.[Future[Int]]*/).$res
+    val r: js.Promise[Int]      = method(js.Promise.resolve[Int](1).$cnv/*.[Future[Int]]*/).$cnv
     r.toFuture.map(_ mustBe 1)
   }
 

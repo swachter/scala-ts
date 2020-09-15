@@ -7,7 +7,6 @@ package object adapter {
     */
   implicit class InteropFrom[F](val f: F) extends AnyVal {
     def $cnv[T](implicit ev: InteropConverter[F, T]): T = ev(f)
-
-    def $res[T](implicit ev0: PickInteropType[F, T], ev: InteropConverter[F, T]): T = ev(f)
   }
+
 }

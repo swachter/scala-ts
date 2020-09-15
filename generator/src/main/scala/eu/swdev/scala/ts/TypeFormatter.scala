@@ -50,6 +50,8 @@ class TypeFormatter(
       // use parentheses because the type parameter may be union (for example UndefOr) and the  array type constructor
       // has a higher precedence than the union type constructor
       s"(${formatType(targs(0))})[]"
+    case TypeRef(isb.Type.Empty, "eu/swdev/scala/ts/tpe/package.ReadOnlyArray#", targs) =>
+      s"ReadonlyArray<${formatType(targs(0))}>"
     case TypeRef(isb.Type.Empty, symbol, targs) if simpleBuiltInTypeNames.contains(symbol) =>
       simpleBuiltInTypeNames(symbol)
     case TypeRef(isb.Type.Empty, symbol, targs) if nativeSymbol(symbol).isDefined =>
