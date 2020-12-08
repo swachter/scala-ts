@@ -4,11 +4,12 @@ import java.util.StringTokenizer
 
 import scala.reflect.runtime.{universe => ru}
 import ru._
-import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature, ValueSignature}
+import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, TypeSignature}
 import scala.meta.internal.symtab.SymbolTable
 import scala.reflect.NameTransformer
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.meta.internal.{semanticdb => isb}
 
 /**
   * Analyzes if symbols are native, i.e. if they are from global scope, imported, or exported.
@@ -31,10 +32,15 @@ class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], 
       } else {
         symTab.info(sym).flatMap { si =>
           si.signature match {
-            case TypeSignature(_, _, upperBound) => upperBound.typeSymbol(symTab).flatMap(s => nativeSymbol(s)) // follow type aliases
-            case ClassSignature(_, _, _, _)      => nativeClassSymbol(si)
-            case MethodSignature(_, _, _)        => nativeMethodSymbol(si) // defs, vals, and vars
-            case _                               => None
+            case TypeSignature(_, _, upperBound) =>
+              // follow type aliases that do not have type parameters
+              upperBound match {
+                case isb.TypeRef(_, _, targs) if targs.nonEmpty => None
+                case _                                          => upperBound.typeSymbol(symTab).flatMap(s => nativeSymbol(s))
+              }
+            case ClassSignature(_, _, _, _) => nativeClassSymbol(si)
+            case MethodSignature(_, _, _)   => nativeMethodSymbol(si) // defs, vals, and vars
+            case _                          => None
           }
         }
       }
@@ -140,7 +146,7 @@ class NativeSymbolAnalyzer(topLevelExports: Map[String, NativeSymbol.Exported], 
   private def innerNativeClassSymbol(si: SymbolInformation): Option[NativeSymbol.Inner] = {
     val idx1 = si.symbol.dropRight(1).lastIndexOf('.')
     val idx2 = si.symbol.dropRight(1).lastIndexOf('#')
-    val idx = Math.max(idx1, idx2)
+    val idx  = Math.max(idx1, idx2)
     if (idx >= 0) {
       nativeSymbol(si.symbol.substring(0, idx + 1)).flatMap { outerNativeSym =>
         if (outerNativeSym.allMembersAreVisible) {
