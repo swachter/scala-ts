@@ -10,7 +10,7 @@ Add the following lines to `project/plugins.sbt`
 
 ```
 resolvers += Resolver.jcenterRepo
-addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.10")
+addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.11")
 ```
 
 and enable the `ScalaTsPlugin` in `build.sbt`
@@ -114,7 +114,7 @@ If the setting `scalaTsPreventTypeShadowing` is enabled then namespace aliases a
 ## TypeScript declaration file generation
 ### Type correspondences
 
-ScalaJS types are mapped into corresponding TypeScript types. ScalaJS defines type correspondences for all primitive types and provides a couple of interoperability and facade types (cf. [types](https://www.scala-js.org/doc/interoperability/types.html)). Additional facade types can be defined based on native symbols from global scope or from imported libraries. Finally, all other types are mapped into marker interfaces.
+ScalaJS types are mapped into corresponding TypeScript types. ScalaJS defines type correspondences for all primitive types and provides a couple of interoperability and facade types (cf. [types](https://www.scala-js.org/doc/interoperability/types.html)). Additional facade types can be defined based on native symbols from global scope or from imported libraries. Finally, all other types are considered opaque types and are mapped into marker interfaces.
 
 #### Primitive and literal types
 
