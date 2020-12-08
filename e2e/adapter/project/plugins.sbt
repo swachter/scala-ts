@@ -1,6 +1,6 @@
 resolvers += Resolver.jcenterRepo
 
-val defaultPluginVersion = "0.11-SNAPSHOT"
+val defaultPluginVersion = "0.12-SNAPSHOT"
 
 val pluginVersion = sys.props.get("plugin.version").getOrElse(defaultPluginVersion)
 
