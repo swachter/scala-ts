@@ -56,7 +56,7 @@ object ScalaTsPlugin extends AutoPlugin {
   lazy val semanticDbSettings = Seq(
     semanticdbEnabled := true,
     semanticdbIncludeInJar := true,
-    semanticdbVersion := "4.3.18",
+    semanticdbVersion := "4.8.5",
     semanticdbOptions := Seq("-P:semanticdb:text:on"),
     scalacOptions += "-Yrangepos",
   )
@@ -66,14 +66,13 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaJSUseMainModuleInitializer := false,
   )
 
-  lazy val generatorDependency = "eu.swdev" %% "scala-ts-generator" % BuildInfo.version
+  lazy val generatorDependency = "com.github.swachter" %% "scala-ts-generator" % BuildInfo.version
 
   // settings for cross projects
   object crossProject {
 
     lazy val settings = Def.settings(
-      resolvers += Resolver.jcenterRepo,
-      libraryDependencies += "eu.swdev" %%% "scala-ts-annotations" % BuildInfo.version % "provided"
+      libraryDependencies += "com.github.swachter" %%% "scala-ts-annotations" % BuildInfo.version % "provided"
     )
 
     lazy val jsSettings = semanticDbSettings
@@ -87,7 +86,7 @@ object ScalaTsPlugin extends AutoPlugin {
     // -> add the scala-ts-generator jar as a dependency to the project in order to have it on the classpath
     // -> use (classDirectory +: fullClassPath) as the classpath for the forked process
     libraryDependencies += generatorDependency,
-    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("eu.swdev" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
+    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("com.github.swachter" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
     Compile / sourceGenerators += Def.task {
       generateAdapter(
         scalaTsAdapterEnabled.value,
@@ -96,28 +95,26 @@ object ScalaTsPlugin extends AutoPlugin {
           adapterName = scalaTsAdapterName.value,
           include = scalaTsInclude.value,
           exclude = scalaTsExclude.value,
-          (dependencyClasspath in Compile).value.map(_.data).toList,
+          (Compile / dependencyClasspath).value.map(_.data).toList,
           scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,
         streams.value.log
       )
     }.taskValue,
-    // the scala-ts-generator is availabble in the jcenter repo
-    resolvers += Resolver.jcenterRepo,
     scalaTsFastOpt := {
       (Compile / fastOptJS).value
       forkDtsGenerator(
         DtsGeneratorMain.Config(
-          (artifactPath in fastOptJS in Compile).value,
+          (Compile / fastOptJS / artifactPath).value,
           scalaTsPreventTypeShadowing.value || scalaTsAdapterEnabled.value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
           scalaTsConsiderFullCompileClassPath.value || scalaTsAdapterEnabled.value,
           scalaTsInclude.value,
           scalaTsExclude.value,
-          (classDirectory in Compile).value,
-          (fullClasspath in Compile).value.map(_.data).toList,
+          (Compile / classDirectory).value,
+          (Compile / fullClasspath).value.map(_.data).toList,
           scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,
@@ -128,15 +125,15 @@ object ScalaTsPlugin extends AutoPlugin {
       (Compile / fullOptJS).value
       forkDtsGenerator(
         DtsGeneratorMain.Config(
-          (artifactPath in fullOptJS in Compile).value,
+          (Compile / fullOptJS / artifactPath).value,
           scalaTsPreventTypeShadowing.value || scalaTsAdapterEnabled.value,
           scalaTsModuleName.value,
           scalaTsModuleVersion.value.apply(version.value),
           scalaTsConsiderFullCompileClassPath.value || scalaTsAdapterEnabled.value,
           scalaTsInclude.value,
           scalaTsExclude.value,
-          (classDirectory in Compile).value,
-          (fullClasspath in Compile).value.map(_.data).toList,
+          (Compile / classDirectory).value,
+          (Compile / fullClasspath).value.map(_.data).toList,
           scalaTsValidate.value,
         ),
         scalaTsChangeForkOptions.value,
@@ -196,5 +193,4 @@ object ScalaTsPlugin extends AutoPlugin {
       Seq(s"${classOf[AdapterGeneratorMain].getName}")
     )
   }
-
 }

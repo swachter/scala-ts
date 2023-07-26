@@ -1,10 +1,10 @@
 import scala.sys.process.Process
 
-ThisBuild / scalaVersion := "2.13.3"
+ThisBuild / scalaVersion := "2.13.11"
 
 val npmReinstallAndTest = taskKey[Unit]("Reinstalls node modules and executes tests")
 
-val shared =
+lazy val shared =
   crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure).settings(
     // add JCenter repo + annotations dependency
     ScalaTsPlugin.crossProject.settings
@@ -15,9 +15,8 @@ val shared =
     ScalaTsPlugin.crossProject.jsSettings
   )
 
-val client =
+lazy val client =
   project.enablePlugins(ScalaTsPlugin).dependsOn(shared.js).settings(
-    version := "0.0.1-SNAPSHOT",
     name := "scala-ts-e2e-adapter",
     organization := "eu.swdev",
     scalaTsModuleName := "scala-adapter",

@@ -1,5 +1,16 @@
-sys.props.get("plugin.version") match {
-  case Some(x) => addSbtPlugin("eu.swdev" % """sbt-scala-ts""" % x)
-  case _ => sys.error("""|The system property 'plugin.version' is not defined.
-                         |Specify this property using the scriptedLaunchOpts -D.""".stripMargin)
+import sbt.Defaults.sbtPluginExtra
+
+// complicated way of adding the scala-ts plugin
+// -> the pluginVersion is derived from the git based version using the dynver plugin
+// -> the logic corresponds to: addSbtPlugin("com.github.swachter" % "sbt-scala-ts" % pluginVersion)
+libraryDependencies += {
+  val sbtV = (pluginCrossBuild / sbtBinaryVersion).value
+  val scalaV = (update / scalaBinaryVersion).value
+  val Version = """(\d+(?:\.\d+)*).*""".r
+  val pluginVersion = sys.props.get("plugin.version").getOrElse(version.value) match {
+    case Version(v) if isSnapshot.value => s"$v-SNAPSHOT"
+    case v => v
+  }
+  val dependency = "com.github.swachter" % "sbt-scala-ts" % pluginVersion
+  sbtPluginExtra(dependency, sbtV, scalaV)
 }
