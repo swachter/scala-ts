@@ -9,7 +9,7 @@ Built ontop of that functionality an adapter can be provided that allows to acce
 Add the following lines to `project/plugins.sbt`
 
 ```
-addSbtPlugin("io.github.swachter" % "sbt-scala-ts" % "0.12")
+addSbtPlugin("io.github.swachter" % "sbt-scala-ts" % "0.12.0")
 ```
 
 and enable the `ScalaTsPlugin` in `build.sbt`
