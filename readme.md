@@ -9,8 +9,7 @@ Built ontop of that functionality an adapter can be provided that allows to acce
 Add the following lines to `project/plugins.sbt`
 
 ```
-resolvers += Resolver.jcenterRepo
-addSbtPlugin("eu.swdev" % "sbt-scala-ts" % "0.11")
+addSbtPlugin("com.github.swachter" % "sbt-scala-ts" % "0.12")
 ```
 
 and enable the `ScalaTsPlugin` in `build.sbt`

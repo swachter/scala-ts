@@ -1,4 +1,5 @@
 .*
+!.github
 target
 dist
 node_modules

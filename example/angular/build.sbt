@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.3"
+ThisBuild / scalaVersion := "2.13.11"
 
 val shared =
   crossProject(JSPlatform, JVMPlatform).crossType(CrossType.Pure).settings(
