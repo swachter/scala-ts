@@ -29,11 +29,12 @@ lazy val scala213 = "2.13.11"
 val SnapshotVersion = """(\d+(?:\.\d+)*).*-SNAPSHOT""".r
 
 inThisBuild(List(
-  organization := "com.github.swachter",
+  organization := "io.github.swachter",
   version  ~= {
     case SnapshotVersion(v) => s"$v-SNAPSHOT"
     case v => v
   },
+  versionScheme := Some("semver-spec"),
   homepage := Some(url("https://github.com/swachter/scala-ts")),
   // Alternatively License.Apache2 see https://github.com/sbt/librarymanagement/blob/develop/core/src/main/scala/sbt/librarymanagement/License.scala
   licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),

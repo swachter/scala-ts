@@ -66,13 +66,13 @@ object ScalaTsPlugin extends AutoPlugin {
     scalaJSUseMainModuleInitializer := false,
   )
 
-  lazy val generatorDependency = "com.github.swachter" %% "scala-ts-generator" % BuildInfo.version
+  lazy val generatorDependency = "io.github.swachter" %% "scala-ts-generator" % BuildInfo.version
 
   // settings for cross projects
   object crossProject {
 
     lazy val settings = Def.settings(
-      libraryDependencies += "com.github.swachter" %%% "scala-ts-annotations" % BuildInfo.version % "provided"
+      libraryDependencies += "io.github.swachter" %%% "scala-ts-annotations" % BuildInfo.version % "provided"
     )
 
     lazy val jsSettings = semanticDbSettings
@@ -86,7 +86,7 @@ object ScalaTsPlugin extends AutoPlugin {
     // -> add the scala-ts-generator jar as a dependency to the project in order to have it on the classpath
     // -> use (classDirectory +: fullClassPath) as the classpath for the forked process
     libraryDependencies += generatorDependency,
-    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("com.github.swachter" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
+    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("io.github.swachter" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
     Compile / sourceGenerators += Def.task {
       generateAdapter(
         scalaTsAdapterEnabled.value,
