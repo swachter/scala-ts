@@ -439,10 +439,11 @@ Instance adapters may also contain class adapters of inner classes. Because of a
 
 ### Folder Contents
 
-- `e2e`: standalone SBT projects for end-2-end tests ([e2e/dts](e2e/dts/readme.md), [e2e/adapter](e2e/adapter/readme.md))
 - `explore`: a `ScalaJS` project for exploration
 - `generator`: a library module that contains the code generator
+- `runtime`: a ScalaJs library module that is used at runtime by generated adapters 
 - `sbt-scala-ts`: contains the `ScalaTsPlugin`
+- `sbt-scala-ts/src/sbt-test`: standalone SBT projects ([readme](sbt-scala-ts/src/sbt-test/readme.md)); some are end-2-end others test basic functionality 
 
 ### Articles
 

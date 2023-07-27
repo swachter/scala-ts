@@ -128,11 +128,27 @@ lazy val plugin = project
       a => Seq("-Xmx", "-Xms", "-XX", "-Dsbt.log.noformat").exists(a.startsWith)
     ),
     scriptedBufferLog := false,
+    // clean scripted projects before they are tested
+    // -> scripted projects are copied into temp folders before they are tested
+    // -> cleaning includes their node_module folders
+    // -> the node_modules folders may include broken symlinks that should point to node packages that are
+    //    created by the ScalaTsPlugin (they originate from "file:..." entries in package.json)
+    // -> such broken symlinks would make the copy step of the scripted task fail
+    scriptedDependencies := {
+      val scriptedDir = baseDirectory.value / "src" / "sbt-test"
+      val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_))
+      projectDirs.foreach { dir =>
+        val r = (Process("sbt" :: "clean" :: Nil, dir, "PATH" -> System.getenv("PATH")) !)
+        if (r != 0) {
+          throw new MessageOnlyException(s"Could not clean scripted project in folder: $dir")
+        }
+      }
+    },
     // adds libraryDependency to the ScalaJS sbt plugin
     // -> the ScalaTsPlugin references the ScalaJS plugin
     addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJsVersion),
     addSbtPlugin("org.portable-scala" % "sbt-platform-deps" % "1.0.0"),
-    libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "test"
+    libraryDependencies += "org.scala-js" %% "scalajs-stubs" % "1.0.0" % "test",
   )
 
 lazy val root = project.in(file("."))
