@@ -28,6 +28,9 @@ lazy val scala213 = "2.13.11"
 
 val SnapshotVersion = """(\d+(?:\.\d+)*).*-SNAPSHOT""".r
 
+//ThisBuild / fork := true
+//ThisBuild / javaOptions ++= Seq("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005")
+
 inThisBuild(List(
   organization := "io.github.swachter",
   version  ~= {
