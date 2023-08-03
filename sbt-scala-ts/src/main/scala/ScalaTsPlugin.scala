@@ -57,8 +57,18 @@ object ScalaTsPlugin extends AutoPlugin {
     semanticdbEnabled := true,
     semanticdbIncludeInJar := true,
     semanticdbVersion := "4.8.5",
-    semanticdbOptions := Seq("-P:semanticdb:text:on"),
-    scalacOptions += "-Yrangepos",
+    semanticdbOptions := {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, _)) => Seq("-P:semanticdb:text:on")
+        case _            => Nil
+      }
+    },
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, _)) => Seq("-Yrangepos")
+        case _            => Seq("-Ysemanticdb", "-semanticdb-text")
+      }
+    }
   )
 
   lazy val scalaJsSettings = Seq(
@@ -86,7 +96,8 @@ object ScalaTsPlugin extends AutoPlugin {
     // -> add the scala-ts-generator jar as a dependency to the project in order to have it on the classpath
     // -> use (classDirectory +: fullClassPath) as the classpath for the forked process
     libraryDependencies += generatorDependency,
-    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("io.github.swachter" %%% "scala-ts-runtime" % BuildInfo.version) else Seq()),
+    libraryDependencies ++= (if (scalaTsAdapterEnabled.value) Seq("io.github.swachter" %%% "scala-ts-runtime" % BuildInfo.version)
+                             else Seq()),
     Compile / sourceGenerators += Def.task {
       generateAdapter(
         scalaTsAdapterEnabled.value,

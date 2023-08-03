@@ -95,34 +95,34 @@ object Generator {
     def formatTParamSyms(symbols: Seq[Symbol]): String = formatTypeNames(symbols.map(formatTParamSym(_)))
 
     def exportDef(name: String, i: Input.Def): Unit = {
-      val tps        = formatTParamSyms(i.methodSignature.typeParamSymbols)
-      val params     = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i))).mkString(", ")
-      val returnType = typeFormatter(i.methodSignature.returnType)
+      val tps        = formatTParamSyms(i.typeParamSymbols)
+      val params     = i.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i))).mkString(", ")
+      val returnType = typeFormatter(i.typeOrReturnType)
       result.addLine(s"export function $name$tps($params): $returnType")
     }
 
     def exportVal(name: String, i: Input.Val): Unit = {
-      val returnType = typeFormatter(i.methodSignature.returnType)
-      result.addLine(s"export const $name: $returnType")
+      val tpe = typeFormatter(i.typeOrReturnType)
+      result.addLine(s"export const $name: $tpe")
     }
 
     def exportVar(name: String, i: Input.Var): Unit = {
-      val returnType = typeFormatter(i.methodSignature.returnType)
-      result.addLine(s"export let $name: $returnType")
+      val tpe = typeFormatter(i.typeOrReturnType)
+      result.addLine(s"export let $name: $tpe")
     }
 
     def memberDef(i: Input.Def, memberKind: MemberKind): String = {
-      val tps        = formatTParamSyms(i.methodSignature.typeParamSymbols)
-      val returnType = typeFormatter(i.methodSignature.returnType)
+      val tps        = formatTParamSyms(i.typeParamSymbols)
+      val returnType = typeFormatter(i.typeOrReturnType)
       val abs        = if (memberKind.isAbstract) "abstract " else ""
-      if (i.methodSignature.parameterLists.isEmpty) {
+      if (i.parameterLists.isEmpty) {
         // no parameter lists -> it's a getter
         memberKind match {
           case MemberKind.IsInInterface => s"${abs}readonly ${memberName(i)}: $returnType"
           case _                        => s"${abs}get ${memberName(i)}(): $returnType"
         }
       } else {
-        val strings = i.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
+        val strings = i.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, i)))
         val params  = strings.mkString(", ")
         if (i.si.displayName.endsWith("_=")) {
           // name ends with _= -> it's a setter
@@ -135,21 +135,21 @@ object Generator {
 
     def memberVal(i: Input.Val, memberKind: MemberKind): String = {
       val abs = if (memberKind.isAbstract) "abstract " else ""
-      s"${abs}readonly ${formatNameAndType(memberName(i), i.methodSignature.returnType)}"
+      s"${abs}readonly ${formatNameAndType(memberName(i), i.typeOrReturnType)}"
     }
 
     def memberVar(i: Input.Var, memberKind: MemberKind): String = {
       val abs = if (memberKind.isAbstract) "abstract " else ""
-      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}"
+      s"${abs}${formatNameAndType(memberName(i), i.typeOrReturnType)}"
     }
 
     def memberAccessorPair(i: Input.Def, memberKind: MemberKind): String = {
       val abs = if (memberKind.isAbstract) "abstract " else ""
-      s"${abs}${formatNameAndType(memberName(i), i.methodSignature.returnType)}"
+      s"${abs}${formatNameAndType(memberName(i), i.typeOrReturnType)}"
     }
 
     def memberCtorParam(i: Input.CtorParam): String = {
-      def member(name: String) = formatNameAndType(name, i.valueSignature.tpe)
+      def member(name: String) = formatNameAndType(name, i.typeOrReturnType)
       i.mod match {
         case Input.CtorParamMod.Val(name) => s"readonly ${member(name)}"
         case Input.CtorParamMod.Var(name) => s"${member(name)}"
@@ -172,10 +172,10 @@ object Generator {
 
     def members(inputs: List[Input], memberOf: MemberOf): List[String] = {
 
-      def isGetter(i: Input.Def): Boolean = i.visibility.isMember && i.methodSignature.parameterLists.isEmpty
+      def isGetter(i: Input.Def): Boolean = i.visibility.isMember && i.parameterLists.isEmpty
 
       def isSetter(i: Input.Def): Boolean =
-        i.visibility.isMember && i.si.displayName.endsWith("_=") && i.methodSignature.parameterLists.flatMap(_.symlinks).size == 1
+        i.visibility.isMember && i.si.displayName.endsWith("_=") && i.parameterLists.flatMap(_.symlinks).size == 1
 
       val getters = inputs.collect {
         case i: Input.Def if isGetter(i) => i.si.displayName -> i
@@ -186,8 +186,7 @@ object Generator {
       }.toMap
 
       def commonType(getter: Input.Def, setter: Input.Def): Option[isb.Type] = {
-        (getter.methodSignature.returnType,
-         setter.methodSignature.parameterLists.flatMap(_.symlinks.map(sym => valueSymbolInfoAnddSignature(sym, setter)))) match {
+        (getter.typeOrReturnType, setter.parameterLists.flatMap(_.symlinks.map(sym => valueSymbolInfoAnddSignature(sym, setter)))) match {
           case (gt, Seq((si, vs))) =>
             (gt.typeSymbol(symTab), vs.tpe.typeSymbol(symTab)) match {
               case (Some(s1), Some(s2)) if s1 == s2 => Some(gt)
@@ -267,7 +266,7 @@ object Generator {
           case e: Input.Var => memberVar(e, MemberKind.IsNonAbstract)
         }.foreach(m => result.addLine(s"static $m"))
       }
-      val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.valueSignature.tpe)).mkString(", ")
+      val cParams = i.ctorParams.map(p => formatNameAndType(p.name, p.typeOrReturnType)).mkString(", ")
       result.addLine(s"constructor($cParams)")
 
       val ms = members(i.ctorParams ++ i.member, MemberOf.Cls)
@@ -316,7 +315,7 @@ object Generator {
     }
 
     def exportAlias(tpe: Output.Alias, exp: String): Unit = {
-      val tps   = formatTParamSyms(tpe.e.si.typeParamSymbols)
+      val tps = formatTParamSyms(tpe.e.si.typeParamSymbols)
       result.addLine(s"${exp}type ${tpe.simpleName}$tps = ${typeFormatter(tpe.rhs)}")
     }
 

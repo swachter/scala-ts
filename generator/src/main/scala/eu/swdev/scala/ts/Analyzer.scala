@@ -9,7 +9,7 @@ import scala.meta.transversers.Traverser
 import scala.meta.{Decl, Defn, Init, Lit, Mod, Name, Stat, Term, Tree}
 import scala.reflect.ClassTag
 import scala.scalajs.js.annotation.{JSExport, JSExportAll, JSExportTopLevel}
-import eu.swdev.scala.ts.annotation.{Adapt, AdaptMembers, AdaptConstructor, AdaptAll}
+import eu.swdev.scala.ts.annotation.{Adapt, AdaptAll, AdaptConstructor, AdaptMembers}
 
 object Analyzer {
 
@@ -120,6 +120,10 @@ object Analyzer {
 
     def isSubtypeOfJsAny(si: SymbolInformation): Boolean = si.isSubtypeOf("scala/scalajs/js/Any#", symTab)
 
+    trait TraverserResult {
+      def result(): List[Input.Defn]
+    }
+
     /**
       * Recursively traverses source trees and collects input definitions.
       *
@@ -127,7 +131,7 @@ object Analyzer {
       * a nested state is pushed on the stack. State instances build lists of input definitions. The initial state
       * collects top level definitions whereas nested states collect container members.
       */
-    val traverser = new Traverser {
+    val traverser = new Traverser with TraverserResult {
 
       class State(allStateMembersAreVisible: Boolean, allStateMembersAreAdapted: Boolean) {
 
@@ -265,11 +269,12 @@ object Analyzer {
         states.top.process(tree, super.apply(tree))
       }
 
+      override def result() = states.top.builder.result()
     }
 
     traverser.apply(semSrc.source)
 
-    traverser.states.top.builder.result()
+    traverser.result()
   }
 
   def topLevel(is: Inputs): List[TopLevelExport] = {

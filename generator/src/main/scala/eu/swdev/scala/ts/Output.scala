@@ -125,7 +125,7 @@ object Output {
 
   object Union {
     def apply(sealedTrait: Input.Trait, subtypes: Seq[Subtype]): Union = {
-      val members = subtypes.zipWithIndex.map(UnionMember.tupled)
+      val members = subtypes.zipWithIndex.map((UnionMember.apply _).tupled)
       new Union(sealedTrait, members)
     }
   }

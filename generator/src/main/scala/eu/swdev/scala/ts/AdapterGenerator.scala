@@ -64,14 +64,14 @@ object AdapterGenerator {
 
     def outputDef(input: Input.Def, tracker: PathTracker): Unit = {
       val (displayName, accessName) = displayNameAndAccessName(input, tracker)
-      val iopType                   = interopType(input.methodSignature.returnType, input.adapted.interopType)
-      val tparams                   = formatTParamSyms(input.methodSignature.typeParamSymbols)
-      val (params, args) = if (input.methodSignature.parameterLists.isEmpty) {
+      val iopType                   = interopType(input.typeOrReturnType, input.adapted.interopType)
+      val tparams                   = formatTParamSyms(input.typeParamSymbols)
+      val (params, args) = if (input.parameterLists.isEmpty) {
         ("", "")
       } else {
         (
-          input.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, input))).mkString("(", ", ", ")"),
-          input.methodSignature.parameterLists.flatMap(_.symlinks.map(formatMethodArg(_, input))).mkString("(", ", ", ")")
+          input.parameterLists.flatMap(_.symlinks.map(formatMethodParam(_, input))).mkString("(", ", ", ")"),
+          input.parameterLists.flatMap(_.symlinks.map(formatMethodArg(_, input))).mkString("(", ", ", ")")
         )
       }
       result.addLine(s"def $displayName$tparams$params = $accessName$args.$$cnv[$iopType]")
@@ -92,16 +92,16 @@ object AdapterGenerator {
     }
 
     def outputCtorVal(input: Input.CtorParam, tracker: PathTracker): Unit =
-      doOutputVal(input, input.valueSignature.tpe, tracker, input.adapted.interopType)
+      doOutputVal(input, input.typeOrReturnType, tracker, input.adapted.interopType)
 
     def outputCtorVar(input: Input.CtorParam, tracker: PathTracker): Unit =
-      doOutputVar(input, input.valueSignature.tpe, tracker, input.adapted.interopType)
+      doOutputVar(input, input.typeOrReturnType, tracker, input.adapted.interopType)
 
     def outputDefValVar(a: Adapter.DefValVar, tracker: PathTracker): Unit = {
       a.input match {
         case i: Input.Def => outputDef(i, tracker)
-        case i: Input.Val => doOutputVal(i, i.methodSignature.returnType, tracker, i.adapted.interopType)
-        case i: Input.Var => doOutputVar(i, i.methodSignature.returnType, tracker, i.adapted.interopType)
+        case i: Input.Val => doOutputVal(i, i.typeOrReturnType, tracker, i.adapted.interopType)
+        case i: Input.Var => doOutputVar(i, i.typeOrReturnType, tracker, i.adapted.interopType)
       }
     }
 
@@ -111,12 +111,12 @@ object AdapterGenerator {
     }
 
     def outputNewDelegate(a: Adapter.NewDelegateDef, tracker: PathTracker): Unit = {
-      val input                     = a.input
+      val input = a.input
       val (params, args) = if (input.ctorParams.isEmpty) {
         ("", "")
       } else {
-        def ctorParam(ct: CtorParam): String = s"${ct.si.displayName}: ${interopTypeFormatter(ct.valueSignature.tpe)}"
-        def ctorArg(ct: CtorParam): String   = s"${ct.si.displayName}.$$cnv[${unchangedTypeFormatter(ct.valueSignature.tpe)}]"
+        def ctorParam(ct: CtorParam): String = s"${ct.si.displayName}: ${interopTypeFormatter(ct.typeOrReturnType)}"
+        def ctorArg(ct: CtorParam): String   = s"${ct.si.displayName}.$$cnv[${unchangedTypeFormatter(ct.typeOrReturnType)}]"
         (
           input.ctorParams.map(ctorParam).mkString("(", ", ", ")"),
           input.ctorParams.map(ctorArg).mkString("(", ", ", ")")
@@ -167,7 +167,6 @@ object AdapterGenerator {
         result.addLine("val $delegate: D")
         result.closeBlock()
       }
-
 
       a.defs.values.foreach {
         case a: Adapter.DefValVar      => outputDefValVar(a, tracker)

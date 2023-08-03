@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.must.Matchers
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExportTopLevel, JSGlobal, JSImport}
+import scala.scalajs.js.annotation.{JSGlobal, JSImport, JSName}
 
 class NativeSymbolAnalyzerTest extends AnyFunSuite with Matchers with ScalaMetaHelper {
 
@@ -38,11 +38,25 @@ class NativeSymbolAnalyzerTest extends AnyFunSuite with Matchers with ScalaMetaH
   }
 
   test("import with namespace / nested") {
-    nativeSymbol(classOf[SomeModule.Nested]) mustBe Some(NativeSymbol.Inner("Nested", NativeSymbol.ImportedNamespace("SomeModule", true), true))
+    nativeSymbol(classOf[SomeModule.Nested]) mustBe Some(
+      NativeSymbol.Inner("Nested", NativeSymbol.ImportedNamespace("SomeModule", true), true))
   }
 
   test("import with namespace / nested2 / nested3") {
-    nativeSymbol(classOf[SomeModule2.Nested2.Nested3]) mustBe Some(NativeSymbol.Inner("Nested3", NativeSymbol.Inner("Nested2", NativeSymbol.ImportedNamespace("SomeModule2", true), true), false))
+    nativeSymbol(classOf[SomeModule2.Nested2.Nested3]) mustBe Some(
+      NativeSymbol.Inner(
+        "Nested3",
+        NativeSymbol.Inner(
+          "Nested2",
+          NativeSymbol.ImportedNamespace(
+            "SomeModule2",
+            true
+          ),
+          true
+        ),
+        false
+      )
+    )
   }
 
 }
@@ -69,10 +83,6 @@ object NativeSymbolAnalyzerTest {
   @js.native
   class ImportWithNamespace
 
-  @JSExportTopLevel("SomeName")
-  @js.native
-  class ExportTopLevel
-
   @JSImport("SomeModule", JSImport.Namespace)
   object SomeModule extends js.Object {
     class Nested extends js.Object
@@ -81,9 +91,8 @@ object NativeSymbolAnalyzerTest {
   @JSImport("SomeModule2", JSImport.Namespace)
   object SomeModule2 extends js.Object {
     object Nested2 extends js.Object {
+      @JSName(js.Symbol.iterator)
       class Nested3
     }
   }
-
 }
-

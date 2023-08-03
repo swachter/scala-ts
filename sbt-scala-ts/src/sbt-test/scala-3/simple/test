@@ -1,0 +1,6 @@
+# check if the type mapping file gets created
+> scalaTsFastOpt
+$ exists target/scala-2.13/test-fastopt.d.ts
+$ exists target/scala-2.13/package.json
+$ exists target/scala-2.13/test-fastopt.js
+# $ pause

@@ -5,6 +5,7 @@ lazy val root = (project in file("."))
   .settings(
     scalaVersion := "2.13.11",
     version := "0.1.0",
-    name := "test",
+    name := "simple",
     scalaTsModuleName := "mod-name",
+//    scalaTsChangeForkOptions := withDebugForkOptions(5006)
   )

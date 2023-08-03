@@ -72,7 +72,7 @@ object ReferencedSymbolsAnalyzer {
     }
 
     def collectExportedMember(i: Input.Defn): Unit = i match {
-      case i: Input.DefOrValOrVar if i.visibility.isMember => collect(i.methodSignature) // only visible members are collected
+      case i: Input.DefOrValOrVar if i.visibility.isMember => collect(i.si.signature) // only visible members are collected
       case i: Input.DefOrValOrVar                          => // invisible members are not considered
       case i: Input.Obj if i.isVisibleMember               => collect(i.si) // only some Input.Obj are exported as members
       case i: Input.Type                                   => // nested type members are not considered; they do not appear as members in the output

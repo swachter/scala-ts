@@ -1,6 +1,14 @@
 package eu.swdev.scala.ts
 
-import scala.meta.internal.semanticdb.{ClassSignature, MethodSignature, SymbolInformation, Type => SdbType, TypeSignature, ValueSignature}
+import scala.meta.internal.semanticdb.{
+  ClassSignature,
+  MethodSignature,
+  Signature,
+  SymbolInformation,
+  TypeSignature,
+  ValueSignature,
+  Type => SdbType
+}
 import scala.meta.{Defn, Stat, Term}
 
 case class FullName private (str: String) extends AnyVal {
@@ -11,7 +19,7 @@ case class FullName private (str: String) extends AnyVal {
     val idx = str.indexOf('.')
     if (idx >= 0) Some(new FullName(str.substring(idx + 1))) else None
   }
-  def withUnionSuffix = new FullName(s"$str$$u")
+  def withUnionSuffix      = new FullName(s"$str$$u")
   def member(name: String) = new FullName(s"$str.$name")
 }
 
@@ -34,7 +42,7 @@ object FullName {
   def fromSymbol(symbol: Symbol): FullName         = new FullName(symbol2TypeName(symbol))
   def fromSimpleName(simpleName: String): FullName = new FullName(simpleName)
 
-  implicit val ord = implicitly[Ordering[String]].on[FullName](_.str)
+  implicit val ord: Ordering[FullName] = implicitly[Ordering[String]].on[FullName](_.str)
 }
 
 case class Inputs(list: List[Input.Defn]) {
@@ -142,12 +150,20 @@ object Input {
     def classSignature = si.signature.asInstanceOf[ClassSignature]
   }
 
-  sealed trait HasMethodSignature { self: Input =>
-    def methodSignature = si.signature.asInstanceOf[MethodSignature]
-  }
+//  sealed trait HasMethodSignature { self: Input =>
+//    def methodSignature = si.signature.asInstanceOf[MethodSignature]
+//  }
+//
+//  sealed trait HasValueSignature { self: Input =>
+//    def valueSignature = si.signature.asInstanceOf[ValueSignature]
+//  }
 
-  sealed trait HasValueSignature { self: Input =>
-    def valueSignature = si.signature.asInstanceOf[ValueSignature]
+  sealed trait HasTypeOrReturnType { self: Input =>
+    def typeOrReturnType = si.signature match {
+      case ValueSignature(tpe)               => tpe
+      case MethodSignature(_, _, returnType) => returnType
+      case s                                 => throw new Exception(s"Expected a ValueSignature or a MethodSignature but got a $s")
+    }
   }
 
   sealed trait HasTypeSignature { self: Input =>
@@ -163,8 +179,18 @@ object Input {
 
   sealed trait Type extends Defn
 
-  sealed trait DefOrValOrVar extends Defn with Exportable with HasMethodSignature {
+  sealed trait DefOrValOrVar extends Defn with HasTypeOrReturnType with Exportable {
     def adapted: Adapted
+    def typeParamSymbols: Seq[String] = si.signature match {
+      case ValueSignature(tpe)                   => Seq.empty
+      case MethodSignature(typeParameters, _, _) => typeParameters.typeParamSymbols
+      case s                                     => throw new Exception(s"Expected a ValueSignature or a MethodSignature but got a $s")
+    }
+    def parameterLists = si.signature match {
+      case ValueSignature(tpe)                   => Seq.empty
+      case MethodSignature(_, parameterLists, _) => parameterLists
+      case s                                     => throw new Exception(s"Expected a ValueSignature or a MethodSignature but got a $s")
+    }
   }
 
   sealed trait ClsOrObj extends Type with Exportable {
@@ -211,9 +237,15 @@ object Input {
 
   case class Alias(semSrc: SemSource, tree: Defn.Type, si: SymbolInformation) extends Type with HasTypeSignature
 
-  case class CtorParam(semSrc: SemSource, tree: Term.Param, name: String, si: SymbolInformation, mod: CtorParamMod, isVisible: Boolean, adapted: Adapted)
+  case class CtorParam(semSrc: SemSource,
+                       tree: Term.Param,
+                       name: String,
+                       si: SymbolInformation,
+                       mod: CtorParamMod,
+                       isVisible: Boolean,
+                       adapted: Adapted)
       extends Input
-      with HasValueSignature
+      with HasTypeOrReturnType
 
   sealed trait CtorParamMod
 

@@ -8,7 +8,7 @@ import scala.meta.{Dialect, dialects}
 import scala.meta.internal.symtab.GlobalSymbolTable
 import scala.meta.io.{AbsolutePath, Classpath}
 
-trait ScalaMetaHelper {
+trait ScalaMetaHelper { self =>
 
   def dialect: Dialect = dialects.Scala
 
@@ -34,7 +34,7 @@ trait ScalaMetaHelper {
   val basePath: Path = {
     val clazz = getClass
     var res   = testDirPath
-    var s = clazz.getName
+    var s     = clazz.getName
     while (s.indexOf('.') > 0) {
       s = s.substring(s.indexOf('.') + 1)
       res = res.getParent
@@ -46,6 +46,35 @@ trait ScalaMetaHelper {
 
   def locateSemSources(dir: Path, dialect: Dialect) = ScalaMetaHelper.locateSemSources(dir, dialect)
 
+  /**
+    * Analyzes semantic db files that contain symbols for the given classes.
+    *
+    * If no classes are given then the test class itself is used.
+    *
+    * @param classes
+    * @return
+    */
+  def inputs(classes: Class[_]*): Inputs = {
+    val clss = if (classes.isEmpty) Seq(self.getClass) else classes
+    val classSymbols = clss
+      .map(_.getName.replace('.', '/'))
+      .map { n =>
+        if (n.endsWith("$")) {
+          // symbol of a Scala object class -> replace trailing '$' by a '.'
+          s"${n.dropRight(1)}."
+        } else {
+          // symbol of a standard class -> append a '#'
+          s"$n#"
+        }
+      }
+      .toSet
+
+    val semSources = locateSemSources(metaInfPath, dialect)
+      .filter(_.td.symbols.map(_.symbol).exists(s => classSymbols.exists(cs => s.endsWith(cs))))
+      .sortBy(_.td.uri)
+
+    Analyzer.analyze(semSources, symTab)
+  }
 }
 
 object ScalaMetaHelper {

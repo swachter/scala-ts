@@ -105,8 +105,8 @@ class ConverterTest extends AnyFunSuite with Matchers {
 
   test("Tuple") {
     type T = (Option[Int], List[String], Array[Double])
-    def method[X](a: T) = a
-    val r = method(js.Tuple3(Option.empty[Int].orUndefined, js.Array("abc"), js.Array(2.0)).$cnv[T]).$cnv
+    def method(a: T) = a
+    val r = method(js.Tuple3(Option.empty[Int].orUndefined, js.Array("abc"), js.Array(2.0)).$cnv[T]) // .$cnv
     r._1.isDefined mustBe false
     r._2(0) mustBe "abc"
     r._3(0) mustBe 2.0
