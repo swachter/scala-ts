@@ -2,12 +2,12 @@
   Release process:
 
     sbt> reload
-    sbt> +publishLocal
     sbt> +test
+    sbt> +publishLocal
     sbt> scripted
 
 
-    - set next release version in readme.md
+    - set next release version in readme.md & commit changes
 
     > git tag -a v<version> -m "v<version>"
     > git push origin v<version>
