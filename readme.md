@@ -200,7 +200,7 @@ Translation rules for top-level definitions (definitions must be annotated accor
 
 Translation rules for class and object members (constructor `val`/`var` parameters are also considered):
 
-| Scala Definition | TypeScript Definition | Note
+| Scala Definition | TypeScript Definition | Note |
 | --- | --- | --- |
 | `val x: tpe` | `readonly x: tpe` | |
 | `var x:tpe` | `x: tpe` | |
@@ -230,7 +230,7 @@ For each sealed trait that is referenced in the exported API a union type is cre
 
 | Scala Definition | TypeScript Definition |
 | --- | --- |
-| `sealed trait T` | `type T$u = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...`
+| `sealed trait T` | `type T$u = Case1 `<code>&#124;</code>` Case2 `<code>&#124;</code>` ...` |
 
 If the sealed trait belongs to a package then the union type is defined in the corresponding namespace. Sealed trait hierarchies and generics are supported.
 
@@ -280,9 +280,7 @@ In addition to the interfaces that are generated for _opaque_ types, interfaces 
 
 The `ScalaTsPlugin` generates adapter code **only for the dependencies** of a project for which the `ScalaTsPlugin` is enabled. The reason is that adapter code generation needs the compilation result of the classes that should be adapted. The compilation result however, is not available at the source code generation stage of a project.
 
-Considering only the dependencies of a project for adapter code generation seems to be a big disadvantage at first. However, the adapter code generation offers its most benefit in project setups that have shared code between backend and frontend.
- 
-In projects that contain ScalaJS code only that code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr` and the accompanying implicit conversions. In projects with shared code however, the shared code can not use the interoperability types because they are not available on the backend. Therefore, adapter code is needed to convert between standard Scala types and interoperability types.
+Considering only the dependencies of a project for adapter code generation seems to be a big disadvantage at first. However, the adapter code generation offers its greatest benefit in project setups with code that is shared between backend and frontend. ScalaJS projects without shared code can directly use the shipped [ScalaJS interoperability types](https://www.scala-js.org/doc/interoperability/types.html) like `js.UndefOr` and the accompanying implicit conversions. In projects with shared code however, the shared code can not use the interoperability types because they are not available on the backend. Therefore, adapter code is needed to convert between standard Scala types and interoperability types.
 
 ### Configuration
 
@@ -334,7 +332,7 @@ lazy val frontend = project.enablePlugins(ScalaTsPlugin).dependsOn(shared.js).se
  
 ### Dependencies
 
-Adapter code generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides converters. These libraries are available at the [JCenter repository](https://bintray.com/beta/#/bintray/jcenter) whose SBT resolver has to be added. The `ScalaTsPlugin` and its cross project settings constants take care of the necessary settings.
+Adapter code generation involves two dependencies: A library that contains annotations for controlling adapter code generation and a runtime library that provides converters.
 
 #### Annotation Library
 
