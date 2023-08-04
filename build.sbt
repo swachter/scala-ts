@@ -113,7 +113,7 @@ lazy val explore = project
   .in(file("explore"))
   .settings(
     name := "explore",
-    scalaVersion := scala3,
+    scalaVersion := scala213,
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     test := {
       (Compile / fastOptJS).value
@@ -144,10 +144,6 @@ lazy val plugin = project
     // -> the git based automatic plugin version derivation for the scala-ts plugin to use does not work
     // -> specify the scala-ts plugin version by a system property
     scriptedLaunchOpts += ("-Dplugin.version=" + version.value),
-    // pass through all jvm arguments that start with the given prefixes
-//    scriptedLaunchOpts ++= sys.process.javaVmArguments.filter(
-//      a => Seq("-Xmx", "-Xms", "-XX", "-Dsbt.log.noformat").exists(a.startsWith)
-//    ),
     scriptedBufferLog := false,
     // clean scripted projects before they are tested
     // -> scripted projects are copied into temp folders before they are tested
@@ -159,7 +155,7 @@ lazy val plugin = project
       val scriptedDir = baseDirectory.value / "src" / "sbt-test"
       val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_))
       projectDirs.foreach { dir =>
-        val r = (Process("sbt" :: "clean" :: Nil, dir, "PATH" -> System.getenv("PATH")) !)
+        val r = (Process(Seq("sbt", "clean"), dir, "PATH" -> System.getenv("PATH")) !)
         if (r != 0) {
           throw new MessageOnlyException(s"Could not clean scripted project in folder: $dir")
         }

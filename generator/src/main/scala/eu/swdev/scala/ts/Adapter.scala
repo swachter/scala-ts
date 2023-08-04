@@ -16,7 +16,7 @@ object Adapter {
       defn match {
         case i: Input.DefOrValOrVar if i.adapted.isAdapted => owner(i) += DefValVar(i)
         case i: Input.Obj                                  => i.member.foreach(traverse(_))
-        case i: Input.Cls                                  => addClassAdaption(i, owner(i), ())
+        case i: Input.Cls                                  => addClassAdaption(i, owner(i))
         case _                                             =>
       }
     }
@@ -29,7 +29,7 @@ object Adapter {
     i match {
       case i: Input.DefOrValOrVar if i.adapted.isAdapted => owner += DefValVar(i)
       case i: Input.Obj                                  => addObjAdaption(i, owner)
-      case i: Input.Cls                                  => addClassAdaption(i, owner, owner += AdapterObjProp(i))
+      case i: Input.Cls                                  => addClassAdaption(i, owner)
     }
   }
 
@@ -37,7 +37,7 @@ object Adapter {
     i match {
       case i: Input.DefOrValOrVar if i.adapted.isAdapted => owner += DefValVar(i)
       case i: Input.Obj                                  => addObjAdaption(i, owner)
-      case i: Input.Cls                                  => addClassAdaption(i, owner, ())
+      case i: Input.Cls                                  => addClassAdaption(i, owner)
     }
   }
 
@@ -47,11 +47,10 @@ object Adapter {
     i.member.foreach(addMemberToObj(obj, _))
   }
 
-  def addClassAdaption[D <: Def](i: Input.Cls, owner: Container[D], addAdapterObjProperty: => Unit): Unit = {
+  def addClassAdaption[D <: Def](i: Input.Cls, owner: Container[D]): Unit = {
     def adapterObj = owner.nestedObj(i.si.displayName)
     if (i.constrAdapted) {
       adapterObj += NewDelegateDef(i)
-      addAdapterObjProperty
     }
     if (i.member.exists(isAdapted) || i.ctorParams.exists(_.adapted.isAdapted)) {
       adapterObj += NewAdapterDef(i)
@@ -106,10 +105,6 @@ object Adapter {
 
   case class NewAdapterDef(input: Input.Cls) extends DefInObj {
     def name = "newAdapter"
-  }
-
-  case class AdapterObjProp(input: Input.Cls) extends DefInTrait {
-    override def name: String = s"${input.si.displayName}$$a"
   }
 
   case class Trait(input: Input.Cls) extends Container[DefInTrait] with WithNameFromDisplayName

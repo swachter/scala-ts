@@ -429,9 +429,9 @@ The translation rules for object adapters are nearly the same as for instance ad
 
 Note that modifications of adapted arrays are not reflected in the underlying Scala array. Therefore, the default interop type for an array is `eu.swdev.scala.ts.tpe.ReadOnlyArray`. That type corresponds to TypeScript's `ReadonlyArray`.
 
-#### Support for Inner Classes 
+#### Support of Inner Classes 
 
-Instance adapters may also contain class adapters of inner classes. Because of a current limitation of ScalaJS (cf. [ScalaJS/4142](https://github.com/scala-js/scala-js/issues/4142)) an additional field for the class adapter must be generated. The field is named like the adapted class with an `$a` suffix. The class adapter can be used to instantiate classes and adapters like a normal (i.e. non-inner) classes.
+Instance adapters may also contain class adapters of inner classes. These class adapters can be used like a class adapters of non-inner classes. Their `newDelegate` method creates an instance of the inner class and their `newAdapter` method returns an instance adapter for an instance of an inner class.
 
 ## Appendix
 

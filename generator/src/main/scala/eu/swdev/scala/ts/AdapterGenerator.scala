@@ -105,11 +105,6 @@ object AdapterGenerator {
       }
     }
 
-    def outputAdapterObjProp(prop: Adapter.AdapterObjProp, tracker: PathTracker): Unit = {
-      // assign a value to the adapter object; the adapter object can be referenced by its display name
-      result.addLine(s"val ${prop.name} = ${prop.input.si.displayName}")
-    }
-
     def outputNewDelegate(a: Adapter.NewDelegateDef, tracker: PathTracker): Unit = {
       val input = a.input
       val (params, args) = if (input.ctorParams.isEmpty) {
@@ -145,7 +140,6 @@ object AdapterGenerator {
       val tr = tracker.nest(a)
       a.defs.values.foreach {
         case a: Adapter.DefValVar      => outputDefValVar(a, tr)
-        case a: Adapter.AdapterObjProp => outputAdapterObjProp(a, tr)
         case a: Adapter.CtorParam if a.input.adapted.isAdapted =>
           a.input.mod match {
             case _: Input.CtorParamMod.Val => outputCtorVal(a.input, tr)
@@ -172,7 +166,6 @@ object AdapterGenerator {
         case a: Adapter.DefValVar      => outputDefValVar(a, tracker)
         case a: Adapter.NewDelegateDef => outputNewDelegate(a, tracker)
         case a: Adapter.NewAdapterDef  => outputNewAdapter(a, tracker)
-        case a: Adapter.AdapterObjProp => outputAdapterObjProp(a, tracker)
       }
 
       outputNested(a, tracker)

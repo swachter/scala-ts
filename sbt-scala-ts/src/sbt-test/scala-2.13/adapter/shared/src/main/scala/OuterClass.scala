@@ -17,7 +17,6 @@ object Adapter extends js.Object {
     @JSExportAll
     trait OuterClass extends InstanceAdapter[_root_.o.OuterClass] {
       def x = $delegate.x.$res
-      val Inner$a = Inner
       @JSExportAll
       trait Inner extends InstanceAdapter[_root_.o.OuterClass#Inner] {
         def y = $delegate.y.$res

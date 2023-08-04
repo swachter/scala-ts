@@ -18,7 +18,6 @@ class NestedClassTest extends AdapterFunSuite {
     |  object adapter extends js.Object {
     |    @JSExportAll
     |    trait OuterClass extends InstanceAdapter[_root_.adapter.OuterClass] {
-    |      val Inner$a = Inner
     |      def x = $delegate.x.$cnv[Int]
     |      @JSExportAll
     |      trait Inner extends InstanceAdapter[_root_.adapter.OuterClass#Inner] {

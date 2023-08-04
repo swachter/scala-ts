@@ -10,15 +10,15 @@ describe('nested class', function () {
     const dOuter = ca.newDelegate(5)
     const aOuter = ca.newAdapter(dOuter)
     expect(aOuter.x).toBe(5)
-    const dInner = aOuter.Inner$a.newDelegate('abc')
-    const aInner = aOuter.Inner$a.newAdapter(dInner)
+    const dInner = aOuter.Inner.newDelegate('abc')
+    const aInner = aOuter.Inner.newAdapter(dInner)
     expect(aInner.y).toBe('abc')
   })
 
   it('combined construction', () => {
     const outer = newAdapter(ca, 1)
     expect(outer.x).toBe(1)
-    const inner = newAdapter(outer.Inner$a, 'uvw')
+    const inner = newAdapter(outer.Inner, 'uvw')
     expect(inner.y).toBe('uvw')
   })
 
