@@ -172,10 +172,15 @@ object ScalaTsPlugin extends AutoPlugin {
       .withBootJars((config.compileClassDir +: config.compileFullClasspath).toVector)
       .withOutputStrategy(OutputStrategy.LoggedOutput(log))
       .withEnvVars(config.asEnvVars)
-    Fork.scala(
+    val exitCode = Fork.scala(
       changeForkOptions(options),
       Seq(s"${classOf[DtsGeneratorMain].getName}")
     )
+    if (exitCode != 0) {
+      throw new MessageOnlyException(
+        s"DtsGenerator failed - exitCode: $exitCode; config: $config"
+      )
+    }
   }
 
   def generateAdapter(enabled: Boolean,

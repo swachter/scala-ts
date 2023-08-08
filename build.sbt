@@ -155,7 +155,7 @@ lazy val plugin = project
       val scriptedDir = baseDirectory.value / "src" / "sbt-test"
       val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_))
       projectDirs.foreach { dir =>
-        val r = (Process(Seq("sbt", "clean"), dir, "PATH" -> System.getenv("PATH")) !)
+        val r = (Process(Seq("sbt", "+clean"), dir, "PATH" -> System.getenv("PATH")) !)
         if (r != 0) {
           throw new MessageOnlyException(s"Could not clean scripted project in folder: $dir")
         }
