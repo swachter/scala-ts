@@ -28,7 +28,7 @@ val scala213 = "2.13.11"
 val scala3   = "3.4.0-RC1-bin-SNAPSHOT" // "3.3.0"
 //val scala3   = "3.3.0"
 
-val scalaVersions = List(scala3, scala213, scala212)
+val scalaVersions = List(scala213, scala212) // TODO: Scala 3 not (yet) supported
 
 val SnapshotVersion = """(\d+(?:\.\d+)*).*-SNAPSHOT""".r
 
@@ -153,7 +153,7 @@ lazy val plugin = project
     // -> such broken symlinks would make the copy step of the scripted task fail
     scriptedDependencies := {
       val scriptedDir = baseDirectory.value / "src" / "sbt-test"
-      val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_))
+      val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_)).filter(f => f.isDirectory)
       projectDirs.foreach { dir =>
         val r = (Process(Seq("sbt", "+clean"), dir, "PATH" -> System.getenv("PATH")) !)
         if (r != 0) {

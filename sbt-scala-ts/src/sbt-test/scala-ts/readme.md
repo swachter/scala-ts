@@ -1,0 +1,1 @@
+Projects that are cross built and checked for all supported Scala versions.

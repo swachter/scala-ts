@@ -1,0 +1,12 @@
+# check if the type mapping file gets created
+> +scalaTsFastOpt
+$ exists target/scala-2.12/simple-cross-fastopt.d.ts
+$ exists target/scala-2.12/package.json
+$ exists target/scala-2.12/simple-cross-fastopt.js
+$ exists target/scala-2.13/simple-cross-fastopt.d.ts
+$ exists target/scala-2.13/package.json
+$ exists target/scala-2.13/simple-cross-fastopt.js
+$ exists target/scala-3.4.0-RC1-bin-SNAPSHOT/simple-cross-fastopt.d.ts
+$ exists target/scala-3.4.0-RC1-bin-SNAPSHOT/package.json
+$ exists target/scala-3.4.0-RC1-bin-SNAPSHOT/simple-cross-fastopt.js
+# $ pause
