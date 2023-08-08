@@ -153,7 +153,7 @@ lazy val plugin = project
     // -> such broken symlinks would make the copy step of the scripted task fail
     scriptedDependencies := {
       val scriptedDir = baseDirectory.value / "src" / "sbt-test"
-      val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_))
+      val projectDirs = IO.listFiles(scriptedDir).flatMap(IO.listFiles(_)).filter(f => f.isDirectory)
       projectDirs.foreach { dir =>
         val r = (Process(Seq("sbt", "+clean"), dir, "PATH" -> System.getenv("PATH")) !)
         if (r != 0) {

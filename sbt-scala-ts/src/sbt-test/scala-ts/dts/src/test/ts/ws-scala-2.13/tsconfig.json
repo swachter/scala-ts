@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "spec/*",
+    "spec-2.13/*",
+    "mod/*"
+  ],
+  "compilerOptions": {
+    "outDir": "./dist"
+  }
+}

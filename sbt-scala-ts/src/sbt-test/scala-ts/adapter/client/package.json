@@ -1,0 +1,13 @@
+{
+  "name": "test-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "workspaces": [ "src/test/ts/ws-*" ],
+  "scripts": {
+    "clean": "rm -rf node_modules"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
